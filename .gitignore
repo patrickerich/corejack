@@ -1,0 +1,101 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.cache/
+coverage.xml
+htmlcov/
+pip-wheel-metadata/
+
+# Generated project artifacts
+gen/
+!gen/.gitkeep
+
+# Verilator / simulation
+obj_dir/
+sim_build/
+tb/sim_build/
+results.xml
+*.vcd
+*.vcd.gz
+*.fst
+*.wlf
+*.vpd
+*.lxt
+*.lxt2
+*.d
+*.o
+*.a
+
+# Bender / HDL dependency workdirs
+.bender/
+.bender_cache/
+deps/
+.tools/
+bin/.tools/
+sw/build/
+sw/zephyr/build/
+
+# FuseSoC / edalize workdirs
+build/
+build_*_bit/
+edalize_build/
+fusesoc_libraries/
+
+# Vivado artifacts, including files Vivado may emit in the repo root
+*.jou
+*.backup.jou
+*.str
+*.xpr
+*.xpr.zip
+*.runs/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.sim/
+*.srcs/
+*.gen/
+*.bit
+*.ltx
+*.dcp
+*.rpt
+*.wdb
+*.pb
+*.Xil/
+.Xil/
+
+# Logs / editor / OS noise
+logs/
+sourceme.local.sh
+*.log
+*.tmp
+.DS_Store
+.idea/
+.vscode/
+
+# Coding assistant / local AI tool metadata
+.codex
+.codex/
+.aider*
+.cursor/
+.continue/
+.windsurf/
+.claude/
+.avante/
+.roo/
+
+# Local scratch / reference checkouts
+temp/
+tmp/
+ref/
+refs/
+reference/
+references/

@@ -1,0 +1,63 @@
+name: cv32e40p
+display_name: CV32E40P
+
+integration:
+  sim: supported
+  fpga: supported
+  debug: supported
+
+dependency:
+  manager: bender_vendor_package
+  package: cv32e40p
+  path: deps/cv32e40p
+  upstream: https://github.com/openhwgroup/cv32e40p.git
+  rev: 6033d2b1be3295ec774d17ac4cf226faacfdeb08
+
+adapter:
+  module: corejack_cv32e40p_socket_adapter
+  file: rtl/cores/corejack_cv32e40p_socket_adapter.sv
+
+platform:
+  core_type: 1
+  integration: socket_region
+
+wrapper:
+  module: corejack_cv32e40p_wrapper
+
+fusesoc:
+  sim_target: sw-sim
+  core_flag: core_cv32e40p
+
+isa:
+  xlen: 32
+  march: rv32imc
+  mabi: ilp32
+
+reset:
+  boot_addr: 0x80000000
+  mtvec_addr: 0x80000000
+
+debug:
+  supported: true
+  hart_count: 1
+  hartsel: 0
+  halt_addr: 0x1a110800
+  exception_addr: 0x1a110810
+
+buses:
+  instruction: obi
+  data: obi
+
+clocking:
+  validated_min_hz: 25000000
+  validated_max_hz: 25000000
+
+software:
+  default_target: fpga
+  toolchain: riscv-multilib
+  zephyr:
+    status: initial_supported
+    board: corejack_cv32e40p_axku5
+
+compatible_boards:
+  - axku5

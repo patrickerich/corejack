@@ -1,0 +1,58 @@
+name: axku5
+display_name: ALINX AXKU5
+
+fpga:
+  part: xcku5p-ffvb676-2-e
+  top_template: corejack_{board}_wrap
+  target: fpga
+  work_root: build/fpga/{board}/{core}/fusesoc-fpga
+
+fusesoc:
+  board_flag: board_axku5
+
+clock:
+  input_hz: 200000000
+  soc_hz: 25000000
+  constraints_ports:
+    p: sys_clk_p
+    n: sys_clk_n
+
+reset:
+  polarity: active_low
+  constraints_port: sys_rst_n
+
+uart:
+  baud: 115200
+  tx_port: uart_tx
+  rx_port: uart_rx
+
+debug:
+  transport: jtag
+  openocd_cfg: rtl/platform/fpga/scripts/openocd.cfg
+
+constraints:
+  xdc: rtl/platform/fpga/boards/axku5/axku5.xdc
+
+programming:
+  flow: vivado
+  bitstream_target: fpga-bit
+  program_target: fpga-pgm
+
+validation:
+  smoke_app: hello_world
+  expected_uart:
+    - "=== CoreJack SoC Demo ==="
+    - "Target: fpga"
+    - "Core: {core}"
+    - "Board: {board}"
+    - "path is alive."
+
+compatible_cores:
+  - ibex
+  - cv32e40p
+  - cv32e40x
+  - cv32e40s
+  - cva6
+  - serv
+  - picorv32
+  - cvw

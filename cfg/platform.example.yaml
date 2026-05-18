@@ -1,0 +1,26 @@
+platform:
+  name: corejack_eval
+  interconnect:
+    type: axi_hierarchical
+  memory:
+    map_mode: interleaved
+    interleave_granularity: 64
+    slices:
+      - name: mem0
+        base: 0x80000000
+        size: 0x00100000
+        tech: behavioral
+      - name: mem1
+        base: 0x80100000
+        size: 0x00100000
+        tech: xilinx_bram
+  peripherals:
+    - name: uart0
+      base: 0x10000000
+      size: 0x00001000
+    - name: clint0
+      base: 0x02000000
+      size: 0x00010000
+    - name: debug0
+      base: 0xFFFF0000
+      size: 0x00010000

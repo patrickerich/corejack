@@ -1,0 +1,13 @@
+diff --git a/core/csr_regfile.sv b/core/csr_regfile.sv
+index 7eda7b6..ac27e04 100644
+--- a/core/csr_regfile.sv
++++ b/core/csr_regfile.sv
+@@ -334,7 +334,7 @@ module csr_regfile #(
+   | (CVA6Cfg.XLEN'(CVA6Cfg.RVU) << 20)  // U - User mode implemented
+   | (CVA6Cfg.XLEN'(CVA6Cfg.RVV) << 21)  // V - Vector extension
+   | (CVA6Cfg.XLEN'(CVA6Cfg.NSX) << 23)  // X - Non-standard extensions present
+-  | ((CVA6Cfg.XLEN == 64 ? 2 : 1) << CVA6Cfg.XLEN - 2);  // MXL
++  | (CVA6Cfg.XLEN'(CVA6Cfg.XLEN == 64 ? 2 : 1) << (CVA6Cfg.XLEN - 2));  // MXL
+ 
+   assign pmpcfg_o  = pmpcfg_q[(CVA6Cfg.NrPMPEntries>0?CVA6Cfg.NrPMPEntries-1 : 0):0];
+   assign pmpaddr_o = pmpaddr_q[(CVA6Cfg.NrPMPEntries>0?CVA6Cfg.NrPMPEntries-1 : 0):0];

@@ -1,0 +1,16 @@
+CAPI=2:
+
+name: corejack:cores:picorv32:0.1.0
+description: PicoRV32 RTL and CoreJack adapter used by the CoreJack platform
+
+filesets:
+  rtl:
+    files:
+      - deps/picorv32/picorv32.v
+      - rtl/cores/corejack_picorv32_socket_adapter.sv
+    file_type: systemVerilogSource
+
+targets:
+  default:
+    filesets:
+      - rtl

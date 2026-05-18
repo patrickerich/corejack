@@ -1,0 +1,9 @@
+if BOARD_COREJACK_CV32E40X_AXKU5
+
+config BOARD
+	default "corejack_cv32e40x_axku5"
+
+config MAIN_STACK_SIZE
+	default 2048
+
+endif

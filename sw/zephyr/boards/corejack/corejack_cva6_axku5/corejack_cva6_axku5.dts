@@ -1,0 +1,21 @@
+/dts-v1/;
+
+#include <corejack/corejack_cva6.dtsi>
+
+/ {
+	model = "CoreJack CVA6 on AXKU5";
+	compatible = "corejack,corejack-cva6-axku5";
+
+	chosen {
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
+		zephyr,flash = &flash0;
+		zephyr,sram = &sram0;
+	};
+};
+
+&uart0 {
+	status = "okay";
+	current-speed = <115200>;
+	clock-frequency = <25000000>;
+};

@@ -1,0 +1,32 @@
+CAPI=2:
+
+name: corejack:cores:serv:0.1.0
+description: SERV RTL and CoreJack adapter used by the CoreJack platform
+
+filesets:
+  rtl:
+    files:
+      - deps/serv/rtl/serv_bufreg.v
+      - deps/serv/rtl/serv_bufreg2.v
+      - deps/serv/rtl/serv_alu.v
+      - deps/serv/rtl/serv_csr.v
+      - deps/serv/rtl/serv_ctrl.v
+      - deps/serv/rtl/serv_decode.v
+      - deps/serv/rtl/serv_immdec.v
+      - deps/serv/rtl/serv_mem_if.v
+      - deps/serv/rtl/serv_rf_if.v
+      - deps/serv/rtl/serv_rf_ram_if.v
+      - deps/serv/rtl/serv_rf_ram.v
+      - deps/serv/rtl/serv_state.v
+      - deps/serv/rtl/serv_debug.v
+      - deps/serv/rtl/serv_top.v
+      - deps/serv/rtl/serv_rf_top.v
+      - deps/serv/rtl/serv_aligner.v
+      - deps/serv/rtl/serv_compdec.v
+      - rtl/cores/corejack_serv_socket_adapter.sv
+    file_type: systemVerilogSource
+
+targets:
+  default:
+    filesets:
+      - rtl

@@ -1,0 +1,60 @@
+name: serv
+display_name: SERV
+
+integration:
+  sim: supported
+  fpga: supported
+  debug: unsupported
+
+dependency:
+  manager: bender_vendor_package
+  package: serv
+  path: deps/serv
+  upstream: https://github.com/olofk/serv.git
+  rev: f5ddfaa6378a958f0797146a6f8b2bcf72ce4e3b
+  fusesoc_core: award-winning:serv:serv:1.4.0
+
+adapter:
+  module: corejack_serv_socket_adapter
+  file: rtl/cores/corejack_serv_socket_adapter.sv
+
+platform:
+  core_type: 5
+  integration: socket_region
+
+wrapper:
+  module: corejack_serv_wrapper
+
+fusesoc:
+  sim_target: sw-sim
+  core_flag: core_serv
+
+isa:
+  xlen: 32
+  march: rv32i
+  mabi: ilp32
+
+reset:
+  boot_addr: 0x80000000
+  mtvec_addr: 0x80000000
+
+debug:
+  supported: false
+
+buses:
+  instruction: serv_wishbone_minimal
+  data: serv_wishbone_minimal
+
+clocking:
+  validated_min_hz: 25000000
+  validated_max_hz: 25000000
+
+software:
+  default_target: fpga
+  toolchain: riscv-multilib
+  zephyr:
+    status: initial_supported
+    board: corejack_serv_axku5
+
+compatible_boards:
+  - axku5

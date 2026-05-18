@@ -1,0 +1,58 @@
+name: cvw
+display_name: CORE-V-Wally
+
+integration:
+  sim: supported
+  fpga: supported
+  debug: unsupported
+
+dependency:
+  manager: bender_vendor_package
+  package: cvw
+  path: deps/cvw
+  upstream: https://github.com/openhwgroup/cvw.git
+  rev: 03f16461df99ac6de077a0549693c887fa04892d
+
+adapter:
+  module: corejack_cvw_ahb_adapter
+  file: rtl/cores/corejack_cvw_ahb_adapter.sv
+
+platform:
+  core_type: 7
+  integration: socket_region
+
+wrapper:
+  module: wallypipelinedcore
+
+fusesoc:
+  sim_target: sw-sim
+  core_flag: core_cvw
+
+isa:
+  xlen: 32
+  march: rv32imc
+  mabi: ilp32
+
+reset:
+  boot_addr: 0x80000080
+  mtvec_addr: 0x80000000
+
+debug:
+  supported: false
+
+buses:
+  instruction: ahb_lite
+  data: ahb_lite
+
+clocking:
+  validated_min_hz: 25000000
+  validated_max_hz: 25000000
+
+software:
+  default_target: fpga
+  toolchain: riscv-multilib
+  zephyr:
+    status: planned
+
+compatible_boards:
+  - axku5

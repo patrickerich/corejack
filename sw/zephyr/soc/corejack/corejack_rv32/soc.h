@@ -1,0 +1,4 @@
+#ifndef COREJACK_ZEPHYR_SOC_H
+#define COREJACK_ZEPHYR_SOC_H
+
+#endif /* COREJACK_ZEPHYR_SOC_H */

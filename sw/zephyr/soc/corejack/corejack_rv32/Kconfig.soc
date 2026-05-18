@@ -1,0 +1,5 @@
+config SOC_COREJACK_RV32
+	bool
+
+config SOC
+	default "corejack_rv32" if SOC_COREJACK_RV32

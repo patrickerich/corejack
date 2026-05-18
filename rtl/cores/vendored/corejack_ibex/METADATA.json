@@ -1,0 +1,14 @@
+{
+  "ibex_git_sha": "dc25e511209a49b0216edd7cdd06d6cfe8073010",
+  "upstream_remote": "git@github.com:lowRISC/ibex.git",
+  "upstream_ref": "upstream/master",
+  "upstream_git_sha": "9742d89f54fc297bed026841c8e68454ddfd7cc0",
+  "upstream_merge_base": "9742d89f54fc297bed026841c8e68454ddfd7cc0",
+  "config": "corejack",
+  "origin": "tool-filelist",
+  "tool_list": "ibex_wrapper_design_1.0.vc",
+  "opts": "--RV32E=0 --RV32M=ibex_pkg::RV32MFast --RV32B=ibex_pkg::RV32BBalanced --RV32ZC=ibex_pkg::RV32ZcaZcbZcmp --RegFile=ibex_pkg::RegFileFF --BranchTargetALU=1 --WritebackStage=1 --ICache=0 --ICacheECC=0 --ICacheScramble=0 --BranchPredictor=0 --DbgTriggerEn=0 --SecureIbex=0 --PMPEnable=0 --PMPGranularity=0 --PMPNumRegions=16 --MHPMCounterNum=4 --MHPMCounterWidth=40",
+  "defines_hints": "VERILATOR",
+  "include_fallback": "disabled",
+  "generated_utc": "2026-05-18T19:12:56Z"
+}

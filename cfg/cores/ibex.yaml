@@ -1,0 +1,56 @@
+name: ibex
+display_name: Ibex
+
+integration:
+  sim: supported
+  fpga: supported
+  debug: supported
+
+adapter:
+  module: corejack_ibex_socket_adapter
+  file: rtl/cores/corejack_ibex_socket_adapter.sv
+
+platform:
+  core_type: 0
+  integration: socket_region
+
+wrapper:
+  module: corejack_ibex_wrapper
+
+fusesoc:
+  sim_target: sw-sim
+  core_flag: core_ibex
+
+isa:
+  xlen: 32
+  march: rv32imcb
+  mabi: ilp32
+
+reset:
+  boot_addr: 0x80000000
+  mtvec_addr: 0x80000000
+
+debug:
+  supported: true
+  hart_count: 1
+  hartsel: 0
+  halt_addr: 0x1a110800
+  exception_addr: 0x1a110808
+
+buses:
+  instruction: obi
+  data: obi
+
+clocking:
+  validated_min_hz: 25000000
+  validated_max_hz: 25000000
+
+software:
+  default_target: fpga
+  toolchain: riscv-multilib
+  zephyr:
+    status: initial_supported
+    board: corejack_ibex_axku5
+
+compatible_boards:
+  - axku5

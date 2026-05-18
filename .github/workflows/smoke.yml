@@ -1,0 +1,57 @@
+name: smoke
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Cache venv
+        uses: actions/cache@v5
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            venv-${{ runner.os }}-
+
+      - name: Run fast project checks
+        shell: bash
+        run: |
+          source ./sourceme.sh
+          make python-tests
+          make support-matrix-check
+          make board-check BOARD=axku5
+          make target-check BOARD=axku5
+          make axi-addr-map-check
+
+      - name: Setup Verilator
+        uses: veryl-lang/setup-verilator@v1
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        with:
+          version: '5.048'
+
+      - name: Run smoke test
+        shell: bash
+        run: |
+          source ./sourceme.sh
+          make smoke

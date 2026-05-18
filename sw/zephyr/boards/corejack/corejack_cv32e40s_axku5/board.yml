@@ -1,0 +1,6 @@
+board:
+  name: corejack_cv32e40s_axku5
+  full_name: CoreJack CV32E40S on AXKU5
+  vendor: corejack
+  socs:
+    - name: corejack_rv32

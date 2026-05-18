@@ -1,0 +1,63 @@
+name: cva6
+display_name: CVA6
+
+integration:
+  sim: supported
+  fpga: supported
+  debug: supported
+
+dependency:
+  manager: project_local_git_checkout
+  package: cva6
+  path: deps/cva6
+  upstream: https://github.com/openhwgroup/cva6.git
+  rev: f0c274cad66b84cd58379880741680351c7ce9ab
+
+adapter:
+  module: corejack_cva6_axi_adapter
+  file: rtl/cores/corejack_cva6_axi_adapter.sv
+
+platform:
+  core_type: 4
+  integration: native_axi
+
+wrapper:
+  module: corejack_cva6_wrapper
+
+fusesoc:
+  sim_target: sw-sim
+  core_flag: core_cva6
+
+isa:
+  xlen: 64
+  march: rv64imc
+  mabi: lp64
+
+reset:
+  boot_addr: 0x80000080
+  mtvec_addr: 0x80000000
+
+debug:
+  supported: true
+  hart_count: 1
+  hartsel: 0
+  halt_addr: 0x00000800
+  exception_addr: 0x00000810
+
+buses:
+  instruction: axi
+  data: axi
+
+clocking:
+  validated_min_hz: 25000000
+  validated_max_hz: 25000000
+
+software:
+  default_target: sim
+  toolchain: riscv-multilib
+  zephyr:
+    status: initial_supported
+    board: corejack_cva6_axku5
+
+compatible_boards:
+  - axku5

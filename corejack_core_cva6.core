@@ -1,0 +1,102 @@
+CAPI=2:
+
+name: corejack:cores:cva6:0.1.0
+description: CVA6 RTL and CoreJack adapter used by the CoreJack platform
+
+filesets:
+  rtl:
+    files:
+      - deps/cva6/core/include/rvfi_types.svh : {file_type : user, copyto : rvfi_types.svh}
+      - deps/cva6/core/include/cvxif_types.svh : {file_type : user, copyto : cvxif_types.svh}
+      - deps/common_cells/src/lzc.sv
+      - deps/common_cells/src/onehot_to_bin.sv
+      - deps/common_cells/src/rr_arb_tree.sv
+      - deps/common_cells/src/stream_register.sv
+      - deps/common_cells/src/lfsr.sv
+      - deps/common_cells/src/exp_backoff.sv
+      - deps/common_cells/src/shift_reg.sv
+      - rtl/cores/cva6_shift_reg_gated.sv
+      - deps/common_cells/src/popcount.sv
+      - deps/common_cells/src/unread.sv
+      - deps/tech_cells_generic/src/rtl/tc_sram.sv
+      - deps/cva6/core/include/config_pkg.sv
+      - rtl/cores/cva6_corejack_config_pkg.sv
+      - rtl/cores/cva6_fpnew_stub_pkg.sv
+      - deps/cva6/core/include/riscv_pkg.sv
+      - deps/cva6/core/include/ariane_pkg.sv
+      - deps/cva6/core/include/build_config_pkg.sv
+      - deps/cva6/core/cva6_accel_first_pass_decoder_stub.sv
+      - deps/cva6/core/include/dummy_l15_pkg.sv
+      - deps/cva6/core/include/wt_cache_pkg.sv
+      - deps/cva6/core/include/std_cache_pkg.sv
+      - deps/cva6/core/include/aes_pkg.sv
+      - deps/cva6/core/cva6_rvfi_probes.sv
+      - deps/cva6/core/cva6_fifo_v3.sv
+      - deps/cva6/core/cvxif_issue_register_commit_if_driver.sv
+      - deps/cva6/core/cva6.sv
+      - deps/cva6/core/aes.sv
+      - deps/cva6/core/alu.sv
+      - deps/cva6/core/alu_wrapper.sv
+      - deps/cva6/core/branch_unit.sv
+      - deps/cva6/core/compressed_decoder.sv
+      - deps/cva6/core/controller.sv
+      - deps/cva6/core/csr_buffer.sv
+      - deps/cva6/core/csr_regfile.sv
+      - deps/cva6/core/decoder.sv
+      - deps/cva6/core/ex_stage.sv
+      - deps/cva6/core/acc_dispatcher.sv
+      - deps/cva6/core/instr_realign.sv
+      - deps/cva6/core/id_stage.sv
+      - deps/cva6/core/issue_read_operands.sv
+      - deps/cva6/core/issue_stage.sv
+      - deps/cva6/core/load_unit.sv
+      - deps/cva6/core/load_store_unit.sv
+      - deps/cva6/core/lsu_bypass.sv
+      - deps/cva6/core/mult.sv
+      - deps/cva6/core/multiplier.sv
+      - deps/cva6/core/serdiv.sv
+      - deps/cva6/core/perf_counters.sv
+      - deps/cva6/core/ariane_regfile_ff.sv
+      - deps/cva6/core/ariane_regfile_fpga.sv
+      - deps/cva6/core/scoreboard.sv
+      - deps/cva6/core/raw_checker.sv
+      - deps/cva6/core/store_buffer.sv
+      - deps/cva6/core/amo_buffer.sv
+      - deps/cva6/core/store_unit.sv
+      - deps/cva6/core/commit_stage.sv
+      - deps/cva6/core/axi_shim.sv
+      - deps/cva6/core/frontend/btb.sv
+      - deps/cva6/core/frontend/bht.sv
+      - deps/cva6/core/frontend/bht2lvl.sv
+      - deps/cva6/core/frontend/ras.sv
+      - deps/cva6/core/frontend/instr_scan.sv
+      - deps/cva6/core/frontend/instr_queue.sv
+      - deps/cva6/core/frontend/frontend.sv
+      - deps/cva6/core/cache_subsystem/wt_dcache_ctrl.sv
+      - deps/cva6/core/cache_subsystem/wt_dcache_mem.sv
+      - deps/cva6/core/cache_subsystem/wt_dcache_missunit.sv
+      - deps/cva6/core/cache_subsystem/wt_dcache_wbuffer.sv
+      - deps/cva6/core/cache_subsystem/wt_dcache.sv
+      - deps/cva6/core/cache_subsystem/wt_cache_subsystem.sv
+      - deps/cva6/core/cache_subsystem/wt_axi_adapter.sv
+      - deps/cva6/core/cache_subsystem/cva6_icache.sv
+      - deps/cva6/core/cache_subsystem/tag_cmp.sv
+      - deps/cva6/core/cache_subsystem/cva6_icache_axi_wrapper.sv
+      - deps/cva6/core/cache_subsystem/axi_adapter.sv
+      - deps/cva6/core/cache_subsystem/miss_handler.sv
+      - deps/cva6/core/cache_subsystem/cache_ctrl.sv
+      - deps/cva6/core/cache_subsystem/std_nbdcache.sv
+      - deps/cva6/core/cache_subsystem/std_cache_subsystem.sv
+      - deps/cva6/core/pmp/src/pmp.sv
+      - deps/cva6/core/pmp/src/pmp_entry.sv
+      - deps/cva6/core/pmp/src/pmp_data_if.sv
+      - deps/cva6/common/local/util/sram.sv
+      - deps/cva6/common/local/util/sram_cache.sv
+      - rtl/cores/cva6_tc_sram_wrappers.sv
+      - rtl/cores/corejack_cva6_axi_adapter.sv
+    file_type: systemVerilogSource
+
+targets:
+  default:
+    filesets:
+      - rtl

@@ -1,0 +1,58 @@
+name: picorv32
+display_name: PicoRV32
+
+integration:
+  sim: supported
+  fpga: supported
+  debug: unsupported
+
+dependency:
+  manager: bender_vendor_package
+  package: picorv32
+  path: deps/picorv32
+  upstream: https://github.com/YosysHQ/picorv32.git
+  rev: 87c89acc18994c8cf9a2311e871818e87d304568
+
+adapter:
+  module: corejack_picorv32_socket_adapter
+  file: rtl/cores/corejack_picorv32_socket_adapter.sv
+
+platform:
+  core_type: 6
+  integration: socket_region
+
+wrapper:
+  module: picorv32
+
+fusesoc:
+  sim_target: sw-sim
+  core_flag: core_picorv32
+
+isa:
+  xlen: 32
+  march: rv32imc
+  mabi: ilp32
+
+reset:
+  boot_addr: 0x80000000
+  mtvec_addr: 0x80000000
+
+debug:
+  supported: false
+
+buses:
+  instruction: picorv32_native
+  data: picorv32_native
+
+clocking:
+  validated_min_hz: 25000000
+  validated_max_hz: 25000000
+
+software:
+  default_target: fpga
+  toolchain: riscv-multilib
+  zephyr:
+    status: unsupported
+
+compatible_boards:
+  - axku5

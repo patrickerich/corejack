@@ -1,0 +1,34 @@
+# Reviewed Vivado warning IDs.
+#
+# Keep this list at message-ID granularity. A new warning ID means either the
+# build changed or a new tool diagnostic appeared and needs explicit review.
+
+# Vivado-generated power estimation can infer unrealistic reset assertion time
+# without simulation activity. Timing and hardware smoke remain the acceptance
+# criteria for this flow.
+Power 33-332
+
+# Upstream dependency/package diagnostics. These are emitted by current Vivado
+# synthesis for vendored or bender-managed third-party RTL.
+Synth 8-10940
+Synth 8-11067
+Synth 8-11065
+Synth 8-3848
+Synth 8-3936
+Synth 8-3917
+Synth 8-4446
+Synth 8-6014
+Synth 8-693
+Synth 8-7129
+Synth 8-7137
+
+# PicoRV32 parameterization leaves upstream decode case branches unreachable
+# when optional features such as IRQ and barrel shifting are disabled.
+Synth 8-151
+
+# Tool-flow informational diagnostics.
+Synth 8-7080
+
+# Core-dependent optimization: OBI-to-AXI write-side state is removed for
+# read-only instruction-side instances.
+Synth 8-3332

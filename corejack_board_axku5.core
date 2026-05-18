@@ -1,0 +1,16 @@
+CAPI=2:
+
+name: corejack:boards:axku5:0.1.0
+description: ALINX AXKU5 FPGA board wrapper and constraints for CoreJack
+
+filesets:
+  board_rtl:
+    files:
+      - rtl/platform/fpga/boards/axku5/corejack_axku5_wrap.sv
+      - rtl/platform/fpga/boards/axku5/axku5.xdc : {file_type: xdc}
+    file_type: systemVerilogSource
+
+targets:
+  default:
+    filesets:
+      - board_rtl

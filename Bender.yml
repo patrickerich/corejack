@@ -1,0 +1,241 @@
+package:
+  name: corejack/platform
+  authors:
+    - CoreJack contributors
+
+dependencies:
+  apb:
+    git: https://github.com/pulp-platform/apb.git
+    version: 0.2.4
+  axi:
+    git: https://github.com/pulp-platform/axi.git
+    version: 0.38.0
+  clint:
+    git: https://github.com/pulp-platform/clint.git
+    rev: d5390a805c20f9226758a152ba1645f61da73349
+  obi:
+    git: https://github.com/pulp-platform/obi.git
+    version: 0.1.7
+  apb_uart:
+    git: https://github.com/pulp-platform/apb_uart.git
+    rev: 8182a85d234417db46fe833533f8536644d3bee3
+  riscv-dbg:
+    git: https://github.com/pulp-platform/riscv-dbg.git
+    rev: 1cd764a82d7d49c5e8679fbb70b540b2e274bab9
+
+vendor_package:
+  - name: serv
+    target_dir: .bender/vendor/serv
+    upstream:
+      git: https://github.com/olofk/serv.git
+      rev: f5ddfaa6378a958f0797146a6f8b2bcf72ce4e3b
+  - name: picorv32
+    target_dir: .bender/vendor/picorv32
+    upstream:
+      git: https://github.com/YosysHQ/picorv32.git
+      rev: 87c89acc18994c8cf9a2311e871818e87d304568
+  - name: cvw
+    target_dir: .bender/vendor/cvw
+    upstream:
+      git: https://github.com/openhwgroup/cvw.git
+      rev: 03f16461df99ac6de077a0549693c887fa04892d
+  - name: cv32e40p
+    target_dir: .bender/vendor/cv32e40p
+    upstream:
+      git: https://github.com/openhwgroup/cv32e40p.git
+      rev: 6033d2b1be3295ec774d17ac4cf226faacfdeb08
+  - name: cv32e40x
+    target_dir: .bender/vendor/cv32e40x
+    upstream:
+      git: https://github.com/openhwgroup/cv32e40x.git
+      rev: d952cd63bc1b4eb58cd893c28ef8283c781e345e
+  - name: cv32e40s
+    target_dir: .bender/vendor/cv32e40s
+    upstream:
+      git: https://github.com/openhwgroup/cv32e40s.git
+      rev: 9d9cae78b01a11458953133d1173c61933a2ba86
+
+sources:
+  files:
+    - rtl/pkg/platform_pkg.sv
+    - rtl/pkg/soc_bus_pkg.sv
+    - rtl/pkg/mem_ss_pkg.sv
+    - rtl/interfaces/core_socket_if.sv
+    - rtl/interfaces/accel_socket_if.sv
+    - rtl/mem/soc_sram_slice_model.sv
+    - rtl/mem/soc_sram_slice_xilinx.sv
+    - rtl/mem/soc_sram_slice_wrapper.sv
+    - rtl/mem/soc_obi_mem_buffer.sv
+    - rtl/mem/soc_mem_ss.sv
+    - rtl/bus/soc_obi_to_axi.sv
+    - rtl/bus/soc_axi_arbiter.sv
+    - rtl/bus/soc_axi_demux.sv
+    - rtl/bus/soc_axi_to_apb.sv
+    - rtl/bus/soc_axi_to_dm.sv
+    - rtl/bus/soc_axi_to_mem.sv
+    - rtl/bus/soc_axi_to_reg.sv
+    - rtl/platform/soc_uart_sram_loader.sv
+    - deps/register_interface/vendor/lowrisc_opentitan/src/prim_subreg_arb.sv
+    - deps/register_interface/vendor/lowrisc_opentitan/src/prim_subreg.sv
+    - deps/clint/src/clint_reg_pkg.sv
+    - deps/clint/src/clint_reg_top.sv
+    - deps/clint/src/clint.sv
+    - gen/rtl/addr_map_pkg.sv
+    - rtl/top/soc_top.sv
+
+    - target: fpga
+      files:
+        - rtl/cores/cv32e40p_clock_gate.sv
+        - deps/cv32e40p/rtl/include/cv32e40p_apu_core_pkg.sv
+        - deps/cv32e40p/rtl/include/cv32e40p_fpu_pkg.sv
+        - deps/cv32e40p/rtl/include/cv32e40p_pkg.sv
+        - deps/cv32e40p/rtl/cv32e40p_if_stage.sv
+        - deps/cv32e40p/rtl/cv32e40p_cs_registers.sv
+        - deps/cv32e40p/rtl/cv32e40p_register_file_ff.sv
+        - deps/cv32e40p/rtl/cv32e40p_load_store_unit.sv
+        - deps/cv32e40p/rtl/cv32e40p_id_stage.sv
+        - deps/cv32e40p/rtl/cv32e40p_aligner.sv
+        - deps/cv32e40p/rtl/cv32e40p_decoder.sv
+        - deps/cv32e40p/rtl/cv32e40p_compressed_decoder.sv
+        - deps/cv32e40p/rtl/cv32e40p_fifo.sv
+        - deps/cv32e40p/rtl/cv32e40p_prefetch_buffer.sv
+        - deps/cv32e40p/rtl/cv32e40p_prefetch_controller.sv
+        - deps/cv32e40p/rtl/cv32e40p_hwloop_regs.sv
+        - deps/cv32e40p/rtl/cv32e40p_mult.sv
+        - deps/cv32e40p/rtl/cv32e40p_int_controller.sv
+        - deps/cv32e40p/rtl/cv32e40p_ex_stage.sv
+        - deps/cv32e40p/rtl/cv32e40p_alu_div.sv
+        - deps/cv32e40p/rtl/cv32e40p_alu.sv
+        - deps/cv32e40p/rtl/cv32e40p_ff_one.sv
+        - deps/cv32e40p/rtl/cv32e40p_popcnt.sv
+        - deps/cv32e40p/rtl/cv32e40p_apu_disp.sv
+        - deps/cv32e40p/rtl/cv32e40p_controller.sv
+        - deps/cv32e40p/rtl/cv32e40p_obi_interface.sv
+        - deps/cv32e40p/rtl/cv32e40p_sleep_unit.sv
+        - deps/cv32e40p/rtl/cv32e40p_core.sv
+        - deps/cv32e40p/rtl/cv32e40p_top.sv
+        - rtl/cores/cv32e40x_clock_gate.sv
+        - deps/cv32e40x/rtl/include/cv32e40x_pkg.sv
+        - deps/cv32e40x/rtl/cv32e40x_if_c_obi.sv
+        - deps/cv32e40x/rtl/cv32e40x_if_xif.sv
+        - deps/cv32e40x/rtl/cv32e40x_align_check.sv
+        - deps/cv32e40x/rtl/cv32e40x_if_stage.sv
+        - deps/cv32e40x/rtl/cv32e40x_csr.sv
+        - deps/cv32e40x/rtl/cv32e40x_debug_triggers.sv
+        - deps/cv32e40x/rtl/cv32e40x_cs_registers.sv
+        - deps/cv32e40x/rtl/cv32e40x_register_file.sv
+        - deps/cv32e40x/rtl/cv32e40x_register_file_wrapper.sv
+        - deps/cv32e40x/rtl/cv32e40x_write_buffer.sv
+        - deps/cv32e40x/rtl/cv32e40x_lsu_response_filter.sv
+        - deps/cv32e40x/rtl/cv32e40x_load_store_unit.sv
+        - deps/cv32e40x/rtl/cv32e40x_id_stage.sv
+        - deps/cv32e40x/rtl/cv32e40x_i_decoder.sv
+        - deps/cv32e40x/rtl/cv32e40x_m_decoder.sv
+        - deps/cv32e40x/rtl/cv32e40x_a_decoder.sv
+        - deps/cv32e40x/rtl/cv32e40x_b_decoder.sv
+        - deps/cv32e40x/rtl/cv32e40x_decoder.sv
+        - deps/cv32e40x/rtl/cv32e40x_compressed_decoder.sv
+        - deps/cv32e40x/rtl/cv32e40x_sequencer.sv
+        - deps/cv32e40x/rtl/cv32e40x_alignment_buffer.sv
+        - deps/cv32e40x/rtl/cv32e40x_prefetch_unit.sv
+        - deps/cv32e40x/rtl/cv32e40x_mult.sv
+        - deps/cv32e40x/rtl/cv32e40x_int_controller.sv
+        - deps/cv32e40x/rtl/cv32e40x_clic_int_controller.sv
+        - deps/cv32e40x/rtl/cv32e40x_ex_stage.sv
+        - deps/cv32e40x/rtl/cv32e40x_wb_stage.sv
+        - deps/cv32e40x/rtl/cv32e40x_div.sv
+        - deps/cv32e40x/rtl/cv32e40x_alu.sv
+        - deps/cv32e40x/rtl/cv32e40x_ff_one.sv
+        - deps/cv32e40x/rtl/cv32e40x_popcnt.sv
+        - deps/cv32e40x/rtl/cv32e40x_alu_b_cpop.sv
+        - deps/cv32e40x/rtl/cv32e40x_controller_fsm.sv
+        - deps/cv32e40x/rtl/cv32e40x_controller_bypass.sv
+        - deps/cv32e40x/rtl/cv32e40x_controller.sv
+        - deps/cv32e40x/rtl/cv32e40x_instr_obi_interface.sv
+        - deps/cv32e40x/rtl/cv32e40x_data_obi_interface.sv
+        - deps/cv32e40x/rtl/cv32e40x_prefetcher.sv
+        - deps/cv32e40x/rtl/cv32e40x_sleep_unit.sv
+        - deps/cv32e40x/rtl/cv32e40x_core.sv
+        - deps/cv32e40x/rtl/cv32e40x_mpu.sv
+        - deps/cv32e40x/rtl/cv32e40x_pma.sv
+        - deps/cv32e40x/rtl/cv32e40x_pc_target.sv
+        - deps/cv32e40x/rtl/cv32e40x_wpt.sv
+        - rtl/cores/cv32e40s_prim.sv
+        - deps/cv32e40s/rtl/include/cv32e40s_pkg.sv
+        - deps/cv32e40s/rtl/cv32e40s_if_c_obi.sv
+        - deps/cv32e40s/rtl/cv32e40s_if_stage.sv
+        - rtl/cores/cv32e40s_csr_fpga.sv
+        - deps/cv32e40s/rtl/cv32e40s_debug_triggers.sv
+        - deps/cv32e40s/rtl/cv32e40s_cs_registers.sv
+        - deps/cv32e40s/rtl/cv32e40s_register_file.sv
+        - deps/cv32e40s/rtl/cv32e40s_register_file_ecc.sv
+        - deps/cv32e40s/rtl/cv32e40s_register_file_wrapper.sv
+        - deps/cv32e40s/rtl/cv32e40s_write_buffer.sv
+        - deps/cv32e40s/rtl/cv32e40s_lsu_response_filter.sv
+        - deps/cv32e40s/rtl/cv32e40s_load_store_unit.sv
+        - deps/cv32e40s/rtl/cv32e40s_id_stage.sv
+        - deps/cv32e40s/rtl/cv32e40s_i_decoder.sv
+        - deps/cv32e40s/rtl/cv32e40s_m_decoder.sv
+        - deps/cv32e40s/rtl/cv32e40s_b_decoder.sv
+        - deps/cv32e40s/rtl/cv32e40s_decoder.sv
+        - deps/cv32e40s/rtl/cv32e40s_compressed_decoder.sv
+        - deps/cv32e40s/rtl/cv32e40s_sequencer.sv
+        - deps/cv32e40s/rtl/cv32e40s_alignment_buffer.sv
+        - deps/cv32e40s/rtl/cv32e40s_prefetch_unit.sv
+        - deps/cv32e40s/rtl/cv32e40s_mult.sv
+        - deps/cv32e40s/rtl/cv32e40s_int_controller.sv
+        - deps/cv32e40s/rtl/cv32e40s_clic_int_controller.sv
+        - deps/cv32e40s/rtl/cv32e40s_ex_stage.sv
+        - deps/cv32e40s/rtl/cv32e40s_wb_stage.sv
+        - deps/cv32e40s/rtl/cv32e40s_div.sv
+        - deps/cv32e40s/rtl/cv32e40s_alu.sv
+        - deps/cv32e40s/rtl/cv32e40s_ff_one.sv
+        - deps/cv32e40s/rtl/cv32e40s_popcnt.sv
+        - deps/cv32e40s/rtl/cv32e40s_alu_b_cpop.sv
+        - deps/cv32e40s/rtl/cv32e40s_controller_fsm.sv
+        - deps/cv32e40s/rtl/cv32e40s_controller_bypass.sv
+        - deps/cv32e40s/rtl/cv32e40s_controller.sv
+        - deps/cv32e40s/rtl/cv32e40s_instr_obi_interface.sv
+        - deps/cv32e40s/rtl/cv32e40s_data_obi_interface.sv
+        - deps/cv32e40s/rtl/cv32e40s_prefetcher.sv
+        - deps/cv32e40s/rtl/cv32e40s_sleep_unit.sv
+        - deps/cv32e40s/rtl/cv32e40s_alert.sv
+        - deps/cv32e40s/rtl/cv32e40s_dummy_instr.sv
+        - deps/cv32e40s/rtl/cv32e40s_lfsr.sv
+        - deps/cv32e40s/rtl/cv32e40s_mpu.sv
+        - deps/cv32e40s/rtl/cv32e40s_pma.sv
+        - deps/cv32e40s/rtl/cv32e40s_pc_check.sv
+        - deps/cv32e40s/rtl/cv32e40s_pc_target.sv
+        - deps/cv32e40s/rtl/cv32e40s_pmp.sv
+        - deps/cv32e40s/rtl/cv32e40s_rchk_check.sv
+        - deps/cv32e40s/rtl/cv32e40s_obi_integrity_fifo.sv
+        - deps/cv32e40s/rtl/cv32e40s_wpt.sv
+        - deps/cv32e40s/rtl/cv32e40s_core.sv
+        - deps/serv/rtl/serv_bufreg.v
+        - deps/serv/rtl/serv_bufreg2.v
+        - deps/serv/rtl/serv_alu.v
+        - deps/serv/rtl/serv_csr.v
+        - deps/serv/rtl/serv_ctrl.v
+        - deps/serv/rtl/serv_decode.v
+        - deps/serv/rtl/serv_immdec.v
+        - deps/serv/rtl/serv_mem_if.v
+        - deps/serv/rtl/serv_rf_if.v
+        - deps/serv/rtl/serv_rf_ram_if.v
+        - deps/serv/rtl/serv_rf_ram.v
+        - deps/serv/rtl/serv_state.v
+        - deps/serv/rtl/serv_debug.v
+        - deps/serv/rtl/serv_top.v
+        - deps/serv/rtl/serv_rf_top.v
+        - deps/serv/rtl/serv_aligner.v
+        - deps/serv/rtl/serv_compdec.v
+        - rtl/cores/corejack_ibex_socket_adapter.sv
+        - rtl/cores/corejack_cv32e40p_socket_adapter.sv
+        - rtl/cores/corejack_cv32e40x_socket_adapter.sv
+        - rtl/cores/corejack_cv32e40s_socket_adapter.sv
+        - rtl/cores/corejack_serv_socket_adapter.sv
+        - rtl/cores/corejack_cvw_ahb_adapter.sv
+        - rtl/cores/corejack_core_region.sv
+
+    - target: all(fpga, axku5)
+      files:
+        - rtl/platform/fpga/boards/axku5/corejack_axku5_wrap.sv

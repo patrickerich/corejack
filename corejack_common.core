@@ -1,0 +1,95 @@
+CAPI=2:
+
+name: corejack:common:deps:0.1.0
+description: Shared dependency RTL used by the CoreJack platform
+
+filesets:
+  pulp_typedef_headers:
+    files:
+      - deps/apb/include/apb/typedef.svh : {file_type : user, copyto : apb/typedef.svh}
+      - deps/apb/include/apb/assign.svh  : {file_type : user, copyto : apb/assign.svh}
+      - deps/axi/include/axi/typedef.svh : {file_type : user, copyto : axi/typedef.svh}
+      - deps/axi/include/axi/assign.svh  : {file_type : user, copyto : axi/assign.svh}
+      - deps/obi/include/obi/typedef.svh : {file_type : user, copyto : obi/typedef.svh}
+      - deps/obi/include/obi/assign.svh  : {file_type : user, copyto : obi/assign.svh}
+      - deps/register_interface/include/register_interface/typedef.svh : {file_type : user, copyto : register_interface/typedef.svh}
+      - deps/register_interface/include/register_interface/assign.svh  : {file_type : user, copyto : register_interface/assign.svh}
+      - deps/common_cells/include/common_cells/assertions.svh : {file_type : user, copyto : common_cells/assertions.svh}
+      - deps/common_cells/include/common_cells/registers.svh  : {file_type : user, copyto : common_cells/registers.svh}
+
+  pulp_pkg_deps:
+    files:
+      - deps/common_cells/src/cf_math_pkg.sv
+      - deps/apb/src/apb_pkg.sv
+      - deps/axi/src/axi_pkg.sv
+      - deps/obi/src/obi_pkg.sv
+      - deps/riscv-dbg/src/dm_pkg.sv
+    file_type: systemVerilogSource
+
+  platform_common_rtl:
+    files:
+      - deps/common_cells/src/delta_counter.sv
+      - deps/common_cells/src/counter.sv
+      - deps/common_cells/src/sync.sv
+      - deps/common_cells/src/rstgen_bypass.sv
+      - deps/common_cells/src/rstgen.sv
+      - deps/common_cells/src/fifo_v3.sv
+      - deps/common_cells/src/spill_register_flushable.sv
+      - deps/common_cells/src/spill_register.sv
+      - deps/common_cells/src/cdc_4phase.sv
+      - deps/common_cells/src/cdc_reset_ctrlr_pkg.sv
+      - deps/common_cells/src/cdc_reset_ctrlr.sv
+      - deps/common_cells/src/cdc_2phase_clearable.sv
+      - deps/tech_cells_generic/src/rtl/tc_clk.sv
+      - deps/obi/src/apb_to_obi.sv
+      - deps/register_interface/vendor/lowrisc_opentitan/src/prim_subreg_arb.sv
+      - deps/register_interface/vendor/lowrisc_opentitan/src/prim_subreg.sv
+      - deps/register_interface/src/reg_intf.sv
+      - deps/register_interface/src/reg_to_apb.sv
+      - deps/clint/src/clint_reg_pkg.sv
+      - deps/clint/src/clint_reg_top.sv
+      - deps/clint/src/clint.sv
+    file_type: systemVerilogSource
+
+  platform_uart_rtl:
+    files:
+      - deps/obi_peripherals/hw/obi_uart/obi_uart_pkg.sv
+      - deps/obi_peripherals/hw/obi_uart/obi_uart_baudgen.sv
+      - deps/obi_peripherals/hw/obi_uart/obi_uart_interrupts.sv
+      - deps/obi_peripherals/hw/obi_uart/obi_uart_modem.sv
+      - deps/obi_peripherals/hw/obi_uart/obi_uart_register.sv
+      - deps/obi_peripherals/hw/obi_uart/obi_uart_rx.sv
+      - deps/obi_peripherals/hw/obi_uart/obi_uart_tx.sv
+      - deps/obi_peripherals/hw/obi_uart/obi_uart.sv
+      - deps/apb_uart/src/apb_uart_wrap.sv
+    file_type: systemVerilogSource
+
+  platform_debug_rtl:
+    files:
+      - deps/riscv-dbg/debug_rom/debug_rom.sv
+      - deps/riscv-dbg/debug_rom/debug_rom_one_scratch.sv
+      - deps/riscv-dbg/src/dm_csrs.sv
+      - deps/riscv-dbg/src/dm_mem.sv
+      - deps/riscv-dbg/src/dm_sba.sv
+      - deps/riscv-dbg/src/dm_top.sv
+      - deps/riscv-dbg/src/dmi_cdc.sv
+      - deps/riscv-dbg/src/dmi_intf.sv
+      - deps/riscv-dbg/src/dmi_jtag_tap.sv
+      - deps/riscv-dbg/src/dmi_jtag.sv
+    file_type: systemVerilogSource
+
+  common_addr_decode_rtl:
+    files:
+      - deps/common_cells/src/addr_decode_dync.sv
+      - deps/common_cells/src/addr_decode.sv
+    file_type: systemVerilogSource
+
+targets:
+  default:
+    filesets:
+      - pulp_typedef_headers
+      - pulp_pkg_deps
+      - platform_common_rtl
+      - platform_uart_rtl
+      - platform_debug_rtl
+      - common_addr_decode_rtl

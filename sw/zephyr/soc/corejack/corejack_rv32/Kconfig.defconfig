@@ -1,0 +1,6 @@
+if SOC_COREJACK_RV32
+
+config NUM_IRQS
+	default 16
+
+endif

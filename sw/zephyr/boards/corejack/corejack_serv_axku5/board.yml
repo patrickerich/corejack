@@ -1,0 +1,6 @@
+board:
+  name: corejack_serv_axku5
+  full_name: CoreJack SERV on AXKU5
+  vendor: corejack
+  socs:
+    - name: corejack_rv32

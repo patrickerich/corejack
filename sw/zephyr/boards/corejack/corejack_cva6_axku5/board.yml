@@ -1,0 +1,6 @@
+board:
+  name: corejack_cva6_axku5
+  full_name: CoreJack CVA6 on AXKU5
+  vendor: corejack
+  socs:
+    - name: corejack_rv64

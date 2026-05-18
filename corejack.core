@@ -1,0 +1,312 @@
+CAPI=2:
+
+name: corejack:corejack:platform:0.1.0
+description: Minimal CoreJack platform core with FuseSoC+cocotb Verilator smoke target
+
+parameters:
+  CoreType:
+    datatype: int
+    default: 0
+    paramtype: vlogparam
+    description: Numeric platform_pkg::core_type_e value passed to the FPGA board wrapper
+  EnableUartLoader:
+    datatype: int
+    default: 0
+    paramtype: vlogparam
+    description: Enable the UART-side SRAM loader and hold the selected core in reset until release
+
+filesets:
+  common_deps:
+    depend:
+      - corejack:common:deps:0.1.0
+
+  core_ibex_rtl:
+    depend:
+      - corejack:ibex:design:1.0
+    files:
+      - rtl/cores/corejack_ibex_socket_adapter.sv
+    file_type: systemVerilogSource
+
+  core_cv32e40p_rtl:
+    depend:
+      - corejack:cores:cv32e40p:0.1.0
+  core_cv32e40x_rtl:
+    depend:
+      - corejack:cores:cv32e40x:0.1.0
+  core_cv32e40s_rtl:
+    depend:
+      - corejack:cores:cv32e40s:0.1.0
+  core_cva6_rtl:
+    depend:
+      - corejack:cores:cva6:0.1.0
+  core_serv_rtl:
+    depend:
+      - corejack:cores:serv:0.1.0
+  core_picorv32_rtl:
+    depend:
+      - corejack:cores:picorv32:0.1.0
+  core_cvw_rtl:
+    depend:
+      - corejack:cores:cvw:0.1.0
+  core_region_rtl:
+    files:
+      - rtl/cores/corejack_core_region.sv
+    file_type: systemVerilogSource
+
+  board_axku5_rtl:
+    depend:
+      - corejack:boards:axku5:0.1.0
+
+  rtl:
+    files:
+      - rtl/pkg/platform_pkg.sv
+      - rtl/pkg/soc_bus_pkg.sv
+      - rtl/pkg/mem_ss_pkg.sv
+      - rtl/interfaces/core_socket_if.sv
+      - rtl/interfaces/accel_socket_if.sv
+      - rtl/mem/soc_sram_slice_model.sv
+      - rtl/mem/soc_sram_slice_xilinx.sv
+      - rtl/mem/soc_sram_slice_wrapper.sv
+      - rtl/mem/soc_obi_mem_buffer.sv
+      - rtl/mem/soc_mem_ss.sv
+      - rtl/bus/soc_obi_to_axi.sv
+      - rtl/bus/soc_axi_protocol_checker.sv
+      - rtl/bus/soc_axi_arbiter.sv
+      - rtl/bus/soc_axi_demux.sv
+      - rtl/bus/soc_axi_to_apb.sv
+      - rtl/bus/soc_axi_to_dm.sv
+      - rtl/bus/soc_axi_to_mem.sv
+      - rtl/bus/soc_axi_to_reg.sv
+      - rtl/platform/soc_uart_sram_loader.sv
+      - gen/rtl/addr_map_pkg.sv
+      - rtl/top/soc_top.sv
+    file_type: systemVerilogSource
+
+  tb_sv:
+    files:
+      - tb/smoke_dut.sv
+    file_type: systemVerilogSource
+
+  tb_sw_sv:
+    files:
+      - tb/uart_apb_tx_monitor.sv
+      - tb/sim_ctrl_monitor.sv
+      - tb/axi_sim_ctrl_monitor.sv
+      - tb/soc_dut.sv
+    file_type: systemVerilogSource
+
+  tb_cocotb:
+    files:
+      - tb/test_smoke.py : {file_type : user, copyto : .}
+
+  tb_sw_cocotb:
+    files:
+      - tb/test_soc_sw.py : {file_type : user, copyto : .}
+
+  tb_debug_cocotb:
+    files:
+      - tb/test_debug_integration.py : {file_type : user, copyto : .}
+
+  tb_axi_adapter_sv:
+    files:
+      - tb/axi_adapter_dut.sv
+    file_type: systemVerilogSource
+
+  tb_axi_adapter_cocotb:
+    files:
+      - tb/test_axi_adapters.py : {file_type : user, copyto : .}
+
+  tb_uart_loader_sv:
+    files:
+      - rtl/platform/soc_uart_sram_loader.sv
+      - tb/uart_sram_loader_dut.sv
+    file_type: systemVerilogSource
+
+  tb_uart_loader_cocotb:
+    files:
+      - tb/test_uart_sram_loader.py : {file_type : user, copyto : .}
+
+targets:
+  default: &default
+    filesets:
+      - common_deps
+      - rtl
+    toplevel: soc_top
+
+  smoke:
+    <<: *default
+    flow: sim
+    flow_options:
+      tool: verilator
+      cocotb_module: test_smoke
+      timescale: 1ns/1ps
+      verilator_options:
+        - trace_fst ? (--trace-fst)
+        - trace_vcd ? (--trace)
+        - -Wno-WIDTHEXPAND
+        - -Wno-WIDTHTRUNC
+    filesets_append:
+      - tb_sv
+      - tb_cocotb
+    toplevel: smoke_dut
+
+  sw-sim:
+    <<: *default
+    flow: sim
+    flow_options:
+      tool: verilator
+      cocotb_module: test_soc_sw
+      timescale: 1ns/1ps
+      verilator_options:
+        - trace_fst ? (--trace-fst)
+        - trace_vcd ? (--trace)
+        - core_ibex ? (-DCOREJACK_SIM_XILINX_SRAM)
+        - core_cv32e40p ? (-DCOREJACK_CORE_CV32E40P)
+        - core_cv32e40x ? (-DCOREJACK_CORE_CV32E40X)
+        - core_cv32e40s ? (-DCOREJACK_CORE_CV32E40S)
+        - core_cva6 ? (-DCOREJACK_CORE_CVA6)
+        - core_serv ? (-DCOREJACK_CORE_SERV)
+        - core_picorv32 ? (-DCOREJACK_CORE_PICORV32)
+        - core_cvw ? (-DCOREJACK_CORE_CVW)
+        - core_cv32e40x ? (-DDEBUG_TEST_HOOKS)
+        - core_cv32e40s ? (-DDEBUG_TEST_HOOKS)
+        - core_cva6 ? (-DDEBUG_TEST_HOOKS)
+        - -DASSERTS_OFF
+        - -Wno-MODDUP
+        - -Wno-REDEFMACRO
+        - -Wno-IMPLICIT
+        - core_cv32e40p ? (-Wno-CASEINCOMPLETE)
+        - core_cv32e40x ? (-Wno-CASEINCOMPLETE)
+        - core_cv32e40s ? (-Wno-CASEINCOMPLETE)
+        - core_cva6 ? (-Wno-CASEINCOMPLETE)
+        - core_serv ? (-Wno-CASEINCOMPLETE)
+        - core_picorv32 ? (-Wno-CASEINCOMPLETE)
+        - core_cvw ? (-Wno-CASEINCOMPLETE)
+        - -Wno-LATCH
+        - core_cv32e40x ? (-Wno-MULTIDRIVEN)
+        - core_cv32e40s ? (-Wno-MULTIDRIVEN)
+        - core_cva6 ? (-Wno-MULTIDRIVEN)
+        - core_cv32e40x ? (-Wno-ASCRANGE)
+        - core_cv32e40s ? (-Wno-ASCRANGE)
+        - core_cva6 ? (-Wno-ASCRANGE)
+        - core_picorv32 ? (-Wno-TIMESCALEMOD)
+        - core_cvw ? (-Wno-TIMESCALEMOD)
+        - -Wno-UNOPTFLAT
+        - -Wno-WIDTHEXPAND
+        - -Wno-WIDTHTRUNC
+        - core_cva6 ? (-Wno-IMPLICITSTATIC)
+        - core_cvw ? (-Wno-IMPLICITSTATIC)
+        - core_cva6 ? (-Wno-SELRANGE)
+        - core_cvw ? (-Wno-SELRANGE)
+        - core_cva6 ? (-Wno-UNSIGNED)
+        - core_cvw ? (-Wno-UNSIGNED)
+        - core_cva6 ? (-Wno-CMPCONST)
+        - core_cvw ? (-Wno-CMPCONST)
+        - core_cva6 ? (-Wno-SPLITVAR)
+        - core_cvw ? (-Wno-SPLITVAR)
+        - core_cva6 ? (-Wno-SYMRSVDWORD)
+    filesets_append:
+      - core_ibex ? (core_ibex_rtl)
+      - core_cv32e40p ? (core_cv32e40p_rtl)
+      - core_cv32e40x ? (core_cv32e40x_rtl)
+      - core_cv32e40s ? (core_cv32e40s_rtl)
+      - core_cva6 ? (core_cva6_rtl)
+      - core_serv ? (core_serv_rtl)
+      - core_picorv32 ? (core_picorv32_rtl)
+      - core_cvw ? (core_cvw_rtl)
+      - core_region ? (core_region_rtl)
+      - tb_sw_sv
+      - tb_sw_cocotb
+    toplevel: soc_dut
+
+  debug-sim:
+    <<: *default
+    flow: sim
+    flow_options:
+      tool: verilator
+      cocotb_module: test_debug_integration
+      timescale: 1ns/1ps
+      verilator_options:
+        - trace_fst ? (--trace-fst)
+        - trace_vcd ? (--trace)
+        - -DDEBUG_TEST_HOOKS
+        - -DASSERTS_OFF
+        - -Wno-MODDUP
+        - -Wno-REDEFMACRO
+        - -Wno-IMPLICIT
+        - -Wno-LATCH
+        - -Wno-MULTIDRIVEN
+        - -Wno-UNOPTFLAT
+        - -Wno-WIDTHEXPAND
+        - -Wno-WIDTHTRUNC
+    filesets_append:
+      - core_ibex_rtl
+      - core_cv32e40p_rtl
+      - core_cv32e40x_rtl
+      - core_cv32e40s_rtl
+      - core_region_rtl
+      - tb_sw_sv
+      - tb_debug_cocotb
+    toplevel: soc_dut
+
+  axi-adapter-sim:
+    <<: *default
+    flow: sim
+    flow_options:
+      tool: verilator
+      cocotb_module: test_axi_adapters
+      timescale: 1ns/1ps
+      verilator_options:
+        - trace_fst ? (--trace-fst)
+        - trace_vcd ? (--trace)
+        - -DASSERTS_OFF
+        - -Wno-MODDUP
+        - -Wno-REDEFMACRO
+        - -Wno-IMPLICIT
+        - -Wno-LATCH
+        - -Wno-UNOPTFLAT
+        - -Wno-WIDTHEXPAND
+        - -Wno-WIDTHTRUNC
+    filesets_append:
+      - tb_axi_adapter_sv
+      - tb_axi_adapter_cocotb
+    toplevel: axi_adapter_dut
+
+  uart-loader-sim:
+    flow: sim
+    flow_options:
+      tool: verilator
+      cocotb_module: test_uart_sram_loader
+      timescale: 1ns/1ps
+      verilator_options:
+        - trace_fst ? (--trace-fst)
+        - trace_vcd ? (--trace)
+        - -Wno-WIDTHEXPAND
+        - -Wno-WIDTHTRUNC
+    filesets:
+      - tb_uart_loader_sv
+      - tb_uart_loader_cocotb
+    toplevel: uart_sram_loader_dut
+
+  fpga:
+    <<: *default
+    flow: vivado
+    flow_options:
+      part: board_axku5 ? (xcku5p-ffvb676-2-e)
+      jobs: 4
+      pgm: true
+    filesets_append:
+      - core_ibex ? (core_ibex_rtl)
+      - core_cv32e40p ? (core_cv32e40p_rtl)
+      - core_cv32e40x ? (core_cv32e40x_rtl)
+      - core_cv32e40s ? (core_cv32e40s_rtl)
+      - core_cva6 ? (core_cva6_rtl)
+      - core_serv ? (core_serv_rtl)
+      - core_picorv32 ? (core_picorv32_rtl)
+      - core_cvw ? (core_cvw_rtl)
+      - core_region ? (core_region_rtl)
+      - board_axku5 ? (board_axku5_rtl)
+    toplevel: board_axku5 ? (corejack_axku5_wrap)
+    parameters:
+      - CoreType
+      - EnableUartLoader

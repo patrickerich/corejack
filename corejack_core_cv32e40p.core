@@ -1,0 +1,44 @@
+CAPI=2:
+
+name: corejack:cores:cv32e40p:0.1.0
+description: CV32E40P RTL and CoreJack adapter used by the CoreJack platform
+
+filesets:
+  rtl:
+    files:
+      - rtl/cores/cv32e40p_clock_gate.sv
+      - deps/cv32e40p/rtl/include/cv32e40p_apu_core_pkg.sv
+      - deps/cv32e40p/rtl/include/cv32e40p_fpu_pkg.sv
+      - deps/cv32e40p/rtl/include/cv32e40p_pkg.sv
+      - deps/cv32e40p/rtl/cv32e40p_if_stage.sv
+      - deps/cv32e40p/rtl/cv32e40p_cs_registers.sv
+      - deps/cv32e40p/rtl/cv32e40p_register_file_ff.sv
+      - deps/cv32e40p/rtl/cv32e40p_load_store_unit.sv
+      - deps/cv32e40p/rtl/cv32e40p_id_stage.sv
+      - deps/cv32e40p/rtl/cv32e40p_aligner.sv
+      - deps/cv32e40p/rtl/cv32e40p_decoder.sv
+      - deps/cv32e40p/rtl/cv32e40p_compressed_decoder.sv
+      - deps/cv32e40p/rtl/cv32e40p_fifo.sv
+      - deps/cv32e40p/rtl/cv32e40p_prefetch_buffer.sv
+      - deps/cv32e40p/rtl/cv32e40p_prefetch_controller.sv
+      - deps/cv32e40p/rtl/cv32e40p_hwloop_regs.sv
+      - deps/cv32e40p/rtl/cv32e40p_mult.sv
+      - deps/cv32e40p/rtl/cv32e40p_int_controller.sv
+      - deps/cv32e40p/rtl/cv32e40p_ex_stage.sv
+      - deps/cv32e40p/rtl/cv32e40p_alu_div.sv
+      - deps/cv32e40p/rtl/cv32e40p_alu.sv
+      - deps/cv32e40p/rtl/cv32e40p_ff_one.sv
+      - deps/cv32e40p/rtl/cv32e40p_popcnt.sv
+      - deps/cv32e40p/rtl/cv32e40p_apu_disp.sv
+      - deps/cv32e40p/rtl/cv32e40p_controller.sv
+      - deps/cv32e40p/rtl/cv32e40p_obi_interface.sv
+      - deps/cv32e40p/rtl/cv32e40p_sleep_unit.sv
+      - deps/cv32e40p/rtl/cv32e40p_core.sv
+      - deps/cv32e40p/rtl/cv32e40p_top.sv
+      - rtl/cores/corejack_cv32e40p_socket_adapter.sv
+    file_type: systemVerilogSource
+
+targets:
+  default:
+    filesets:
+      - rtl

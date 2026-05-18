@@ -1,0 +1,61 @@
+CAPI=2:
+
+name: corejack:cores:cv32e40x:0.1.0
+description: CV32E40X RTL and CoreJack adapter used by the CoreJack platform
+
+filesets:
+  rtl:
+    files:
+      - rtl/cores/cv32e40x_clock_gate.sv
+      - deps/cv32e40x/rtl/include/cv32e40x_pkg.sv
+      - deps/cv32e40x/rtl/cv32e40x_if_c_obi.sv
+      - deps/cv32e40x/rtl/cv32e40x_if_xif.sv
+      - deps/cv32e40x/rtl/cv32e40x_align_check.sv
+      - deps/cv32e40x/rtl/cv32e40x_if_stage.sv
+      - deps/cv32e40x/rtl/cv32e40x_csr.sv
+      - deps/cv32e40x/rtl/cv32e40x_debug_triggers.sv
+      - deps/cv32e40x/rtl/cv32e40x_cs_registers.sv
+      - deps/cv32e40x/rtl/cv32e40x_register_file.sv
+      - deps/cv32e40x/rtl/cv32e40x_register_file_wrapper.sv
+      - deps/cv32e40x/rtl/cv32e40x_write_buffer.sv
+      - deps/cv32e40x/rtl/cv32e40x_lsu_response_filter.sv
+      - deps/cv32e40x/rtl/cv32e40x_load_store_unit.sv
+      - deps/cv32e40x/rtl/cv32e40x_id_stage.sv
+      - deps/cv32e40x/rtl/cv32e40x_i_decoder.sv
+      - deps/cv32e40x/rtl/cv32e40x_m_decoder.sv
+      - deps/cv32e40x/rtl/cv32e40x_a_decoder.sv
+      - deps/cv32e40x/rtl/cv32e40x_b_decoder.sv
+      - deps/cv32e40x/rtl/cv32e40x_decoder.sv
+      - deps/cv32e40x/rtl/cv32e40x_compressed_decoder.sv
+      - deps/cv32e40x/rtl/cv32e40x_sequencer.sv
+      - deps/cv32e40x/rtl/cv32e40x_alignment_buffer.sv
+      - deps/cv32e40x/rtl/cv32e40x_prefetch_unit.sv
+      - deps/cv32e40x/rtl/cv32e40x_mult.sv
+      - deps/cv32e40x/rtl/cv32e40x_int_controller.sv
+      - deps/cv32e40x/rtl/cv32e40x_clic_int_controller.sv
+      - deps/cv32e40x/rtl/cv32e40x_ex_stage.sv
+      - deps/cv32e40x/rtl/cv32e40x_wb_stage.sv
+      - deps/cv32e40x/rtl/cv32e40x_div.sv
+      - deps/cv32e40x/rtl/cv32e40x_alu.sv
+      - deps/cv32e40x/rtl/cv32e40x_ff_one.sv
+      - deps/cv32e40x/rtl/cv32e40x_popcnt.sv
+      - deps/cv32e40x/rtl/cv32e40x_alu_b_cpop.sv
+      - deps/cv32e40x/rtl/cv32e40x_controller_fsm.sv
+      - deps/cv32e40x/rtl/cv32e40x_controller_bypass.sv
+      - deps/cv32e40x/rtl/cv32e40x_controller.sv
+      - deps/cv32e40x/rtl/cv32e40x_instr_obi_interface.sv
+      - deps/cv32e40x/rtl/cv32e40x_data_obi_interface.sv
+      - deps/cv32e40x/rtl/cv32e40x_prefetcher.sv
+      - deps/cv32e40x/rtl/cv32e40x_sleep_unit.sv
+      - deps/cv32e40x/rtl/cv32e40x_core.sv
+      - deps/cv32e40x/rtl/cv32e40x_mpu.sv
+      - deps/cv32e40x/rtl/cv32e40x_pma.sv
+      - deps/cv32e40x/rtl/cv32e40x_pc_target.sv
+      - deps/cv32e40x/rtl/cv32e40x_wpt.sv
+      - rtl/cores/corejack_cv32e40x_socket_adapter.sv
+    file_type: systemVerilogSource
+
+targets:
+  default:
+    filesets:
+      - rtl
