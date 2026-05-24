@@ -84,6 +84,35 @@ The default RISC-V GNU toolchain source is pinned to the upstream
 resolves to a different commit, the build stops instead of silently accepting
 the changed source.
 
+### dejagnu submodule is intentionally skipped
+
+The `riscv-gnu-toolchain` repository pulls in `dejagnu` as a submodule. dejagnu
+is the GNU test framework used by the `make check` test suite of binutils,
+gcc, and gdb - it is **not** required for `make newlib`, which is the target
+CoreJack actually builds.
+
+`dejagnu`'s upstream lives at `git.savannah.gnu.org` and periodically prunes
+unadvertised commits. When that happens, a recursive submodule fetch fails
+with:
+
+```text
+error: Server does not allow request for unadvertised object <sha>
+fatal: Fetched in submodule path 'dejagnu', but it did not contain <sha>.
+       Direct fetching of that commit failed.
+```
+
+To keep the toolchain build robust against this kind of upstream churn,
+`bin/build_riscv_toolchain.sh` explicitly skips dejagnu using
+`submodule.dejagnu.update=none`, after deinitializing any half-broken dejagnu
+state left by an earlier attempt. The script prints a `note:` line during the
+submodule step so this is visible while building.
+
+This skip is safe because CoreJack does not run the upstream toolchain test
+suite - it only builds the cross-compiler, binutils, gdb, and newlib. If you
+ever want to run `make check` yourself, point `submodule.dejagnu.url` at a
+working mirror and re-init the submodule manually; this is outside the
+standard CoreJack flow.
+
 LLVM/Clang is a plausible future toolchain backend, but GCC/Newlib remains the
 default for now. The current priority is a reliable bare-metal flow with
 multilib support, predictable Newlib runtime libraries, binutils, and GDB for

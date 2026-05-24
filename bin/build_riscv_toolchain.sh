@@ -32,7 +32,9 @@ mkdir -p "$(dirname "${src_dir}")" "$(dirname "${prefix}")"
 touch "${repo_dir}/.tools/FUSESOC_IGNORE"
 
 if [[ ! -d "${src_dir}/.git" ]]; then
-  git clone --recursive "${toolchain_repo}" "${src_dir}"
+  # Clone without --recursive so the initial fetch can never fail on a
+  # submodule pin; submodules are initialized below with dejagnu skipped.
+  git clone "${toolchain_repo}" "${src_dir}"
 else
   git -C "${src_dir}" fetch --tags origin
 fi
@@ -44,7 +46,15 @@ if [[ -n "${toolchain_commit}" && "${actual_commit}" != "${toolchain_commit}" ]]
   exit 1
 fi
 echo "  resolved commit: ${actual_commit}"
-git -C "${src_dir}" submodule update --init --recursive
+
+# dejagnu is a test-only submodule used by `make check`, not by `make newlib`.
+# Its upstream (git.savannah.gnu.org) occasionally prunes the pinned commit and
+# fails with "Server does not allow request for unadvertised object". Skip it
+# so the toolchain build is not held hostage by an unrelated test pin.
+# See docs/tooling.md for the full reasoning.
+echo "  note: dejagnu submodule intentionally skipped (test-only; upstream pin volatile)"
+git -C "${src_dir}" submodule deinit -f dejagnu 2>/dev/null || true
+git -C "${src_dir}" -c submodule.dejagnu.update=none submodule update --init --recursive
 
 configure_args=(
   "--prefix=${prefix}"

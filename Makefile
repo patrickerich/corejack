@@ -504,7 +504,7 @@ sim-run-sw: deps-core sw-build
 		CCACHE_DISABLE=1 \
 		fusesoc --cores-root . run --clean --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform --run_options="$$run_options"
 
-debug-sim:
+debug-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/debug-sim.$(SIM_WAVE_FORMAT)"; fi; \
 	extra_args=(); \
@@ -516,7 +516,7 @@ debug-sim:
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
 		fusesoc --cores-root . run --clean --target debug-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
 
-axi-adapter-sim:
+axi-adapter-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/axi-adapter-sim.$(SIM_WAVE_FORMAT)"; fi; \
 	extra_args=(); \
@@ -602,7 +602,7 @@ fpga-uart-load-zephyr: validate-target zephyr-build
 		--capture-seconds "$(UART_CAPTURE_TIMEOUT)" \
 		"$${extra_args[@]}"
 
-smoke:
+smoke: deps-base
 	@test -x "$(VENV_PY)" || { echo "Error: venv not found. Run: source ./sourceme.sh"; exit 1; }
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/smoke.$(SIM_WAVE_FORMAT)"; fi; \
