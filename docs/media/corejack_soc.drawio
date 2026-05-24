@@ -1,4 +1,4 @@
-<mxfile host="Electron" pages="7">
+<mxfile host="Electron" pages="8">
   <diagram name="1. SoC Top-Level" id="tab1">
     <mxGraphModel dx="1729" dy="1074" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2300" pageHeight="820" math="0" shadow="0">
       <root>
@@ -924,6 +924,211 @@
         </mxCell>
         <mxCell id="be17" value="apb tied" style="endArrow=classic;html=1;startArrow=classic;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;dashed=1" parent="1" source="b_soctop" target="apbtie" edge="1">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="8. Multi-Initiator Architecture (planned)" id="tab8">
+    <mxGraphModel dx="2840" dy="1764" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t8_title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1" value="Multi-Initiator Architecture (planned endpoint - not today&#39;s wiring)" vertex="1">
+          <mxGeometry height="36" width="1400" x="75" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_legend" parent="1" style="text;html=1;strokeColor=#999999;fillColor=#FFFFFF;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;spacingLeft=8;spacingTop=4" value="Solid = post-xbar baseline (replaces today&#39;s soc_axi_arbiter + soc_axi_demux).&#xa;Dashed = planned additions (direct CPU instr/data mem ports, uDMA, accelerator, APB-wrapped peripherals).&#xa;The accel_socket_if interface already anticipates the dual-port shape: split mem_axi_* (data) and csr_apb_* (control)." vertex="1">
+          <mxGeometry height="64" width="620" x="1535" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_cpu_instr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle" value="CPU instr&#xa;(fabric + planned mem port)" vertex="1">
+          <mxGeometry height="80" width="200" x="155" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_cpu_data" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle" value="CPU data&#xa;(fabric + planned mem port)" vertex="1">
+          <mxGeometry height="80" width="200" x="415" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_dbg_sba" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;verticalAlign=middle" value="Debug SBA&#xa;(fabric port only)" vertex="1">
+          <mxGeometry height="80" width="200" x="675" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_udma" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle;dashed=1" value="uDMA (planned)&#xa;CSR (xbar) + data (direct mem port)" vertex="1">
+          <mxGeometry height="80" width="240" x="935" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_accel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle;dashed=1" value="Accelerator (planned)&#xa;via accel_socket_if&#xa;CSR (xbar) + data (direct mem port)" vertex="1">
+          <mxGeometry height="80" width="260" x="1215" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_xbar" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;verticalAlign=middle;align=center;spacingLeft=20;spacingRight=20" value="Tier 2: AXI crossbar (axi_xbar)&#xa;Replaces soc_axi_arbiter + soc_axi_demux. Per-target arbitration; multiple outstanding requests can be in flight to different targets concurrently.&#xa;In the end state the xbar exposes only ~2 slave targets: one APB peripheral subsystem (Tier 3) and an optional RAM-fallback path (mostly used by debug SBA)." vertex="1">
+          <mxGeometry height="140" width="1700" x="155" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_axi2apb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" value="soc_axi_to_apb&#xa;(single bridge to the APB peripheral subsystem)" vertex="1">
+          <mxGeometry height="80" width="320" x="1080" y="539" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_axi2mem" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" value="soc_axi_to_mem&#xa;(RAM-fallback path; mostly serves Debug SBA in the end state)" vertex="1">
+          <mxGeometry height="80" width="320" x="295" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_apb_subsys" parent="1" style="swimlane;fontSize=13;fontStyle=1;html=1;startSize=36;fillColor=#fff2cc;strokeColor=#d6b656;swimlaneFillColor=#FFFFFF" value="Tier 3: APB peripheral subsystem (one bridge, fan-out behind a small APB demux)" vertex="1">
+          <mxGeometry height="200" width="1430" x="155" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_apb_uart" parent="t8_apb_subsys" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;verticalAlign=middle" value="apb_uart&#xa;(current)" vertex="1">
+          <mxGeometry height="80" width="200" x="40" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_apb_clint" parent="t8_apb_subsys" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;verticalAlign=middle;dashed=1" value="clint (APB wrap)&#xa;planned" vertex="1">
+          <mxGeometry height="80" width="220" x="280" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_apb_dm" parent="t8_apb_subsys" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;verticalAlign=middle;dashed=1" value="dm regs (APB wrap)&#xa;planned" vertex="1">
+          <mxGeometry height="80" width="220" x="540" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_apb_accel_csr" parent="t8_apb_subsys" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;verticalAlign=middle;dashed=1" value="accel CSR&#xa;planned" vertex="1">
+          <mxGeometry height="80" width="200" x="800" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_apb_future" parent="t8_apb_subsys" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;fontSize=12;verticalAlign=middle;dashed=1" value="future peripherals&#xa;SPI / I2C / GPIO / timers / ..." vertex="1">
+          <mxGeometry height="80" width="320" x="1040" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_apb_demux_note" parent="t8_apb_subsys" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontStyle=2" value="(small APB demux; each peripheral has its own address window)" vertex="1">
+          <mxGeometry height="30" width="1500" x="40" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_memss" parent="1" style="swimlane;fontSize=13;fontStyle=1;html=1;startSize=36;fillColor=#e1d5e7;strokeColor=#9673a6;swimlaneFillColor=#FFFFFF" value="Tier 1: soc_mem_ss (banked SRAM with per-bank round-robin arbitration)" vertex="1">
+          <mxGeometry height="540" width="1590" x="155" y="1020" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_ip0" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle" value="init port 0&#xa;from xbar (mostly Debug SBA in end state)" vertex="1">
+          <mxGeometry height="70" width="240" x="30" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_ip1" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" value="init port 1&#xa;UART SRAM loader (optional)" vertex="1">
+          <mxGeometry height="70" width="240" x="290" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_ip2" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" value="init port 2&#xa;CPU instr direct (planned)" vertex="1">
+          <mxGeometry height="70" width="240" x="550" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_ip3" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" value="init port 3&#xa;CPU data direct (planned)" vertex="1">
+          <mxGeometry height="70" width="240" x="810" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_ip4" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" value="init port 4&#xa;uDMA data (planned)" vertex="1">
+          <mxGeometry height="70" width="240" x="1070" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_ip5" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" value="init port 5&#xa;Accel data (planned)" vertex="1">
+          <mxGeometry height="70" width="240" x="1330" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_arb_note" parent="t8_memss" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontStyle=2" value="per-bank round-robin arbiters (soc_mem_ss internal; NumInitPorts is also a parameter)" vertex="1">
+          <mxGeometry height="40" width="1540" x="30" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_bank0" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;fontStyle=1;verticalAlign=middle" value="bank[0]" vertex="1">
+          <mxGeometry height="280" width="240" x="30" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_bank1" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;fontStyle=1;verticalAlign=middle" value="bank[1]" vertex="1">
+          <mxGeometry height="280" width="240" x="290" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_bank2" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;fontStyle=1;verticalAlign=middle" value="bank[2]" vertex="1">
+          <mxGeometry height="280" width="240" x="550" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_bank3" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;fontStyle=1;verticalAlign=middle" value="bank[3]" vertex="1">
+          <mxGeometry height="280" width="240" x="810" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_bank_ellipsis" parent="t8_memss" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;align=center;dashed=1" value="...&#xa;(MemNumBanks is&#xa;a parameter,&#xa;default 4)" vertex="1">
+          <mxGeometry height="280" width="220" x="1070" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_three_tier_note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=11;align=left;spacingLeft=12;spacingTop=8;spacingRight=12;spacingBottom=8" value="Why three tiers?&#xa;&#xa;Tier 1 (memory): per-bank arbitration inside soc_mem_ss. Memory-heavy initiators (CPU instr/data, DMA, accelerators) get dedicated init ports so bank parallelism actually pays off - the bus fabric does not gate memory bandwidth.&#xa;&#xa;Tier 2 (system bus): per-target AXI arbitration inside axi_xbar. In the end state the xbar exposes only ~2 slave targets: the APB peripheral subsystem (Tier 3) and an optional RAM-fallback path. The xbar is small because most traffic does not need it.&#xa;&#xa;Tier 3 (peripheral bus): a single APB peripheral subsystem behind one soc_axi_to_apb bridge. UART, CLINT (wrapped), DM regs (wrapped), accelerator CSR windows, and future SPI/I2C/GPIO/timers all fan out from one APB demux. Adding a new peripheral is &quot;add to the APB subsystem&quot;, not &quot;reconfigure the xbar&quot;.&#xa;&#xa;What grows linearly: arbiters. M arbiters in the xbar for M targets (only a handful in the end state); B arbiters in soc_mem_ss for B banks; the APB subsystem needs no arbitration (peripherals are slaves, they do not initiate). Wires fan out N x B inside soc_mem_ss but synthesis handles that cleanly at this scale." vertex="1">
+          <mxGeometry height="310" width="610" x="1715" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="t8_e_cpu_instr_fab" edge="1" parent="1" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.3;exitY=1;entryX=0.035;entryY=0.007;fontSize=10;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="295.52" y="200" as="sourcePoint" />
+            <mxPoint x="295.0200000000002" y="300.98" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_cpu_instr_mem" edge="1" parent="1" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;entryX=0.5;entryY=0;fontSize=10;dashed=1" target="t8_ip2" value="direct mem (planned)">
+          <mxGeometry relative="1" x="0.2344" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="200" y="200" />
+              <mxPoint x="200" y="220" />
+              <mxPoint x="40" y="220" />
+              <mxPoint x="40" y="1000" />
+              <mxPoint x="825" y="1000" />
+            </Array>
+            <mxPoint x="200" y="200" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_cpu_data_fab" edge="1" parent="1" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.3;exitY=1;entryX=0.188;entryY=0.021;fontSize=10;entryDx=0;entryDy=0;entryPerimeter=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="560.4" y="200" as="sourcePoint" />
+            <mxPoint x="560.0000000000001" y="302.94000000000005" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_cpu_data_mem" edge="1" parent="1" source="t8_cpu_data" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.195;exitY=1.004;entryX=0.5;entryY=0;fontSize=10;dashed=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="t8_ip3" value="direct mem (planned)">
+          <mxGeometry relative="1" x="0.1542" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="454" y="240" />
+              <mxPoint x="60" y="240" />
+              <mxPoint x="60" y="980" />
+              <mxPoint x="1085" y="980" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_dbg_sba" edge="1" parent="1" source="t8_dbg_sba" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;fontSize=10" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="775" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_udma_csr" edge="1" parent="1" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.3;exitY=1;fontSize=10;dashed=1" value="CSR (AXI master)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1120" y="200" as="sourcePoint" />
+            <mxPoint x="1120" y="299" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_udma_mem" edge="1" parent="1" source="t8_udma" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.273;exitY=1.011;entryX=0.5;entryY=0;fontSize=10;dashed=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="t8_ip4" value="data (direct mem port)">
+          <mxGeometry relative="1" x="0.1825" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="1000" y="260" />
+              <mxPoint x="80" y="260" />
+              <mxPoint x="80" y="960" />
+              <mxPoint x="1345" y="960" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_accel_csr" edge="1" parent="1" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.3;exitY=1;fontSize=10;dashed=1" value="CSR (APB master via xbar)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1420.0000000000005" y="200" as="sourcePoint" />
+            <mxPoint x="1420" y="299" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_accel_mem" edge="1" parent="1" source="t8_accel" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.21;exitY=1.011;entryX=0.5;entryY=0;fontSize=10;dashed=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="t8_ip5" value="data (direct mem port)">
+          <mxGeometry relative="1" x="0.1445" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="1270" y="280" />
+              <mxPoint x="100" y="280" />
+              <mxPoint x="100" y="940" />
+              <mxPoint x="1605" y="940" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_xbar_apb" edge="1" parent="1" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;entryX=0.5;entryY=0;fontSize=10" target="t8_axi2apb" value="periph target">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1240" y="439" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_xbar_ram" edge="1" parent="1" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;entryX=0.5;entryY=0;fontSize=10;" target="t8_axi2mem" value="RAM target">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="455" y="440" />
+            </Array>
+            <mxPoint x="455" y="440" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_axi2apb_subsys" edge="1" parent="1" source="t8_axi2apb" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;entryX=0.335;entryY=0.005;fontSize=10;entryDx=0;entryDy=0;entryPerimeter=0;" value="APB">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1239.0499999999997" y="680" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="t8_e_axi2mem_ip0" edge="1" parent="1" source="t8_axi2mem" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10" target="t8_ip0" value="64-bit mem if">
+          <mxGeometry relative="1" x="-0.5103" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="455" y="640" />
+              <mxPoint x="130" y="640" />
+              <mxPoint x="130" y="910" />
+              <mxPoint x="305" y="910" />
+            </Array>
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>

@@ -120,6 +120,18 @@ Software and validation flow:
   natural next platform step, and it pays off with the *existing*
   initiator set - it is not blocked on AXI-native burst initiators
   arriving. See [`axi4_fabric.md`](axi4_fabric.md).
+- Adopt a two-tier interconnect as the platform endpoint. Tier 2 is a
+  PULP `axi_xbar` for the system bus (replaces the current `soc_axi_arbiter`
+  + `soc_axi_demux` pair, per-target arbitration, multiple outstanding
+  requests). Tier 1 is the existing `soc_mem_ss` with per-bank round-robin
+  arbitration. Memory-heavy initiators (DMA, accelerators, and eventually
+  cache lines) get **two ports**: a system AXI master for CSR/control that
+  lands on the xbar, and a dedicated `soc_mem_ss` init port for the data
+  path that bypasses the xbar entirely. This is the canonical pattern at
+  CoreJack's scale - Cheshire, Carfield, and similar PULP-based platforms
+  use the same shape, and it is what `accel_socket_if`'s split
+  `mem_axi_*` / `csr_apb_*` ports already anticipate. The two-tier picture
+  is documented in Tab 8 of [`media/corejack_soc.drawio`](media/corejack_soc.drawio).
 - Keep `soc_top` board-agnostic. Board wrappers provide only clock/reset,
   FPGA primitives, constraints, and physical pin wiring.
 - Continue evolving the descriptor-driven `CORE=<core>` / `BOARD=<board>`
@@ -193,6 +205,22 @@ infrastructure is already in place:
   instantiation is enough to experiment with 8 or 16 banks.
 - `sw/Makefile` exposes a matching `NUM_BANKS` knob so hex preload
   files line up with whatever the RTL chose.
+
+`MemNumBanks` and `NumInitPorts` are **coupled** tuning levers: as
+`NumInitPorts` grows toward the end-state ~6 (CPU instr direct + CPU data
+direct + xbar fallback + UART loader + uDMA + accelerator),
+`MemNumBanks` should grow with it. The textbook `B ≈ 2·N` heuristic
+assumes pathologically random independent address streams (DRAM-style or
+NoC-style worst-case), which is not what CoreJack carries: CPU
+instruction fetch, CPU data, DMA, and most accelerators have highly
+structured sequential or strided access patterns. Under round-robin
+arbitration, sequential streams self-align within a handful of cycles
+even at `B = N`, so the realistic target is **`MemNumBanks ≈ NumInitPorts`**
+(for example, 8 banks alongside the end-state ~6 init ports). Total SRAM
+bit count stays constant; only per-bank capacity changes. Bumping beyond
+that (12 or 16 banks) is a future option to revisit only if a measured
+workload — a worst-case all-accelerators-streaming benchmark, for
+example — shows real bank pressure.
 
 What is intentionally **not** done yet, pending real workload evidence:
 threading the bank count through the board descriptor, the FPGA wrapper,
