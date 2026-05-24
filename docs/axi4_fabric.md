@@ -21,6 +21,10 @@ of the fabric targets:
 - RAM through `soc_axi_to_mem`
 - UART through `soc_axi_to_apb`
 - debug module register/ROM window through `soc_axi_to_dm`
+- CLINT through `soc_axi_to_reg`
+
+CVA6 is integrated as a native AXI core: its initiator port enters
+`soc_axi_arbiter` directly instead of going through an OBI-to-AXI adapter.
 
 The board wrapper does not own this policy. Board wrappers only adapt clocks,
 resets, FPGA primitives, and physical IO pins.
@@ -32,11 +36,13 @@ resets, FPGA primitives, and physical IO pins.
 | Target | Parameter | Default Base | Size |
 | --- | --- | ---: | ---: |
 | Debug module window | `DebugBaseAddr` | `0x00000000` | `0x00001000` |
+| CLINT | `ClintBaseAddr` | `0x02000000` | `0x00010000` |
 | UART | `UartBaseAddr` | `0x10000000` | `0x00001000` |
 | RAM | `RamBaseAddr` | `0x80000000` | `RamWords * 4` |
 
 The decode windows are exclusive at the upper bound: `[base, base + size)`.
-The static address-map check verifies that these windows are non-overlapping.
+The static address-map check (`make axi-addr-map-check`) verifies that these
+windows are non-overlapping.
 
 ## Memory Width
 
@@ -73,10 +79,13 @@ The current AXI adapters intentionally support the active platform use case:
 - 32-bit core-side instruction/data access for current RV32 cores
 - 64-bit AXI/memory data width inside the platform
 
-This is sufficient for the supported Ibex, CV32E40P, and CV32E40S RV32 flows.
-AXI-native initiators with bursts or richer outstanding behavior should
-use a widened fabric implementation rather than extending these small adapters
-ad hoc.
+This is sufficient for the currently supported flows: the OBI-style RV32
+cores (Ibex, CV32E40P, CV32E40S) and the small core-specific adapters used
+by SERV, PicoRV32, and CVW/Wally all reach RAM, UART, CLINT, and debug
+through the same shared fabric, and CVA6 enters that fabric as a native
+single-beat AXI initiator. AXI-native initiators with bursts or richer
+outstanding behavior should use a widened fabric implementation rather than
+extending these small adapters ad hoc.
 
 ## Acceptance
 

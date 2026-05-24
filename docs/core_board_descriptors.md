@@ -266,13 +266,16 @@ validation:
   expected_uart:
     - "=== CoreJack SoC Demo ==="
     - "Target: fpga"
-    - "Core: ibex"
-    - "Board: axku5"
+    - "Core: {core}"
+    - "Board: {board}"
     - "path is alive."
 ```
 
 Board descriptors should describe physical and tool-flow facts. They should not
-contain SoC policy that belongs in the generic platform integration.
+contain SoC policy that belongs in the generic platform integration. Use the
+`{core}` and `{board}` placeholders in `expected_uart` fragments when the
+expected text is core- or board-specific so the same descriptor stays
+reusable across all compatible cores.
 
 For the practical core bring-up checklist, see
 [`core_porting.md`](core_porting.md).

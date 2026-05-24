@@ -185,7 +185,7 @@ help:
 	@printf '  %-18s %s\n' 'fpga-run-hello' 'load/run the hello_world ELF for GDB_TIMEOUT seconds'
 	@printf '  %-18s %s\n' 'fpga-run-zephyr' 'build/load/run Zephyr app for GDB_TIMEOUT seconds'
 	@printf '  %-18s %s\n' 'smoke' 'run FuseSoC cocotb+Verilator smoke target'
-	@printf '  %-18s %s\n' 'plan' 'show the current Ibex FPGA bring-up plan'
+	@printf '  %-18s %s\n' 'plan' 'show the current CoreJack roadmap'
 	@printf '  %-18s %s\n' 'clean' 'remove simulation and generated outputs'
 	@printf '  %-18s %s\n' 'distclean' 'clean + remove tools and bender dependencies'
 
@@ -620,7 +620,7 @@ smoke: gen
 		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
 
 plan:
-	@sed -n '1,240p' docs/fpga_ibex_plan.md
+	@sed -n '1,240p' docs/roadmap.md
 
 clean:
 	@rm -rf build sw/build tb/sim_build tb/results.xml gen deps

@@ -133,17 +133,21 @@ The CMake project auto-discovers app directories with `main.c`.
 make sw-build SW_APP=my_test TARGET=fpga
 ```
 
-This produces:
+This produces, under `sw/build/fpga/<core>/<toolchain>/my_test/`:
 
 ```text
-sw/build/fpga/my_test/cmake/my_test/my_test
-sw/build/fpga/my_test/my_test.bin
-sw/build/fpga/my_test/my_test.dis
-sw/build/fpga/my_test/bank_0.hex
-sw/build/fpga/my_test/bank_1.hex
-sw/build/fpga/my_test/bank_2.hex
-sw/build/fpga/my_test/bank_3.hex
+cmake/my_test/my_test
+my_test.bin
+my_test.dis
+bank_0.hex
+bank_1.hex
+bank_2.hex
+bank_3.hex
 ```
+
+For the default `CORE=ibex` and `TOOLCHAIN=riscv-multilib` selection this
+resolves to `sw/build/fpga/ibex/riscv-multilib/my_test/`. The simulation
+target writes to `sw/build/sim/<core>/<toolchain>/<app>/` instead.
 
 The `bank_N.hex` files match the current interleaved SRAM layout. By default,
 each line contains one 64-bit SRAM word:
