@@ -37,12 +37,52 @@ fi
 _sm_info()  { echo " - $*"; }
 _sm_arrow() { echo "  -> $*"; }
 _sm_error() { echo " - ERROR: $*" >&2; }
+_sm_path_without() {
+  local _sm_remove="$1"
+  local _sm_entry
+  local _sm_new_path=""
+  local -a _sm_path_entries
+
+  IFS=: read -r -a _sm_path_entries <<< "${PATH:-}"
+  for _sm_entry in "${_sm_path_entries[@]}"; do
+    if [[ "${_sm_entry}" == "${_sm_remove}" ]]; then
+      continue
+    fi
+    if [[ -n "${_sm_new_path}" ]]; then
+      _sm_new_path="${_sm_new_path}:${_sm_entry}"
+    else
+      _sm_new_path="${_sm_entry}"
+    fi
+  done
+
+  printf '%s\n' "${_sm_new_path}"
+}
 _sm_prepend_path_unique() {
+  local _sm_path_tail
+
   if [[ -n "${PATH:-}" ]]; then
-    export PATH="$1:$(sed -r "s,(:$1$)|($1:),,g" <<< "$PATH")"
+    _sm_path_tail="$(_sm_path_without "$1")"
+    if [[ -n "${_sm_path_tail}" ]]; then
+      export PATH="$1:${_sm_path_tail}"
+    else
+      export PATH="$1"
+    fi
   else
     export PATH="$1"
   fi
+}
+_sm_clear_stale_project_venv() {
+  if [[ "${VIRTUAL_ENV:-}" != "${_sm_venv_dir}" || -f "${_sm_venv_act}" ]]; then
+    return 0
+  fi
+
+  _sm_info "Project virtual environment is stale — recreating"
+  if declare -F deactivate >/dev/null 2>&1; then
+    deactivate nondestructive
+  fi
+
+  export PATH="$(_sm_path_without "${_sm_venv_dir}/bin")"
+  unset VIRTUAL_ENV VIRTUAL_ENV_PROMPT
 }
 
 _sm_create_venv() {
@@ -70,6 +110,8 @@ _sm_create_venv() {
 }
 
 _sm_activate_venv() {
+  _sm_clear_stale_project_venv
+
   # Already in the right venv — nothing to do
   if [[ -n "${VIRTUAL_ENV:-}" && "${VIRTUAL_ENV}" == "${_sm_venv_dir}" ]]; then
     _sm_info "Project virtual environment already active"
@@ -147,5 +189,5 @@ if [[ -x "${COREJACK_VERIBLE}/bin/verible-verilog-lint" ]]; then
 fi
 
 # Clean up helper functions and private variables from the shell namespace
-unset -f _sm_create_venv _sm_activate_venv _sm_info _sm_arrow _sm_error _sm_prepend_path_unique use_ibex use_riscv_multilib use_toolchain
+unset -f _sm_create_venv _sm_activate_venv _sm_info _sm_arrow _sm_error _sm_path_without _sm_prepend_path_unique _sm_clear_stale_project_venv use_ibex use_riscv_multilib use_toolchain
 unset _sm_python _sm_this_dir _sm_venv_dir _sm_venv_act _sm_venv_name _sm_reqs

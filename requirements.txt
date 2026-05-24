@@ -1,5 +1,5 @@
-fusesoc==2.4.5
+fusesoc==2.4.6
 PyYAML==6.0.3
 cocotb==2.0.1
-pytest==8.3.5
+pytest==9.0.3
 west==1.5.0
