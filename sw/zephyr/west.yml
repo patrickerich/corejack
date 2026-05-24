@@ -5,7 +5,8 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: v4.4.0
+      # Zephyr v4.4.0
+      revision: 4f50f0ba8905f27b2f60123d0ee0934fda6fe134
       west-commands: scripts/west-commands.yml
   self:
     path: corejack

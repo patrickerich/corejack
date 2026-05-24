@@ -53,6 +53,16 @@ make deps-core CORE=cv32e40p
 make deps-all
 ```
 
+Normal dependency checkout consumes the committed `Bender.lock`. Do not refresh
+the lockfile as part of routine setup. When intentionally updating HDL
+dependency pins, use:
+
+```bash
+make deps-update
+```
+
+and review the resulting `Bender.lock` diff.
+
 `deps-base` is the common SoC dependency set: AXI, APB, OBI, CLINT,
 `riscv-dbg`, common cells, and related shared packages. Core repositories are
 intended to be independent optional dependencies. A core port must not require
@@ -73,12 +83,19 @@ FPGA trees.
 
 Reproducibility notes:
 
-- `Makefile` pins `BENDER_VERSION` and installs that binary into `bin/.tools/`.
+- `Makefile` pins `BENDER_VERSION`, selects deterministic Linux release assets,
+  and verifies their SHA256 digests before installing into `bin/.tools/`.
 - `Makefile` and `sourceme.sh` share the same Python selector (`PYTHON`,
   default `python3.13`).
 - A stable symlink `bin/.tools/bender` is used by `make deps`/`make flist`.
+- Normal `make deps`/`make deps-base` uses `bender checkout` against the
+  committed lockfile; `make deps-update` is the explicit lock-refresh path.
 - `make deps-core CORE=<core>` creates only the selected core's `deps/<core>`
   symlink when that core has an external dependency.
+- Optional source-built tools use readable release refs plus expected commits;
+  the build scripts fail if a ref resolves to a different commit.
+- Optional prebuilt binary tools use pinned SHA256 digests; custom archive URLs
+  must provide matching custom digests.
 
 ## Dependency Classes
 

@@ -77,6 +77,12 @@ make sw-build SW_APP=hello_world TOOLCHAIN=riscv-multilib
 This target is intentionally not part of `make deps`; building GCC/Newlib from
 source is slow and requires host build dependencies.
 
+The default RISC-V GNU toolchain source is pinned to the upstream
+`2026.05.19` release tag and verified against commit
+`96e1c125620ec403962c8536ecbbde20878c5e44` before building. If the tag ever
+resolves to a different commit, the build stops instead of silently accepting
+the changed source.
+
 LLVM/Clang is a plausible future toolchain backend, but GCC/Newlib remains the
 default for now. The current priority is a reliable bare-metal flow with
 multilib support, predictable Newlib runtime libraries, binutils, and GDB for
@@ -107,6 +113,9 @@ target if needed:
 ```bash
 make tool-verilator VERILATOR_VERSION=v5.048
 ```
+
+The default tag is verified against commit
+`d0aa828c217410fffc73d92077b6f4f54830357c` after checkout.
 
 `source sourceme.sh` prepends `.tools/verilator/bin` when that local install is
 present. If it is absent, the flow falls back to whichever `verilator` is
@@ -151,6 +160,9 @@ explicitly if needed:
 make tool-verible VERIBLE_ARCHIVE_URL=https://...
 ```
 
+Default Verible release archives are verified with pinned SHA256 digests. If
+`VERIBLE_ARCHIVE_URL` is overridden, `VERIBLE_ARCHIVE_SHA256` must also be set.
+
 The installer requires only `curl` and `tar`. `make check-tools FLOW=sim`
 reports the active Verible tools and optional binary-install prerequisites.
 
@@ -164,8 +176,9 @@ reproducibility:
 - Verible: repo-local `v0.0-4053-g89d4d98a`
 - GNU Make: `4.4.1`
 - System Python used by setup: `3.13.13`
-- FuseSoC from venv/requirements: `2.4.5`
+- FuseSoC from venv/requirements: `2.4.6`
 - cocotb from venv/requirements: `2.0.1`
+- pytest from venv/requirements: `9.0.3`
 - Bender: `0.31.0`
 - CMake: `3.30.5`
 - Vivado: `2025.2.1`

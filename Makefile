@@ -3,19 +3,27 @@ SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 BENDER_VERSION ?= 0.31.0
+BENDER_ASSET ?=
+BENDER_SHA256 ?=
+BENDER_URL ?=
 PYTHON        ?= python3.13
 RISCV_TOOLCHAIN_PREFIX ?= $(CURDIR)/.tools/riscv
 RISCV_GNU_TOOLCHAIN_SRC ?= $(CURDIR)/.tools/src/riscv-gnu-toolchain
-RISCV_GNU_TOOLCHAIN_REF ?= master
+RISCV_GNU_TOOLCHAIN_REF ?= 2026.05.19
+RISCV_GNU_TOOLCHAIN_COMMIT ?= 96e1c125620ec403962c8536ecbbde20878c5e44
 RISCV_MULTILIB_GENERATOR ?= rv32i-ilp32--;rv32imc-ilp32--;rv32imcb-ilp32--;rv64imc-lp64--;rv64gc-lp64d--
 RISCV_TOOLCHAIN_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
 VERILATOR_VERSION ?= v5.048
+VERILATOR_COMMIT ?= d0aa828c217410fffc73d92077b6f4f54830357c
 VERILATOR_PREFIX ?= $(CURDIR)/.tools/verilator
 VERILATOR_SRC ?= $(CURDIR)/.tools/src/verilator
 VERILATOR_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
 VERIBLE_VERSION ?= v0.0-4053-g89d4d98a
 VERIBLE_PREFIX ?= $(CURDIR)/.tools/verible
 VERIBLE_ARCHIVE_URL ?=
+VERIBLE_ARCHIVE_SHA256 ?=
+VERIBLE_SHA256_LINUX_X86_64 ?= 1edc1f29c70d74213ed373e727183802d5a733e23f9ab9c74462f5b18b76f2c0
+VERIBLE_SHA256_LINUX_ARM64 ?= e6184011e93eb843fe0b5f1ecc60dcb06eec0ca05784f5caff1a17814068bca1
 ZEPHYR_VERSION ?= v4.4.0
 ZEPHYR_WORKSPACE ?= $(CURDIR)/.tools/zephyrproject
 ZEPHYR_BASE ?= $(ZEPHYR_WORKSPACE)/zephyr
@@ -107,7 +115,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check python-tests gen flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check python-tests gen flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -121,6 +129,7 @@ help:
 	@printf '  %-18s %s\n' 'zephyr-check' 'check Zephyr workspace/tooling assumptions'
 	@printf '  %-18s %s\n' 'check-tools' 'report host tools for FLOW=all|sim|fpga|debug'
 	@printf '  %-18s %s\n' 'deps' 'fetch base deps plus selected CORE dependency'
+	@printf '  %-18s %s\n' 'deps-update' 'deliberately refresh Bender.lock, then checkout'
 	@printf '  %-18s %s\n' 'deps-base' 'fetch shared base dependencies only'
 	@printf '  %-18s %s\n' 'deps-core' 'fetch only the selected CORE dependency'
 	@printf '  %-18s %s\n' 'deps-all' 'fetch all optional core dependencies'
@@ -183,24 +192,33 @@ help:
 # File target — only runs when the binary is missing
 $(BENDER_BIN):
 	@mkdir -p "$(TOOLS_DIR)"
-	@tmp="$$(mktemp -d)"; \
-	api="https://api.github.com/repos/pulp-platform/bender/releases/tags/v$(BENDER_VERSION)"; \
-	os="$$(uname -s | tr '[:upper:]' '[:lower:]')"; \
-	arch="$$(uname -m | tr '[:upper:]' '[:lower:]')"; \
-	case "$$arch" in \
-		x86_64|amd64) arch="x86_64" ;; \
-		aarch64|arm64) arch="aarch64" ;; \
-		*) echo "Unsupported architecture: $$arch"; rm -rf "$$tmp"; exit 1 ;; \
-	esac; \
-	url="$$( $(PYTHON) -c 'import json,sys,urllib.request; api,osn,arch=sys.argv[1:]; rel=json.load(urllib.request.urlopen(api)); assets=rel.get("assets", []); print(next((a.get("browser_download_url", "") for a in assets if osn in a.get("name", "").lower() and arch in a.get("name", "").lower() and a.get("name", "").lower().endswith((".tar.gz", ".tgz"))), ""))' "$$api" "$$os" "$$arch")"; \
-	if [ -z "$$url" ]; then \
-		echo "No matching prebuilt bender asset found for $$os/$$arch (v$(BENDER_VERSION))."; \
+	@set -e; \
+	tmp="$$(mktemp -d)"; \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	asset="$(BENDER_ASSET)"; \
+	sha256="$(BENDER_SHA256)"; \
+	if [ -z "$$asset" ]; then \
+		os="$$(uname -s | tr '[:upper:]' '[:lower:]')"; \
+		arch="$$(uname -m | tr '[:upper:]' '[:lower:]')"; \
+		case "$$os:$$arch" in \
+			linux:x86_64|linux:amd64) asset="bender-$(BENDER_VERSION)-x86_64-linux-gnu.tar.gz"; sha256="f2f3bdaa28e812c607d8031350cc6c279955ebc24c915c891da0e81ad5957da0" ;; \
+			linux:aarch64|linux:arm64) asset="bender-$(BENDER_VERSION)-arm64-linux-gnu.tar.gz"; sha256="b96f586026bf20c04fc298221f25a3e134ce17319195a0b00571c284dba72717" ;; \
+			*) echo "Unsupported bender binary platform: $$os/$$arch"; rm -rf "$$tmp"; exit 1 ;; \
+		esac; \
+	fi; \
+	if [ -z "$$sha256" ]; then \
+		echo "No SHA256 configured for bender asset: $$asset"; \
 		echo "Install bender manually and place it at $(BENDER_BIN)."; \
 		rm -rf "$$tmp"; \
 		exit 1; \
 	fi; \
+	url="$(BENDER_URL)"; \
+	if [ -z "$$url" ]; then \
+		url="https://github.com/pulp-platform/bender/releases/download/v$(BENDER_VERSION)/$$asset"; \
+	fi; \
 	echo "Downloading $$url"; \
 	curl -fsSL "$$url" -o "$$tmp/bender.tgz"; \
+	printf '%s  %s\n' "$$sha256" "$$tmp/bender.tgz" | sha256sum -c -; \
 	mkdir -p "$$tmp/unpack" "$(BENDER_DIR)"; \
 	tar -xzf "$$tmp/bender.tgz" -C "$$tmp/unpack"; \
 	bin_path="$$(find "$$tmp/unpack" -type f -name bender | head -n1)"; \
@@ -221,12 +239,14 @@ toolchain-riscv:
 	@RISCV_TOOLCHAIN_PREFIX="$(RISCV_TOOLCHAIN_PREFIX)" \
 	 RISCV_GNU_TOOLCHAIN_SRC="$(RISCV_GNU_TOOLCHAIN_SRC)" \
 	 RISCV_GNU_TOOLCHAIN_REF="$(RISCV_GNU_TOOLCHAIN_REF)" \
+	 RISCV_GNU_TOOLCHAIN_COMMIT="$(RISCV_GNU_TOOLCHAIN_COMMIT)" \
 	 RISCV_MULTILIB_GENERATOR="$(RISCV_MULTILIB_GENERATOR)" \
 	 RISCV_TOOLCHAIN_JOBS="$(RISCV_TOOLCHAIN_JOBS)" \
 	 bin/build_riscv_toolchain.sh
 
 tool-verilator:
 	@VERILATOR_REF="$(VERILATOR_VERSION)" \
+	 VERILATOR_COMMIT="$(VERILATOR_COMMIT)" \
 	 VERILATOR_PREFIX="$(VERILATOR_PREFIX)" \
 	 VERILATOR_SRC="$(VERILATOR_SRC)" \
 	 VERILATOR_JOBS="$(VERILATOR_JOBS)" \
@@ -236,6 +256,9 @@ tool-verible:
 	@VERIBLE_REF="$(VERIBLE_VERSION)" \
 	 VERIBLE_PREFIX="$(VERIBLE_PREFIX)" \
 	 VERIBLE_ARCHIVE_URL="$(VERIBLE_ARCHIVE_URL)" \
+	 VERIBLE_ARCHIVE_SHA256="$(VERIBLE_ARCHIVE_SHA256)" \
+	 VERIBLE_SHA256_LINUX_X86_64="$(VERIBLE_SHA256_LINUX_X86_64)" \
+	 VERIBLE_SHA256_LINUX_ARM64="$(VERIBLE_SHA256_LINUX_ARM64)" \
 	 bin/build_verible.sh
 
 zephyr-init:
@@ -288,8 +311,11 @@ check-tools:
 
 deps: deps-base deps-core
 
-deps-base: $(BENDER_BIN)
+deps-update: $(BENDER_BIN)
 	@"$(BENDER)" update
+	@"$(BENDER)" checkout
+
+deps-base: $(BENDER_BIN)
 	@"$(BENDER)" checkout
 	@mkdir -p deps
 	@for dep in axi apb apb_uart clint obi obi_peripherals register_interface riscv-dbg common_cells tech_cells_generic common_verification; do \

@@ -6,6 +6,7 @@ repo_dir="$(cd "${script_dir}/.." && pwd)"
 
 verilator_repo="${VERILATOR_REPO:-https://github.com/verilator/verilator.git}"
 verilator_ref="${VERILATOR_REF:-v5.048}"
+verilator_commit="${VERILATOR_COMMIT:-d0aa828c217410fffc73d92077b6f4f54830357c}"
 src_dir="${VERILATOR_SRC:-${repo_dir}/.tools/src/verilator}"
 prefix="${VERILATOR_PREFIX:-${repo_dir}/.tools/verilator}"
 jobs="${VERILATOR_JOBS:-$(nproc 2>/dev/null || echo 4)}"
@@ -40,6 +41,9 @@ fi
 echo "CoreJack Verilator build"
 echo "  repo:   ${verilator_repo}"
 echo "  ref:    ${verilator_ref}"
+if [[ -n "${verilator_commit}" ]]; then
+  echo "  commit: ${verilator_commit}"
+fi
 echo "  source: ${src_dir}"
 echo "  prefix: ${prefix}"
 echo "  jobs:   ${jobs}"
@@ -54,6 +58,12 @@ else
 fi
 
 git -C "${src_dir}" checkout "${verilator_ref}"
+actual_commit="$(git -C "${src_dir}" rev-parse HEAD)"
+if [[ -n "${verilator_commit}" && "${actual_commit}" != "${verilator_commit}" ]]; then
+  echo "Resolved Verilator commit ${actual_commit}, expected ${verilator_commit}." >&2
+  exit 1
+fi
+echo "  resolved commit: ${actual_commit}"
 
 (
   cd "${src_dir}"

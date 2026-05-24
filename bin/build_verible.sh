@@ -7,9 +7,11 @@ repo_dir="$(cd "${script_dir}/.." && pwd)"
 verible_ref="${VERIBLE_REF:-v0.0-4053-g89d4d98a}"
 prefix="${VERIBLE_PREFIX:-${repo_dir}/.tools/verible}"
 archive_url="${VERIBLE_ARCHIVE_URL:-}"
+archive_sha256="${VERIBLE_ARCHIVE_SHA256:-}"
 
 required_tools=(
   curl
+  sha256sum
   tar
 )
 
@@ -32,10 +34,12 @@ if [[ -z "${archive_url}" ]]; then
     linux:x86_64|linux:amd64)
       asset_arch="x86_64"
       asset="verible-${verible_ref}-linux-static-${asset_arch}.tar.gz"
+      archive_sha256="${archive_sha256:-${VERIBLE_SHA256_LINUX_X86_64:-1edc1f29c70d74213ed373e727183802d5a733e23f9ab9c74462f5b18b76f2c0}}"
       ;;
     linux:aarch64|linux:arm64)
       asset_arch="arm64"
       asset="verible-${verible_ref}-linux-static-${asset_arch}.tar.gz"
+      archive_sha256="${archive_sha256:-${VERIBLE_SHA256_LINUX_ARM64:-e6184011e93eb843fe0b5f1ecc60dcb06eec0ca05784f5caff1a17814068bca1}}"
       ;;
     *)
       echo "Unsupported Verible binary platform: ${os}/${arch}" >&2
@@ -46,9 +50,16 @@ if [[ -z "${archive_url}" ]]; then
   archive_url="https://github.com/chipsalliance/verible/releases/download/${verible_ref}/${asset}"
 fi
 
+if [[ -z "${archive_sha256}" ]]; then
+  echo "No SHA256 configured for Verible archive: ${archive_url}" >&2
+  echo "Set VERIBLE_ARCHIVE_SHA256 when overriding VERIBLE_ARCHIVE_URL." >&2
+  exit 1
+fi
+
 echo "CoreJack Verible binary install"
 echo "  ref:     ${verible_ref}"
 echo "  url:     ${archive_url}"
+echo "  sha256:  ${archive_sha256}"
 echo "  prefix:  ${prefix}"
 
 tmp="$(mktemp -d)"
@@ -61,6 +72,7 @@ mkdir -p "${prefix}" "${repo_dir}/.tools"
 touch "${repo_dir}/.tools/FUSESOC_IGNORE"
 
 curl -fsSL "${archive_url}" -o "${tmp}/verible.tar.gz"
+printf '%s  %s\n' "${archive_sha256}" "${tmp}/verible.tar.gz" | sha256sum -c -
 mkdir -p "${tmp}/unpack"
 tar -xzf "${tmp}/verible.tar.gz" -C "${tmp}/unpack"
 
