@@ -57,15 +57,15 @@ FLOW=sim|fpga|debug` to see what is missing for the selected flow.
 - **FPGA debug (`openocd`, `fpga-run-sw`):** OpenOCD with RISC-V support
   and `riscv64-unknown-elf-gdb`.
 - **Zephyr (`zephyr-*`):** an initialized west workspace; `make zephyr-init`
-  bootstraps `.tools/zephyrproject`.
+  bootstraps it under `TOOLS_DIR` by default.
 
-Optional project-local installs go under the ignored `.tools/` directory and
-are picked up automatically by `sourceme.sh`:
+Optional project-local installs go under `TOOLS_DIR`, which defaults to the
+ignored `.tools/` directory, and are picked up automatically by `sourceme.sh`:
 
 ```bash
-make tool-verilator      # pinned Verilator into .tools/verilator/
-make toolchain-riscv     # bare-metal multilib GCC/Newlib/GDB into .tools/riscv/
-make tool-verible        # pinned Verible lint/format tools into .tools/verible/
+make tool-verilator      # pinned Verilator into TOOLS_DIR/verilator/
+make toolchain-riscv     # bare-metal multilib GCC/Newlib/GDB into TOOLS_DIR/riscv/
+make tool-verible        # pinned Verible lint/format tools into TOOLS_DIR/verible/
 ```
 
 See [`docs/tooling.md`](docs/tooling.md) for the full setup, pinned

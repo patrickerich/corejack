@@ -11,11 +11,12 @@ For interactive development shells, activate the project environment with:
 source sourceme.sh
 ```
 
-`source sourceme.sh` also prepends repo-local tool paths when they exist:
+`source sourceme.sh` also prepends repo-local tool paths when they exist.
+`TOOLS_DIR` defaults to `.tools`:
 
-- default generic toolchain root: `.tools/riscv`
-- default Verilator root: `.tools/verilator`
-- default Verible root: `.tools/verible`
+- default generic toolchain root: `TOOLS_DIR/riscv`
+- default Verilator root: `TOOLS_DIR/verilator`
+- default Verible root: `TOOLS_DIR/verible`
 - default descriptor-selected software toolchain: `riscv-multilib`
 - shell setup can also select it via `COREJACK_TOOLCHAIN=riscv-multilib`
 - optional machine-local overrides can live in ignored `sourceme.local.sh`
@@ -33,7 +34,7 @@ make check-tools FLOW=debug
 ## Optional Generic RISC-V GNU Toolchain
 
 The repo can build an optional bare-metal multilib RISC-V GNU toolchain from
-source into the local ignored `.tools/` directory:
+source into `TOOLS_DIR`, which defaults to the ignored `.tools/` directory:
 
 ```bash
 make toolchain-riscv
@@ -42,7 +43,7 @@ make toolchain-riscv
 The default install prefix is:
 
 ```text
-.tools/riscv/
+TOOLS_DIR/riscv/
 ```
 
 The resulting compiler prefix is normally `riscv64-unknown-elf-*`, even for
@@ -93,8 +94,8 @@ and debug behavior have been validated.
 
 ## Optional Local Verilator
 
-The repo can build an optional pinned Verilator into the ignored `.tools/`
-directory:
+The repo can build an optional pinned Verilator into `TOOLS_DIR`, which defaults
+to the ignored `.tools/` directory:
 
 ```bash
 make tool-verilator
@@ -103,8 +104,8 @@ make tool-verilator
 The default source checkout and install prefix are:
 
 ```text
-.tools/src/verilator/
-.tools/verilator/
+TOOLS_DIR/src/verilator/
+TOOLS_DIR/verilator/
 ```
 
 The default pinned Verilator tag is `v5.048`. Override it when invoking the
@@ -117,7 +118,7 @@ make tool-verilator VERILATOR_VERSION=v5.048
 The default tag is verified against commit
 `d0aa828c217410fffc73d92077b6f4f54830357c` after checkout.
 
-`source sourceme.sh` prepends `.tools/verilator/bin` when that local install is
+`source sourceme.sh` prepends `TOOLS_DIR/verilator/bin` when that local install is
 present. If it is absent, the flow falls back to whichever `verilator` is
 already available on `PATH`.
 
@@ -129,7 +130,7 @@ source-build prerequisites.
 ## Optional Local Verible
 
 The repo can install optional pinned Verible SystemVerilog lint/format tools
-into the ignored `.tools/` directory:
+into `TOOLS_DIR`, which defaults to the ignored `.tools/` directory:
 
 ```bash
 make tool-verible
@@ -138,7 +139,7 @@ make tool-verible
 The default install prefix is:
 
 ```text
-.tools/verible/
+TOOLS_DIR/verible/
 ```
 
 The default pinned Verible tag is `v0.0-4053-g89d4d98a`. Override it when
@@ -148,7 +149,7 @@ invoking the target if needed:
 make tool-verible VERIBLE_VERSION=v0.0-4053-g89d4d98a
 ```
 
-`source sourceme.sh` prepends `.tools/verible/bin` when that local install is
+`source sourceme.sh` prepends `TOOLS_DIR/verible/bin` when that local install is
 present. If it is absent, the flow falls back to any Verible tools already
 available on `PATH`.
 

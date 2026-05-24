@@ -77,7 +77,8 @@ specific area, follow the linked documentation.
   `<target>` is `fpga` or `sim`.
 - `build/waves/` - optional Verilator FST/VCD traces.
 - `.bender/`, `deps/` - Bender checkouts and stable symlinks.
-- `.tools/`, `.venv/` - optional project-local tools and Python venv.
+- `TOOLS_DIR`/`.venv/` - optional project-local tools and Python venv;
+  `TOOLS_DIR` defaults to `.tools`.
 
 For the descriptor schema, see
 [`core_board_descriptors.md`](core_board_descriptors.md). For how Bender and

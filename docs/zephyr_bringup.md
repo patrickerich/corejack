@@ -16,7 +16,7 @@ as full RTOS platform support.
 
 - Zephyr release: `v4.4.0`, pinned in `sw/zephyr/west.yml` by commit
   `4f50f0ba8905f27b2f60123d0ee0934fda6fe134`
-- Zephyr workspace: `.tools/zephyrproject`
+- Zephyr workspace: `TOOLS_DIR/zephyrproject`; `TOOLS_DIR` defaults to `.tools`
 - Zephyr app and platform files: `sw/zephyr`
 - Zephyr boards: `corejack_ibex_axku5`, `corejack_cv32e40p_axku5`,
   `corejack_cv32e40s_axku5`, `corejack_cva6_axku5`,

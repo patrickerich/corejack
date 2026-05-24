@@ -84,10 +84,10 @@ FPGA trees.
 Reproducibility notes:
 
 - `Makefile` pins `BENDER_VERSION`, selects deterministic Linux release assets,
-  and verifies their SHA256 digests before installing into `bin/.tools/`.
+  and verifies their SHA256 digests before installing into `TOOLS_DIR`.
 - `Makefile` and `sourceme.sh` share the same Python selector (`PYTHON`,
   default `python3.13`).
-- A stable symlink `bin/.tools/bender` is used by `make deps`/`make flist`.
+- A stable symlink `TOOLS_DIR/bender` is used by `make deps`/`make flist`.
 - Normal `make deps`/`make deps-base` uses `bender checkout` against the
   committed lockfile; `make deps-update` is the explicit lock-refresh path.
 - `make deps-core CORE=<core>` creates only the selected core's `deps/<core>`

@@ -40,7 +40,6 @@ results.xml
 .bender_cache/
 deps/
 .tools/
-bin/.tools/
 sw/build/
 sw/zephyr/build/
 

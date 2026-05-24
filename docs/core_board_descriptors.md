@@ -153,7 +153,7 @@ values are:
   CVA6 does. These cores do not use `corejack_core_region`.
 
 `software.toolchain` selects a named software toolchain flow. The default is
-`riscv-multilib`, which resolves to the repo-local `.tools/riscv` install and
+`riscv-multilib`, which resolves to the repo-local `TOOLS_DIR/riscv` install and
 uses the `riscv64-unknown-elf-*` executable prefix. The `ibex` and
 `external-riscv32` names are compatibility slots for external
 `riscv32-unknown-elf-*` toolchains.

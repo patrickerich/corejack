@@ -7,25 +7,26 @@ BENDER_ASSET ?=
 BENDER_SHA256 ?=
 BENDER_URL ?=
 PYTHON        ?= python3.13
-RISCV_TOOLCHAIN_PREFIX ?= $(CURDIR)/.tools/riscv
-RISCV_GNU_TOOLCHAIN_SRC ?= $(CURDIR)/.tools/src/riscv-gnu-toolchain
+TOOLS_DIR  := $(CURDIR)/.tools
+RISCV_TOOLCHAIN_PREFIX ?= $(TOOLS_DIR)/riscv
+RISCV_GNU_TOOLCHAIN_SRC ?= $(TOOLS_DIR)/src/riscv-gnu-toolchain
 RISCV_GNU_TOOLCHAIN_REF ?= 2026.05.19
 RISCV_GNU_TOOLCHAIN_COMMIT ?= 96e1c125620ec403962c8536ecbbde20878c5e44
 RISCV_MULTILIB_GENERATOR ?= rv32i-ilp32--;rv32imc-ilp32--;rv32imcb-ilp32--;rv64imc-lp64--;rv64gc-lp64d--
 RISCV_TOOLCHAIN_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
 VERILATOR_VERSION ?= v5.048
 VERILATOR_COMMIT ?= d0aa828c217410fffc73d92077b6f4f54830357c
-VERILATOR_PREFIX ?= $(CURDIR)/.tools/verilator
-VERILATOR_SRC ?= $(CURDIR)/.tools/src/verilator
+VERILATOR_PREFIX ?= $(TOOLS_DIR)/verilator
+VERILATOR_SRC ?= $(TOOLS_DIR)/src/verilator
 VERILATOR_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
 VERIBLE_VERSION ?= v0.0-4053-g89d4d98a
-VERIBLE_PREFIX ?= $(CURDIR)/.tools/verible
+VERIBLE_PREFIX ?= $(TOOLS_DIR)/verible
 VERIBLE_ARCHIVE_URL ?=
 VERIBLE_ARCHIVE_SHA256 ?=
 VERIBLE_SHA256_LINUX_X86_64 ?= 1edc1f29c70d74213ed373e727183802d5a733e23f9ab9c74462f5b18b76f2c0
 VERIBLE_SHA256_LINUX_ARM64 ?= e6184011e93eb843fe0b5f1ecc60dcb06eec0ca05784f5caff1a17814068bca1
 ZEPHYR_VERSION ?= v4.4.0
-ZEPHYR_WORKSPACE ?= $(CURDIR)/.tools/zephyrproject
+ZEPHYR_WORKSPACE ?= $(TOOLS_DIR)/zephyrproject
 ZEPHYR_BASE ?= $(ZEPHYR_WORKSPACE)/zephyr
 ZEPHYR_APP ?= corejack_hello
 ZEPHYR_BOARD ?= corejack_$(CORE)_$(BOARD)
@@ -36,7 +37,6 @@ CVA6_REPO ?= https://github.com/openhwgroup/cva6.git
 CVA6_REV  ?= f0c274cad66b84cd58379880741680351c7ce9ab
 CVA6_PATCHES := patches/cva6/0001-fix-rv64-misa-mxl-width.patch
 
-TOOLS_DIR  := $(CURDIR)/bin/.tools
 BENDER_DIR := $(TOOLS_DIR)/bender-v$(BENDER_VERSION)
 BENDER_BIN := $(BENDER_DIR)/bender
 BENDER     := $(TOOLS_DIR)/bender
@@ -119,10 +119,10 @@ endif
 
 help:
 	@echo "Targets:"
-	@printf '  %-18s %s\n' 'bender' 'fetch pinned bender binary into bin/.tools/'
-	@printf '  %-18s %s\n' 'toolchain-riscv' 'build optional local RISC-V GNU multilib toolchain into .tools/'
-	@printf '  %-18s %s\n' 'tool-verilator' 'build optional local Verilator into .tools/'
-	@printf '  %-18s %s\n' 'tool-verible' 'install optional local Verible lint/format tools into .tools/'
+	@printf '  %-18s %s\n' 'bender' 'fetch pinned bender binary into TOOLS_DIR'
+	@printf '  %-18s %s\n' 'toolchain-riscv' 'build optional local RISC-V GNU multilib toolchain into TOOLS_DIR'
+	@printf '  %-18s %s\n' 'tool-verilator' 'build optional local Verilator into TOOLS_DIR'
+	@printf '  %-18s %s\n' 'tool-verible' 'install optional local Verible lint/format tools into TOOLS_DIR'
 	@printf '  %-18s %s\n' 'zephyr-init' 'initialize/update project-local Zephyr workspace'
 	@printf '  %-18s %s\n' 'zephyr-python-deps' 'install Zephyr build Python requirements into venv'
 	@printf '  %-18s %s\n' 'zephyr-build' 'build Zephyr hello app for ZEPHYR_BOARD'
@@ -626,4 +626,4 @@ clean:
 	@rm -rf build sw/build tb/sim_build tb/results.xml gen deps
 
 distclean: clean
-	@rm -rf "$(TOOLS_DIR)" .tools .bender
+	@rm -rf "$(TOOLS_DIR)" .bender
