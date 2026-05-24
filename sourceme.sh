@@ -21,7 +21,6 @@ _sm_reqs="${_sm_this_dir}/requirements.txt"
 
 export VENV_ACT="${_sm_venv_act}"
 export COREJACK_TOOLCHAIN="${COREJACK_TOOLCHAIN:-riscv-multilib}"
-export COREJACK_IBEX_TOOLCHAIN="${COREJACK_IBEX_TOOLCHAIN:-}"
 export COREJACK_RISCV_TOOLCHAIN="${COREJACK_RISCV_TOOLCHAIN:-${_sm_this_dir}/.tools/riscv}"
 export COREJACK_VERILATOR="${COREJACK_VERILATOR:-${_sm_this_dir}/.tools/verilator}"
 export COREJACK_VERIBLE="${COREJACK_VERIBLE:-${_sm_this_dir}/.tools/verible}"
@@ -139,18 +138,6 @@ _sm_activate_venv() {
 _sm_activate_venv || { _sm_error "Failed to activate virtual environment"; return 1; }
 cd "${_sm_this_dir}" || return 1
 
-use_ibex() {
-  if [[ -n "${COREJACK_IBEX_TOOLCHAIN}" ]]; then
-    export RISCV="${COREJACK_IBEX_TOOLCHAIN}"
-    _sm_prepend_path_unique "${RISCV}/bin"
-  fi
-  if command -v riscv32-unknown-elf-gcc >/dev/null 2>&1; then
-    _sm_info "External riscv32 RISC-V toolchain active: $(command -v riscv32-unknown-elf-gcc)"
-  else
-    _sm_info "External riscv32 RISC-V toolchain selected, but riscv32-unknown-elf-gcc was not found"
-  fi
-}
-
 use_riscv_multilib() {
   export RISCV="${COREJACK_RISCV_TOOLCHAIN}"
   _sm_prepend_path_unique "${RISCV}/bin"
@@ -163,14 +150,11 @@ use_riscv_multilib() {
 
 use_toolchain() {
   case "$1" in
-    ibex|external-riscv32)
-      use_ibex
-      ;;
     riscv-multilib|generic|"")
       use_riscv_multilib
       ;;
     *)
-      _sm_error "Unknown toolchain '$1'. Available: riscv-multilib, external-riscv32"
+      _sm_error "Unknown toolchain '$1'. Available: riscv-multilib"
       return 1
       ;;
   esac
@@ -189,5 +173,5 @@ if [[ -x "${COREJACK_VERIBLE}/bin/verible-verilog-lint" ]]; then
 fi
 
 # Clean up helper functions and private variables from the shell namespace
-unset -f _sm_create_venv _sm_activate_venv _sm_info _sm_arrow _sm_error _sm_path_without _sm_prepend_path_unique _sm_clear_stale_project_venv use_ibex use_riscv_multilib use_toolchain
+unset -f _sm_create_venv _sm_activate_venv _sm_info _sm_arrow _sm_error _sm_path_without _sm_prepend_path_unique _sm_clear_stale_project_venv use_riscv_multilib use_toolchain
 unset _sm_python _sm_this_dir _sm_venv_dir _sm_venv_act _sm_venv_name _sm_reqs

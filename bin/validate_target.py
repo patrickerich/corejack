@@ -28,16 +28,6 @@ def descriptor_path(directory: Path, name: str) -> Path:
     return directory / f"{name}.yaml"
 
 
-def yaml_scalar(text: str, key: str) -> str | None:
-    match = re.search(rf"(?m)^\s*{re.escape(key)}:\s*(.+?)\s*$", text)
-    if not match:
-        return None
-    value = match.group(1).strip()
-    if value.startswith(("'", '"')) and value.endswith(("'", '"')):
-        value = value[1:-1]
-    return value
-
-
 def yaml_path_scalar(text: str, path: tuple[str, ...]) -> str | None:
     current_path: list[tuple[int, str]] = []
 
@@ -134,13 +124,7 @@ def parse_nonnegative_int(value: str, field: str) -> int:
 
 
 def integration_status(core_text: str, flow: str) -> str:
-    status = yaml_path_scalar(core_text, ("integration", flow))
-    if status is not None:
-        return status
-
-    # Backward-compatible fallback for older descriptors while the schema is
-    # settling. New descriptors should use integration.<flow>.
-    return yaml_scalar(core_text, "integration_status") or SUPPORTED_STATUS
+    return yaml_path_scalar(core_text, ("integration", flow)) or SUPPORTED_STATUS
 
 
 def zephyr_status(core_text: str) -> str:
@@ -214,7 +198,6 @@ def target_config(core: str, board: str, core_text: str, board_text: str) -> dic
     fusesoc_flags = [*core_flags, board_flag]
 
     return {
-        "SOC_CORE": core,
         "CORE_TYPE": core_type,
         "CORE_INTEGRATION": integration,
         "SIM_FUSESOC_TARGET": sim_target,
@@ -222,7 +205,6 @@ def target_config(core: str, board: str, core_text: str, board_text: str) -> dic
         "FUSESOC_CORE_FLAGS": " ".join(core_flags),
         "FUSESOC_BOARD_FLAG": board_flag,
         "FUSESOC_FLAGS": " ".join(fusesoc_flags),
-        "FPGA_BOARD": board,
         "FPGA_TOP": top_template.format(core=core, board=board),
         "FPGA_TARGET": fpga_target,
         "FPGA_WORK_ROOT": str(
@@ -586,7 +568,7 @@ def core_check(core: str, verbose: bool = True) -> None:
         )
     if integration == "native_axi" and (instruction_bus != "axi" or data_bus != "axi"):
         fail("platform.integration native_axi requires axi instruction and data buses")
-    if toolchain not in {"riscv-multilib", "ibex", "external-riscv32"}:
+    if toolchain != "riscv-multilib":
         fail(f"unsupported software.toolchain: {toolchain}")
     if zephyr not in ZEPHYR_STATUSES:
         fail(f"unsupported software.zephyr.status: {zephyr}")

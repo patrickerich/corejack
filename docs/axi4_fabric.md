@@ -53,9 +53,7 @@ RV32 cores keep a 32-bit core-facing contract. The local width adaptation uses
 the byte address to select the low or high 32-bit lane of a 64-bit SRAM word,
 and carries that lane selection until the response returns.
 
-Simulation preload files therefore use one 64-bit word per line by default.
-Older 32-bit standalone memory experiments can request `MEM_DATA_WIDTH=32`, but
-the platform default is the 64-bit path.
+Simulation preload files use one 64-bit word per line.
 
 ## Protocol Checks
 

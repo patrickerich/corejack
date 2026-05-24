@@ -152,11 +152,10 @@ values are:
 - `native_axi`: the core connects through a native AXI integration path, as
   CVA6 does. These cores do not use `corejack_core_region`.
 
-`software.toolchain` selects a named software toolchain flow. The default is
-`riscv-multilib`, which resolves to the repo-local `TOOLS_DIR/riscv` install and
-uses the `riscv64-unknown-elf-*` executable prefix. The `ibex` and
-`external-riscv32` names are compatibility slots for external
-`riscv32-unknown-elf-*` toolchains.
+`software.toolchain` selects a named software toolchain flow. The only
+currently supported value is `riscv-multilib`, which resolves to the
+repo-local `TOOLS_DIR/riscv` install and uses the `riscv64-unknown-elf-*`
+executable prefix (with RV32/RV64 multilib support).
 
 LLVM/Clang support can be added later as another named toolchain, but core
 descriptors should stay on the GCC/Newlib-based default until LLVM has matching

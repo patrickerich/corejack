@@ -67,9 +67,8 @@ The scripts select GDB in this order:
 1. `$GDB`, if set
 2. `.tools/riscv/bin/riscv64-unknown-elf-gdb`, if present
 3. `$RISCV/bin/riscv64-unknown-elf-gdb`, if present
-4. `$RISCV/bin/riscv32-unknown-elf-gdb`, if present
-5. `$RISCV/bin/riscv-none-elf-gdb`, if present
-6. `riscv64-unknown-elf-gdb` or `riscv32-unknown-elf-gdb` from `PATH`
+4. `$RISCV/bin/riscv-none-elf-gdb`, if present
+5. `riscv64-unknown-elf-gdb` from `PATH`
 
 ## UART
 

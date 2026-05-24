@@ -44,9 +44,7 @@ path each `bank_N.hex` line contains one 64-bit word:
 bank = word64_index % NumBanks
 ```
 
-The software build system emits this format by default. A 32-bit preload format
-can still be requested with `MEM_DATA_WIDTH=32` when testing older standalone
-memory configurations.
+The software build system emits this format.
 
 ## Migration Stages
 

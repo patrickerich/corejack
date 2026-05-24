@@ -88,12 +88,7 @@ def toolchain_paths(toolchain: str) -> tuple[Path, str]:
         root = Path(os.environ.get("COREJACK_RISCV_TOOLCHAIN", REPO_ROOT / ".tools" / "riscv"))
         return root, "riscv64-unknown-elf-"
 
-    if toolchain in {"ibex", "external-riscv32"}:
-        root_env = os.environ.get("COREJACK_IBEX_TOOLCHAIN", "")
-        root = Path(root_env) if root_env else Path()
-        return root, "riscv32-unknown-elf-"
-
-    return Path(), "riscv32-unknown-elf-"
+    return Path(), "riscv64-unknown-elf-"
 
 
 def check_tool(tool: Tool, flow: str) -> bool:

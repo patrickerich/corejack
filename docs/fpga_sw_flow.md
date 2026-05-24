@@ -152,15 +152,12 @@ For the default `CORE=ibex` and `TOOLCHAIN=riscv-multilib` selection this
 resolves to `sw/build/fpga/ibex/riscv-multilib/my_test/`. The simulation
 target writes to `sw/build/sim/<core>/<toolchain>/<app>/` instead.
 
-The `bank_N.hex` files match the current interleaved SRAM layout. By default,
-each line contains one 64-bit SRAM word:
+The `bank_N.hex` files match the current interleaved SRAM layout. Each line
+contains one 64-bit SRAM word:
 
 ```text
 bank = word64_index % 4
 ```
-
-Use `MEM_DATA_WIDTH=32` only for older standalone memory configurations that
-still expect one 32-bit word per line.
 
 ## Run In Simulation
 
@@ -269,10 +266,9 @@ pin wiring. The AXKU5 wrapper exposes a `CoreType` parameter and passes it into
 `soc_top`; the validated FPGA configuration currently leaves that parameter at
 the descriptor-selected Ibex default.
 
-The user-facing Make variables are `CORE` and `BOARD`, with `SOC_CORE` and
-`FPGA_BOARD` retained internally by the current implementation. The Makefile
-validates those selections and derives selected FPGA settings from descriptor
-files, including `FPGA_TOP`, `FPGA_TARGET`, `FPGA_WORK_ROOT`, and
+The user-facing Make variables are `CORE` and `BOARD`. The Makefile
+validates those selections and derives the FPGA build settings from the
+descriptor files: `FPGA_TOP`, `FPGA_TARGET`, `FPGA_WORK_ROOT`, and
 `OPENOCD_CFG`. It also derives `CORE_TYPE`, which drives the FPGA top-level
 `CoreType` parameter. The descriptor resolver also exposes `MARCH`, `MABI`,
 `TOOLCHAIN`, `SOC_CLK_HZ`, and `UART_BAUD`; these are visible through
@@ -281,9 +277,7 @@ files, including `FPGA_TOP`, `FPGA_TARGET`, `FPGA_WORK_ROOT`, and
 flags, and firmware-visible clock/UART defaults come from the selected
 core/board descriptors.
 
-The active FPGA build path is the FuseSoC/Vivado flow behind `make fpga-bit`.
-Legacy board-local Vivado Tcl build scripts are not kept unless they are an
-actively supported flow.
+The FPGA build path is the FuseSoC/Vivado flow behind `make fpga-bit`.
 
 See [`docs/core_board_descriptors.md`](core_board_descriptors.md) for the
 descriptor direction.

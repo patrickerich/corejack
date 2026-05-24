@@ -16,7 +16,6 @@ module soc_top #(
   parameter bit EnableUartLoader = 1'b0,
   parameter int unsigned UartLoaderClockHz = 25_000_000,
   parameter int unsigned UartLoaderBaud = 115_200,
-  parameter string MemInitFile = "",
   parameter string MemInitPath = "",
   parameter mem_ss_pkg::mem_impl_e MemImpl = mem_ss_pkg::MemImplModel
 ) (
@@ -635,7 +634,7 @@ module soc_top #(
       .NumWordsPerBank(MemWords / MemNumBanks),
       .BaseAddr(RamBaseAddr),
       .AddressShift($clog2(MemBytesPerWord)),
-      .MemInitPath((MemInitPath != "") ? MemInitPath : MemInitFile),
+      .MemInitPath(MemInitPath),
       .MemImpl(MemImpl)
     ) i_mem_ss (
       .clk_i(clk_i),

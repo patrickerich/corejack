@@ -14,9 +14,5 @@
 # Repo-local Verible. This is the default when .tools/verible exists.
 # export COREJACK_VERIBLE="${PWD}/.tools/verible"
 
-# Optional external riscv32 toolchain slot.
-# export COREJACK_TOOLCHAIN=external-riscv32
-# export COREJACK_IBEX_TOOLCHAIN=/path/to/riscv32/toolchain
-
 # Optional vendor tool setup. Keep site-specific paths out of sourceme.sh.
 # source /opt/Xilinx/2025.2.1/Vivado/settings64.sh
