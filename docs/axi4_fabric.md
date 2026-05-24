@@ -124,11 +124,13 @@ RISC-V debug interface use the UART SRAM loader.
 
 ## Future Work
 
-The AXI fabric baseline is complete for the current RV32 platform. Future work is
-separate from the migration closure:
+The AXI fabric baseline is complete for the currently supported cores
+(RV32 OBI sockets, native AXI for CVA6, and the small adapters used by
+SERV, PicoRV32, and CVW/Wally). Future work is separate from the migration
+closure:
 
 - stress debug SBA and memory contention more heavily
 - replace or widen the arbiter/demux path when AXI-native burst initiators are
   integrated
-- add RV64/CVA6-specific integration once the core socket and software ABI are
-  ready
+- add stress/burst coverage for additional AXI-native cores as they are
+  added

@@ -18,10 +18,13 @@ The first concrete target is:
 - clock: `25 MHz`
 - UART baud: `115200`
 
-This baseline has been validated on hardware for Ibex, CV32E40P, CV32E40S,
-and CVA6: OpenOCD can examine the target, GDB can load SRAM over SBA, and
-`hello_world` prints over UART. Interactive halt, register-read, and
-single-step debug has been validated for these cores.
+For every core listed in [`support_matrix.md`](support_matrix.md) as
+FPGA-supported, this baseline has been validated on hardware: OpenOCD can
+examine the target (for debug-capable cores) or the UART SRAM loader can
+release the hart (for non-debug cores), software loads into SRAM, and
+`hello_world` prints over UART. The interactive halt, register-read, and
+single-step flow has been validated for the cores marked as
+OpenOCD/GDB-supported in the same table.
 
 ## Build The Bitstream
 

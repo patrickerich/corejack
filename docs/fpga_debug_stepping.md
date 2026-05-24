@@ -10,7 +10,11 @@ For the checklist used to promote a core's descriptor to
 The validated baseline is:
 
 - board: AXKU5
-- cores: Ibex, CV32E40P, CV32E40S, and CVA6
+- cores: every core whose descriptor reports OpenOCD/GDB debug as
+  supported; the current set lives in
+  [`support_matrix.md`](support_matrix.md). Non-debug cores (SERV,
+  PicoRV32, CVW/Wally) use the [UART SRAM loader](uart_sram_loader.md)
+  instead.
 - debug transport: external JTAG into `riscv-dbg`
 - OpenOCD GDB port: `3333`
 - firmware RAM base: `0x80000000`

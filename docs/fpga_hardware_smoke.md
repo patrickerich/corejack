@@ -102,13 +102,17 @@ In another terminal, load and run the selected software image:
 make fpga-run-sw SW_APP=hello_world GDB_TIMEOUT=10 CORE=ibex BOARD=axku5
 ```
 
-CV32E40P, CV32E40S, and CVA6 have also been validated with the same flow:
+Every other core whose descriptor reports OpenOCD/GDB debug as supported
+uses the same flow. See [`support_matrix.md`](support_matrix.md) for the
+current set; substitute the chosen core in `CORE=...`, for example:
 
 ```bash
 make fpga-run-sw SW_APP=hello_world GDB_TIMEOUT=10 CORE=cv32e40p BOARD=axku5
-make fpga-run-sw SW_APP=hello_world GDB_TIMEOUT=10 CORE=cv32e40s BOARD=axku5
-make fpga-run-sw SW_APP=hello_world GDB_TIMEOUT=10 CORE=cva6 BOARD=axku5
 ```
+
+Cores without a usable RISC-V debug interface use
+`make fpga-uart-load-sw` instead; see
+[`uart_sram_loader.md`](uart_sram_loader.md).
 
 Expected result:
 
@@ -136,10 +140,12 @@ automatically:
 bin/fpga_debug_acceptance.sh --cores "cv32e40p" --board axku5 --uart /dev/ttyUSBx
 ```
 
-For the currently supported AXKU5 cores, run:
+To exercise every FPGA-supported core for the selected board in one
+sweep, prefer the descriptor-driven Make wrapper, which builds the core
+list from the board descriptor:
 
 ```bash
-bin/fpga_debug_acceptance.sh --cores "ibex cv32e40p cv32e40s cva6 serv picorv32 cvw" --board axku5 --uart /dev/ttyUSBx
+make fpga-accept BOARD=axku5 UART_DEV=/dev/ttyUSBx
 ```
 
 The helper selects the correct software loading path per core. Debug-capable
@@ -176,7 +182,9 @@ Expected result:
 - Single stepping advances the program counter as expected.
 - Register reads complete without OpenOCD reporting a halt failure.
 
-This smoke has been validated on AXKU5 for `CORE=ibex` and `CORE=cv32e40p`.
+For the current per-core validation status (including which cores have
+been exercised through this interactive debug smoke), see
+[`support_matrix.md`](support_matrix.md).
 
 See [`fpga_debug_stepping.md`](fpga_debug_stepping.md) for the detailed
 interactive workflow.

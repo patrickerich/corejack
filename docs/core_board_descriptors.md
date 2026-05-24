@@ -317,31 +317,37 @@ Use [`core_acceptance_checklist.md`](core_acceptance_checklist.md) as the
 required validation gate before changing descriptor support status to
 `supported`.
 
-## Implementation Direction
+## What The Descriptors Drive Today
 
-Initial descriptor support is intentionally incremental:
+Descriptor files currently exist for every supported core
+(`cfg/cores/*.yaml`) and the `axku5` board (`cfg/boards/axku5.yaml`). The
+authoritative per-core/board status comes from these descriptors and is
+rendered into [`support_matrix.md`](support_matrix.md) by
+`make support-matrix`.
 
-1. Descriptor files exist for the existing `ibex` core and `axku5` board.
-2. The Makefile validates `CORE` and `BOARD` against descriptor names before
-   FPGA-facing targets run.
-3. The Makefile derives selected FPGA build variables from the descriptors:
-   `FPGA_TOP`, `FPGA_TARGET`, `FPGA_WORK_ROOT`, `CORE_TYPE`,
-   `FUSESOC_FLAGS`, and `OPENOCD_CFG`.
-   `FPGA_WORK_ROOT` may use `{board}` and `{core}` placeholders so each
-   board/core pair gets an independent FuseSoC/Vivado build tree.
-4. The descriptor resolver also exposes software and board metadata:
-   `MARCH`, `MABI`, `TOOLCHAIN`, `SOC_CLK_HZ`, and `UART_BAUD`.
-5. The software build consumes `TOOLCHAIN`, `MARCH`, `MABI`, `SOC_CLK_HZ`, and
-   `UART_BAUD` from the resolved descriptor configuration.
-6. `make core-check CORE=<core>` validates descriptor structure, adapter files,
-   core enum values, ISA/toolchain metadata, debug metadata, and reciprocal
-   board compatibility before a core is promoted.
-7. `make board-check BOARD=<board>` validates board descriptor structure,
-   wrapper files, constraints, OpenOCD configuration, programming metadata, and
-   reciprocal core compatibility before a board is promoted.
-8. `make target-check BOARD=<board>` validates the selected board and every
-   board-compatible core as one descriptor matrix before expensive simulation
-   or FPGA regressions are started.
+The Makefile and FuseSoC integration read the descriptors as follows:
+
+- `CORE` and `BOARD` values are validated against descriptor names before
+  any FPGA-facing target runs.
+- FPGA build variables are derived from the selected descriptors:
+  `FPGA_TOP`, `FPGA_TARGET`, `FPGA_WORK_ROOT`, `CORE_TYPE`,
+  `FUSESOC_FLAGS`, and `OPENOCD_CFG`. `FPGA_WORK_ROOT` uses `{board}` and
+  `{core}` placeholders so each board/core pair gets an independent
+  FuseSoC/Vivado build tree.
+- Software metadata (`MARCH`, `MABI`, `TOOLCHAIN`, `SOC_CLK_HZ`,
+  `UART_BAUD`) is exposed for the bare-metal CMake build and for Zephyr,
+  so toolchain selection, compiler ISA flags, and firmware-visible
+  clock/UART defaults all come from the descriptors rather than from
+  hand-edited Make variables.
+- `make core-check CORE=<core>` validates descriptor structure, adapter
+  files, core enum values, ISA/toolchain metadata, debug metadata, and
+  reciprocal board compatibility before a core is promoted.
+- `make board-check BOARD=<board>` validates board descriptor structure,
+  wrapper files, constraints, OpenOCD configuration, programming metadata,
+  and reciprocal core compatibility before a board is promoted.
+- `make target-check BOARD=<board>` validates the selected board and every
+  board-compatible core as one descriptor matrix before expensive
+  simulation or FPGA regressions are started.
 
 SERV is present as a low-area core descriptor with simulation and FPGA support.
 Its local socket adapter validates reset, SRAM execution, simulated UART

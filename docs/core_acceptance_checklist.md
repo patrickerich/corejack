@@ -149,14 +149,22 @@ The hardware portion can be run with the acceptance helper:
 bin/fpga_debug_acceptance.sh --cores "<core>" --board <board> --uart /dev/ttyUSBx
 ```
 
-Multiple cores can be checked in one run:
+Multiple cores can be checked in one run. The cleanest way is the
+descriptor-driven Make wrapper, which derives the core list from the
+selected board descriptor and filters out unsupported FPGA targets:
 
 ```bash
-bin/fpga_debug_acceptance.sh --cores "ibex cv32e40p cv32e40s cva6 serv picorv32 cvw" --board axku5 --uart /dev/ttyUSBx
+make fpga-accept BOARD=axku5 UART_DEV=/dev/ttyUSBx
 ```
 
-The helper chooses OpenOCD/GDB for debug-capable cores and the UART SRAM loader
-for cores whose descriptor marks debug as unsupported.
+Equivalent direct invocation, passing an explicit core list:
+
+```bash
+bin/fpga_debug_acceptance.sh --cores "<space-separated core list>" --board axku5 --uart /dev/ttyUSBx
+```
+
+The helper chooses OpenOCD/GDB for debug-capable cores and the UART SRAM
+loader for cores whose descriptor marks debug as unsupported.
 
 The Make wrapper forwards the same UART capture setting:
 
@@ -291,11 +299,13 @@ make support-matrix
 
 When a core is promoted, update the relevant standalone documentation:
 
-- `README.md` project status
-- `docs/support_matrix.md` by running `make support-matrix`
-- `docs/core_board_descriptors.md` if descriptor semantics changed
-- `docs/fpga_hardware_smoke.md` if board-level hardware expectations changed
-- `docs/fpga_debug_stepping.md` if debug procedure or commands changed
+- `docs/support_matrix.md` by running `make support-matrix` (this is the
+  authoritative per-core/board status table; the top-level README and
+  `docs/roadmap.md` link to it rather than duplicating it).
+- `docs/roadmap.md` if the per-core note needs to change.
+- `docs/core_board_descriptors.md` if descriptor semantics changed.
+- `docs/fpga_hardware_smoke.md` if board-level hardware expectations changed.
+- `docs/fpga_debug_stepping.md` if debug procedure or commands changed.
 
 Detailed investigation notes should stay in ignored local logs, not in
 version-controlled documentation.
