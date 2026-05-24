@@ -11,6 +11,26 @@ supported core set. Bitstreams build, software loads into SRAM through
 OpenOCD/GDB or the side-path UART SRAM loader, and `hello_world` prints over
 the platform APB UART.
 
+## Why CoreJack
+
+- **Swappable cores under one platform.** Eight RISC-V cores ship today
+  (Ibex, CV32E40P/S/X, CVA6, CVW/Wally, SERV, PicoRV32), and the platform
+  is built to keep growing - `make new-core` scaffolds the next one.
+- **ASIC-aware, not FPGA-first.** Production PULP-Platform IP (AXI4,
+  APB, OBI, `riscv-dbg`, CLINT, `apb_uart`), real reset domains, and
+  thin board wrappers, so the same SoC structure is meaningful beyond
+  prototyping.
+- **SystemVerilog throughout.** Hand-written SV for everything that
+  reaches the gates; Python is only build glue and address-map generation.
+- **Descriptor-driven.** Small YAML files under `cfg/cores/` and
+  `cfg/boards/` capture ISA, adapter, debug, clock, pin mapping, and
+  programming flow. Adding a new core or board uses the `make new-core` /
+  `make new-board` scaffolds.
+
+For the full positioning story, target users, and a factual comparison
+against Chipyard, LiteX, Rocket Chip, OpenTitan, and Cheshire/Carfield,
+see [`docs/about.md`](docs/about.md).
+
 ## Project Status
 
 Validated baseline:

@@ -9,6 +9,9 @@ projects.
 
 - [Top-level README](../README.md) - purpose, quick start, current status,
   and pointers back into this index.
+- [About CoreJack](about.md) - motivation, target audience, what makes
+  CoreJack different, and a factual comparison against Chipyard, LiteX,
+  Rocket Chip Generator, OpenTitan, and Cheshire/Carfield.
 - [Support matrix](support_matrix.md) - generated core/board support status
   from descriptors.
 - [Repository layout](repository_layout.md) - quick map of the source tree

@@ -136,6 +136,35 @@ Planned next FPGA board target:
   scaffold and the standard descriptor / wrapper / XDC / board FuseSoC core
   structure documented in [`board_porting.md`](board_porting.md).
 
+## System IP And Accelerator Expansion
+
+CoreJack already exposes an accelerator socket interface
+(`rtl/interfaces/accel_socket_if.sv`) alongside the core socket. The
+direction is to grow the set of integrated system IP that plugs into
+the shared AXI fabric the same way cores do, so hobbyists and IP
+developers can validate new blocks against a real CPU on real hardware
+without rebuilding the integration layer - the "jack in an IP" use
+case described in [`about.md`](about.md).
+
+Candidate near-term additions (planned, not yet started):
+
+- **DMA engine**: the leading candidate is the OpenHW Group CORE-V MCU
+  uDMA. A DMA is a natural first accelerator-class block because it
+  exercises the multi-initiator AXI fabric and gives bare-metal and
+  Zephyr applications a non-CPU initiator to drive from C.
+- **More APB peripherals**: SPI, I2C, GPIO, and additional timers behind
+  the existing APB peripheral path so applications have more to talk to.
+- **User accelerators**: small fixed-function blocks driven from C
+  through MMIO, exercising the descriptor-driven build flow for custom
+  IP.
+
+Adding a new system IP follows the same pattern as adding a core: a
+small descriptor or FuseSoC plugin, a thin adapter into the AXI/APB
+fabric, an address window declared in `soc_top`, an optional cocotb
+test under `tb/`, and software headers under `sw/c/common/`. The
+descriptor and acceptance machinery already in place for cores and
+boards will be extended to cover this class of IP as it lands.
+
 ## Software Ecosystem
 
 - Continue improving the generic bare-metal software flow under `sw/c/`.
