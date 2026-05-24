@@ -113,7 +113,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -141,6 +141,8 @@ help:
 	@printf '  %-18s %s\n' 'new-board' 'create descriptor/wrapper/XDC/FuseSoC scaffold for BOARD'
 	@printf '  %-18s %s\n' 'new-core' 'create planned descriptor/adapter/FuseSoC scaffold for CORE'
 	@printf '  %-18s %s\n' 'support-matrix' 'generate docs/support_matrix.md from descriptors'
+	@printf '  %-18s %s\n' 'version-check' 'verify all .core files agree on a single VLNV version'
+	@printf '  %-18s %s\n' 'bump-version' 'rewrite every CoreJack VLNV version (set VERSION=X.Y.Z)'
 	@printf '  %-18s %s\n' 'python-tests' 'run pytest coverage for Python utility scripts'
 	@printf '  %-18s %s\n' 'flist' 'generate Bender flist at build/flist.f'
 	@printf '  %-18s %s\n' 'list-targets' 'list descriptor-backed CORE and BOARD selections'
@@ -404,6 +406,13 @@ support-matrix:
 support-matrix-check:
 	@$(PYTHON) bin/render_support_matrix.py --check
 
+version-check:
+	@$(PYTHON) bin/bump_version.py --check
+
+bump-version:
+	@test -n "$(VERSION)" || { echo "Error: VERSION required, e.g. make bump-version VERSION=0.2.0"; exit 1; }
+	@$(PYTHON) bin/bump_version.py --to "$(VERSION)"
+
 python-tests:
 	@$(PYTHON) -m pytest bin/tests
 
@@ -526,7 +535,7 @@ axi-adapter-sim: deps-base
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
 		fusesoc --cores-root . run --clean --target axi-adapter-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
 
-uart-loader-sim:
+uart-loader-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/uart-loader-sim.$(SIM_WAVE_FORMAT)"; fi; \
 	extra_args=(); \

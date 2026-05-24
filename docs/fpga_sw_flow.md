@@ -84,6 +84,13 @@ tracked design inputs, and the Vivado version visible during manifest creation.
 This lets later acceptance runs distinguish a current bitstream from a stale or
 wrong-core bitstream before programming the FPGA.
 
+`GIT_DESCRIBE_AT_MANIFEST` in the manifest carries the output of
+`git describe --always --dirty --broken`. Once the repository has a release
+tag (for example `v0.1.0`), this field gives a human-readable build identity
+such as `v0.1.0` for a clean tagged build or `v0.1.0-3-gabc1234-dirty` for a
+post-tag work-in-progress build. It is the recommended way to identify which
+build of CoreJack produced a given bitstream.
+
 To backfill provenance for an existing bitstream without rebuilding it, run:
 
 ```bash

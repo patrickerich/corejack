@@ -138,13 +138,20 @@ Planned next FPGA board target:
 
 ## System IP And Accelerator Expansion
 
-CoreJack already exposes an accelerator socket interface
-(`rtl/interfaces/accel_socket_if.sv`) alongside the core socket. The
-direction is to grow the set of integrated system IP that plugs into
-the shared AXI fabric the same way cores do, so hobbyists and IP
+CoreJack sketches an accelerator socket interface
+(`rtl/interfaces/accel_socket_if.sv`) alongside the core socket. As of
+the current baseline, this interface is a **declared contract, not a
+validated one**: it exists in source but has no consumer in the
+platform yet. The "jack in an IP" pitch in [`about.md`](about.md)
+describes the intent, and the planned uDMA integration below will be
+the first real user of the socket - that integration will validate the
+power/reset, AXI memory, APB CSR, and IRQ pieces of the contract end
+to end, and will likely shape its final form.
+
+The direction is to grow the set of integrated system IP that plugs
+into the shared AXI fabric the same way cores do, so hobbyists and IP
 developers can validate new blocks against a real CPU on real hardware
-without rebuilding the integration layer - the "jack in an IP" use
-case described in [`about.md`](about.md).
+without rebuilding the integration layer.
 
 Candidate near-term additions (planned, not yet started):
 

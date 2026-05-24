@@ -39,6 +39,7 @@ jobs:
           source ./sourceme.sh
           make python-tests
           make support-matrix-check
+          make version-check
           make board-check BOARD=axku5
           make target-check BOARD=axku5
           make axi-addr-map-check

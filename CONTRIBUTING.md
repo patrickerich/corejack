@@ -142,6 +142,62 @@ Do not reformat third-party, vendored, Bender-managed, or generated dependency
 code just to match local style. Keep style cleanup scoped to CoreJack-owned
 wrappers, adapters, packages, tests, scripts, and documentation.
 
+## Versioning And Tagging
+
+CoreJack uses the FuseSoC VLNV convention (`Vendor:Library:Name:Version`) for
+the project version, and the conventional `v`-prefixed git tag for releases.
+The two are kept in lockstep so a tagged commit always corresponds to a
+single, consistent FuseSoC version across every `.core` file.
+
+### Conventions
+
+- VLNV in `.core` files is unprefixed SemVer: `corejack:corejack:platform:0.1.0`.
+  FuseSoC's SemVer parser does not accept a leading `v`.
+- Git tags use the `v` prefix: `v0.1.0`. This is the standard SemVer-meets-Git
+  convention and is what `git describe` will surface in the bitstream
+  manifest's `GIT_DESCRIBE_AT_MANIFEST` field.
+
+### Checking for drift
+
+Every `.core` file (and the scaffold templates that emit new ones) must agree
+on a single VLNV version. Drift is caught by:
+
+```bash
+make version-check
+```
+
+This runs in CI on every push.
+
+### Bumping and tagging
+
+```bash
+make version-check                  # confirm starting state is consistent
+make bump-version VERSION=0.2.0     # rewrite every VLNV in lockstep
+git commit -am "Bump CoreJack version to 0.2.0"
+git tag -a v0.2.0 -m "CoreJack v0.2.0"
+git push && git push --tags
+```
+
+A few notes on the git commands above:
+
+- `git commit -am "..."`: `-a` (short for `--all`) auto-stages modified and
+  deleted *tracked* files before committing. It does **not** stage new
+  (untracked) files. `make bump-version` only edits already-tracked
+  `.core` files and `bin/create_*.py` scaffolds, so `-am` captures the
+  whole bump in one step. The `-m` supplies the commit message inline.
+- `git tag -a vX.Y.Z -m "..."`: `-a` (short for `--annotate`) creates an
+  **annotated tag** with a tagger, timestamp, and message stored as a
+  full git object. This is required for `git describe` to report the tag
+  name rather than falling back to a commit SHA; without it, the FPGA
+  bitstream manifest's `GIT_DESCRIBE_AT_MANIFEST` would lose the
+  human-readable version. Always use `-a` for release tags.
+
+For the rationale behind the FuseSoC version constraint (and why it can't be
+inherited from an environment variable), see
+[`docs/dependency_management.md`](docs/dependency_management.md). For how the
+bitstream manifest records build identity per-build, see
+[`docs/fpga_sw_flow.md`](docs/fpga_sw_flow.md).
+
 ## Dependency Policy
 
 Prefer descriptor-driven and Bender-managed dependencies. Manually vendored

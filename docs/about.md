@@ -34,7 +34,10 @@ flow would expect, not FPGA-only shortcuts.
   socket boundary lets you "jack in" the new IP, hit it from C code
   through a small test app, and exercise it both in simulation and on
   hardware. The same FPGA flow then doubles as a stage for turning
-  that IP into a working application, not just a unit test.
+  that IP into a working application, not just a unit test. The
+  accelerator socket itself is currently a sketched contract awaiting
+  its first real consumer - see
+  [`roadmap.md`](roadmap.md#system-ip-and-accelerator-expansion).
 - Researchers and educators who want a SystemVerilog-only platform that
   is small enough to read end-to-end in an afternoon.
 - Engineers prototyping toward an ASIC integration who want the FPGA

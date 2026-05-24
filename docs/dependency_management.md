@@ -81,7 +81,33 @@ The standalone UART dependency is intended to be used for FPGA bring-up rather
 than reusing older UART implementations buried inside core-specific example
 FPGA trees.
 
-Reproducibility notes:
+## Project Versioning
+
+Every CoreJack `.core` file declares its own and its dependencies' versions
+through FuseSoC's VLNV format (`Vendor:Library:Name:Version`), and FuseSoC
+parses these strings verbatim - they cannot be inherited from an environment
+variable, so the version must be kept in sync across every `.core` file and
+across the scaffold templates that emit new ones.
+
+The `bin/bump_version.py` helper performs this sync in one atomic sweep. It
+refuses to operate when the `.core` files disagree on a version (`--check` is
+how the CI `version-check` job catches drift), and it walks both the
+top-level `.core` files and the `bin/create_core.py` / `bin/create_board.py`
+scaffold templates so newly generated descriptors always start at the current
+version.
+
+For the user-facing bump-and-tag workflow, including the conventions for
+unprefixed VLNV versions vs. `v`-prefixed git tags and why release tags must
+be annotated, see the **Versioning And Tagging** section in
+[`CONTRIBUTING.md`](../CONTRIBUTING.md).
+
+For build-time provenance of an individual bitstream (commit SHA, dirty-tree
+flag, and `git describe`), see the `.corejack_bitstream_manifest` produced by
+`make fpga-bit`, described in [`fpga_sw_flow.md`](fpga_sw_flow.md). Once a
+release tag exists, `GIT_DESCRIBE_AT_MANIFEST` in that manifest becomes the
+recommended human-readable build identity for any bitstream.
+
+## Reproducibility Notes
 
 - `Makefile` pins `BENDER_VERSION`, selects deterministic Linux release assets,
   and verifies their SHA256 digests before installing into `TOOLS_DIR`.
