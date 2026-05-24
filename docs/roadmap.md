@@ -120,18 +120,23 @@ Software and validation flow:
   natural next platform step, and it pays off with the *existing*
   initiator set - it is not blocked on AXI-native burst initiators
   arriving. See [`axi4_fabric.md`](axi4_fabric.md).
-- Adopt a two-tier interconnect as the platform endpoint. Tier 2 is a
-  PULP `axi_xbar` for the system bus (replaces the current `soc_axi_arbiter`
-  + `soc_axi_demux` pair, per-target arbitration, multiple outstanding
-  requests). Tier 1 is the existing `soc_mem_ss` with per-bank round-robin
-  arbitration. Memory-heavy initiators (DMA, accelerators, and eventually
-  cache lines) get **two ports**: a system AXI master for CSR/control that
-  lands on the xbar, and a dedicated `soc_mem_ss` init port for the data
-  path that bypasses the xbar entirely. This is the canonical pattern at
-  CoreJack's scale - Cheshire, Carfield, and similar PULP-based platforms
-  use the same shape, and it is what `accel_socket_if`'s split
-  `mem_axi_*` / `csr_apb_*` ports already anticipate. The two-tier picture
-  is documented in Tab 8 of [`media/corejack_soc.drawio`](media/corejack_soc.drawio).
+- Adopt a layered interconnect as the platform endpoint, structured as
+  three named subsystems: a **memory subsystem** (`soc_mem_ss`, per-bank
+  round-robin arbitration); a **system bus** (PULP `axi_xbar`, replacing
+  the current `soc_axi_arbiter` + `soc_axi_demux` pair - per-target
+  arbitration, multiple outstanding requests); and a **peripheral
+  subsystem** (a single APB peripheral bus behind one `soc_axi_to_apb`
+  bridge, carrying UART today and CLINT-wrap / DM-regs-wrap / accel CSR /
+  future SPI/I2C/GPIO/timers in the end state). Memory-heavy initiators
+  (CPU instr and data via planned direct mem ports, DMA, accelerators,
+  and any future caches) get **two ports**: a system AXI master for
+  CSR/control that lands on the xbar, and a dedicated `soc_mem_ss`
+  init port for the data path that bypasses the xbar entirely. This is
+  the canonical pattern at CoreJack's scale - Cheshire, Carfield, and
+  similar PULP-based platforms use the same shape, and it is what
+  `accel_socket_if`'s split `mem_axi_*` / `csr_apb_*` ports already
+  anticipate. The layered picture is documented in Tab 8 of
+  [`media/corejack_soc.drawio`](media/corejack_soc.drawio).
 - Keep `soc_top` board-agnostic. Board wrappers provide only clock/reset,
   FPGA primitives, constraints, and physical pin wiring.
 - Continue evolving the descriptor-driven `CORE=<core>` / `BOARD=<board>`
@@ -193,6 +198,52 @@ test under `tb/`, and software headers under `sw/c/common/`. The
 descriptor and acceptance machinery already in place for cores and
 boards will be extended to cover this class of IP as it lands.
 
+### Single-port vs dual-port integration
+
+A new initiator integrates into the platform in one of two ways. Both
+are first-class; the choice is workload-driven, not architectural.
+(Note: this is about an *initiator's* integration cost - it is
+**not** the same thing as the three architectural subsystems shown
+in Tab 8 of
+[`media/corejack_soc.drawio`](media/corejack_soc.drawio), which are
+the layers of the interconnect itself.)
+
+- **Single-port (xbar-only)**: the initiator has one AXI master port
+  that lands on `axi_xbar` (the system bus). Through the xbar's two
+  slave paths (`soc_axi_to_mem` for RAM and `soc_axi_to_apb` for the
+  APB peripheral subsystem) it reaches the **entire** memory map -
+  RAM, UART, CLINT, debug-module registers, accelerator CSR windows,
+  and any future peripheral on the APB subsystem. Debug SBA is the
+  current example. Future debug/trace controllers, security blocks,
+  interrupt aggregators, and any other low-traffic master fit here
+  too. The integration cost is just one AXI master port on the xbar.
+
+- **Dual-port**: the initiator has both a fabric port (CSR/control,
+  lands on the xbar) and a dedicated `soc_mem_ss` init port (data,
+  bypasses the xbar). A small egress decoder at the initiator side
+  picks which port to use per transaction, based on the target
+  address. Worth doing only when the initiator's data bandwidth
+  would saturate the xbar's RAM-fallback path: CPU instruction and
+  data direct ports, DMA streams, and accelerator data flows are the
+  candidates. `accel_socket_if` already anticipates this shape with
+  split `mem_axi_*` and `csr_apb_*` ports.
+
+The dual-port pattern is an **optimization**, not a requirement. The
+default is single-port; you only upgrade an initiator to dual-port
+when a measured workload shows the xbar's RAM path is the bottleneck.
+This is what gives the platform a clean ramp: the cheap integration
+already buys full reachability, and the data-path optimization is
+local and incremental when an initiator earns it.
+
+Two safety nets keep this honest. `soc_mem_ss` checks each init port
+against its `BaseAddr` / `RamSize`, so an accidentally misrouted
+non-RAM access on a direct mem port errors cleanly rather than
+corrupting state. The xbar's address map is exclusive, so any AXI
+transaction with an address outside any declared slave window also
+errors cleanly. The dual-port egress decoder doesn't have to be
+perfect - it has to be *mostly* right, and the boundaries catch
+mistakes.
+
 ### Memory subsystem follow-up
 
 Once a second concurrent initiator lands (uDMA being the leading
@@ -248,6 +299,27 @@ benchmark configuration opts into 8).
   core selection.
 - Stress the debug SBA and memory contention paths beyond the current
   single-beat regression set as more AXI-native initiators are added.
+- **Caches: TBD.** Some upstream cores already include caches (CVA6 has
+  full L1 instruction and data caches by design; Ibex has an optional L1
+  instruction cache; CV32E40P/S/X, SERV, PicoRV32, and CVW do not bring
+  any). Adding caches at the CoreJack *platform* layer - for example,
+  small shared L1 instruction and/or data caches sitting in front of the
+  CPU's planned direct `soc_mem_ss` mem ports - could reduce CPU
+  memory pressure for cores that don't bring their own and would give
+  the platform meaningful cache-aware behavior for workloads that benefit.
+  Open questions, all currently TBD: (1) **where** the caches would sit
+  (inside `corejack_core_region` per-core, or as a shared block on the
+  memory path between the CPU direct ports and `soc_mem_ss`); (2)
+  **which** cores would actually benefit (most embedded cores tolerate
+  uncached SRAM at the AXKU5 baseline clock just fine); (3) **how** they
+  interact with debug-SBA visibility (cache-coherent access through the
+  same caches, vs cache bypass on SBA, vs cache flush on debug entry);
+  and (4) **whether** the area cost is justified for hobbyist /
+  educational workloads where the uncached path is rarely the bottleneck.
+  Revisit when there is workload evidence that the uncached CPU access
+  pattern is the limiting factor. This belongs alongside any conversation
+  about widening the system bus and reshaping `accel_socket_if` for
+  cache-coherent accelerators.
 - Add an optional LLVM/Clang software toolchain alongside the current
   GCC/Newlib default once it has matching compile, simulation, ELF loading,
   and debug validation for the relevant cores.
