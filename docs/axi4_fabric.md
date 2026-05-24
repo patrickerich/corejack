@@ -85,6 +85,30 @@ single-beat AXI initiator. AXI-native initiators with bursts or richer
 outstanding behavior should use a widened fabric implementation rather than
 extending these small adapters ad hoc.
 
+### Memory throughput is fabric-limited today, not bank-limited
+
+The shared SRAM is already banked (see `MemNumBanks` on `soc_top`, default
+4, and `soc_mem_ss`'s per-bank round-robin arbiter). Three independent
+initiators reach the fabric today - core instruction fetch, core data
+access, and debug SBA - and each one could in principle target a different
+bank. In practice they don't run in parallel against the banks: the
+`soc_axi_arbiter` is single-beat and single-outstanding, so it accepts at
+most one transaction at a time and the bank fan-out behind it sees no
+contention. The bottleneck is the fabric width, not the bank count.
+
+Two natural follow-ups follow from this observation, independent of
+accelerator integration:
+
+- **Widening the AXI fabric** so it can forward multiple outstanding
+  requests concurrently to the demux. The bank infrastructure underneath
+  is already generic in `NumBanks` and ready to receive parallel traffic.
+- **Revisiting the bank count** once a wider fabric (or an additional
+  initiator on `accel_socket_if`, such as the planned uDMA) starts
+  exploiting bank parallelism. `soc_top.MemNumBanks` is a parameter, so
+  experiments at 8 or 16 banks need only an override at instantiation;
+  `sw/Makefile` already responds to a matching `NUM_BANKS` value when
+  regenerating hex preload files.
+
 ## Acceptance
 
 Run the focused adapter regression:

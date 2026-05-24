@@ -17,7 +17,12 @@ module soc_top #(
   parameter int unsigned UartLoaderClockHz = 25_000_000,
   parameter int unsigned UartLoaderBaud = 115_200,
   parameter string MemInitPath = "",
-  parameter mem_ss_pkg::mem_impl_e MemImpl = mem_ss_pkg::MemImplModel
+  parameter mem_ss_pkg::mem_impl_e MemImpl = mem_ss_pkg::MemImplModel,
+  // SRAM banking is a designer's choice. The default of 4 matches the
+  // currently validated AXKU5 baseline; soc_mem_ss is generic over NumBanks,
+  // and sw/Makefile exposes a matching NUM_BANKS knob so software preload
+  // files can be regenerated for any value chosen here.
+  parameter int unsigned MemNumBanks = 4
 ) (
   input  logic clk_i,
   input  logic rst_ni,
@@ -106,7 +111,6 @@ module soc_top #(
     localparam int unsigned CoreAxiPorts = 3;
     localparam int unsigned FabricAxiPorts = 4;
     localparam int unsigned MemDataWidth = 64;
-    localparam int unsigned MemNumBanks = 4;
     localparam int unsigned MemBytesPerWord = MemDataWidth / 8;
     localparam int unsigned MemWords = RamWords / 2;
     localparam int unsigned MemTagWidth = 1;

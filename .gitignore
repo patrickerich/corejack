@@ -76,6 +76,9 @@ sourceme.local.sh
 .idea/
 .vscode/
 
+# draw.io autosave backups (created on open, harmless to delete)
+.$*.drawio.bkp
+
 # Coding assistant / local AI tool metadata
 .codex
 .codex/

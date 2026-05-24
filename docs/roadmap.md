@@ -108,9 +108,18 @@ Software and validation flow:
 - Treat AXI4 as the central SoC fabric. Core-native buses are allowed at
   the core adapter boundary but must reach RAM, UART, CLINT, debug, and
   other shared peripherals through the shared AXI fabric.
-- Keep the memory subsystem modular and multi-initiator aware. The current
-  arbiter is intentionally scoped to single-beat traffic; replace or widen
-  it before adding AXI-native burst initiators.
+- Keep the memory subsystem modular and multi-initiator aware. The
+  `soc_mem_ss` per-bank round-robin arbiter is already generic in
+  `NumBanks` and `NumInitPorts`, and `soc_top.MemNumBanks` is a
+  parameter (default 4) - so the platform is set up to grow the bank
+  count when a workload warrants it.
+- Widen the AXI fabric. The current `soc_axi_arbiter` is single-beat and
+  single-outstanding, so today's three initiators (core instruction,
+  core data, debug SBA) are serialized upstream of the banked memory.
+  Widening the arbiter to forward multiple outstanding requests is the
+  natural next platform step, and it pays off with the *existing*
+  initiator set - it is not blocked on AXI-native burst initiators
+  arriving. See [`axi4_fabric.md`](axi4_fabric.md).
 - Keep `soc_top` board-agnostic. Board wrappers provide only clock/reset,
   FPGA primitives, constraints, and physical pin wiring.
 - Continue evolving the descriptor-driven `CORE=<core>` / `BOARD=<board>`
@@ -171,6 +180,27 @@ fabric, an address window declared in `soc_top`, an optional cocotb
 test under `tb/`, and software headers under `sw/c/common/`. The
 descriptor and acceptance machinery already in place for cores and
 boards will be extended to cover this class of IP as it lands.
+
+### Memory subsystem follow-up
+
+Once a second concurrent initiator lands (uDMA being the leading
+candidate) and the AXI fabric is widened to exploit today's three
+initiators in parallel, the bank count revisit becomes concrete. The
+infrastructure is already in place:
+
+- `soc_mem_ss` is generic over `NumBanks` and `NumInitPorts`.
+- `soc_top.MemNumBanks` is a parameter (default 4); overriding it at
+  instantiation is enough to experiment with 8 or 16 banks.
+- `sw/Makefile` exposes a matching `NUM_BANKS` knob so hex preload
+  files line up with whatever the RTL chose.
+
+What is intentionally **not** done yet, pending real workload evidence:
+threading the bank count through the board descriptor, the FPGA wrapper,
+the Zephyr devicetree, and the bitstream manifest, so the choice becomes
+descriptor-driven rather than a manual override. That plumbing is a
+small follow-up best designed when there is a second value worth
+supporting (for example, AXKU5 stays at 4 while a different board or
+benchmark configuration opts into 8).
 
 ## Software Ecosystem
 
