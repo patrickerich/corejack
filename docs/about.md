@@ -61,9 +61,18 @@ flow would expect, not FPGA-only shortcuts.
    prototyping-only memory bus. FPGA board wrappers are kept thin so
    moving between boards (or eventually toward silicon) does not
    require rewriting the SoC.
-3. **SystemVerilog throughout.** RTL is hand-written SystemVerilog;
-   Python is used only for the build glue, the address-map generator,
-   and the descriptor tooling. There is no Scala/Chisel or
+3. **SystemVerilog throughout.** RTL is 100% hand-written
+   SystemVerilog - no generators sit between you and the gates.
+   This is a scope and directness choice, not a position against
+   generators: Chisel, Migen/Amaranth, SpinalHDL, and similar
+   generator flows are excellent tools where they pay for
+   themselves. For CoreJack's "swap a core into a clear platform"
+   goal the payoff is directness - every line of the SoC is
+   readable in place, and what you read in the source is what
+   reaches the gates. Python is used only for build glue,
+   descriptor resolution (`CORE`/`BOARD` selection), lint/check
+   tools, scaffolding helpers, and host-side runtime tools (such
+   as the UART SRAM loader protocol). There is no Scala/Chisel or
    Migen/Python-HDL learning cliff.
 4. **Descriptor-driven build flow.** Small YAML descriptors under
    `cfg/cores/` and `cfg/boards/` capture everything the build flow

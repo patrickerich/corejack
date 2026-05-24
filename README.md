@@ -20,8 +20,10 @@ the platform APB UART.
   APB, OBI, `riscv-dbg`, CLINT, `apb_uart`), real reset domains, and
   thin board wrappers, so the same SoC structure is meaningful beyond
   prototyping.
-- **SystemVerilog throughout.** Hand-written SV for everything that
-  reaches the gates; Python is only build glue and address-map generation.
+- **SystemVerilog throughout.** 100% hand-written SV for everything
+  that reaches the gates; Python is only build glue, descriptor
+  resolution, lint/check, scaffolding, and host runtime - never RTL
+  generation.
 - **Descriptor-driven.** Small YAML files under `cfg/cores/` and
   `cfg/boards/` capture ISA, adapter, debug, clock, pin mapping, and
   programming flow. Adding a new core or board uses the `make new-core` /
@@ -97,10 +99,9 @@ versions, and observed validation versions.
 # 1) Activate the project virtual environment and pinned Python deps
 source sourceme.sh
 
-# 2) Fetch external HDL deps and generate RTL artifacts
+# 2) Fetch external HDL dependencies
 make bender
 make deps
-make gen
 
 # 3) Run the cocotb + Verilator smoke simulation (no RISC-V toolchain needed)
 make smoke

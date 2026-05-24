@@ -38,12 +38,19 @@ module soc_top #(
   output logic alert_major_bus_o,
   output logic core_sleep_o
 );
-  import addr_map_pkg::*;
   import soc_bus_pkg::*;
   import dm::*;
   import mem_ss_pkg::*;
 
   if (!EnablePlatform) begin : gen_stub
+    // Stub-only address windows used by the smoke testbench (`tb/test_smoke.py`).
+    // The real platform branch below builds its address map from module
+    // parameters and does not use these constants.
+    localparam logic [31:0] UART0_BASE  = 32'h1000_0000;
+    localparam logic [31:0] UART0_SIZE  = 32'h0000_1000;
+    localparam logic [31:0] DEBUG0_BASE = 32'hFFFF_0000;
+    localparam logic [31:0] DEBUG0_SIZE = 32'h0001_0000;
+
     logic [31:0] accel_cfg_reg_q;
     logic [31:0] debug_status_q;
     logic        apb_hit_uart;

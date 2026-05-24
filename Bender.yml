@@ -80,7 +80,6 @@ sources:
     - deps/clint/src/clint_reg_pkg.sv
     - deps/clint/src/clint_reg_top.sv
     - deps/clint/src/clint.sv
-    - gen/rtl/addr_map_pkg.sv
     - rtl/top/soc_top.sv
 
     - target: fpga

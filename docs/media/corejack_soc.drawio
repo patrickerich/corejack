@@ -738,7 +738,7 @@
                 <mxCell id="c_dbg" value="DEBUG (DebugBaseAddr default 0x00000000, DebugSize=0x1000)&#xa;DM register window served by soc_axi_to_dm; halt=DebugBaseAddr+0x800, exception=+0x810." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=11;align=left;spacingLeft=8;spacingTop=4" parent="1" vertex="1">
                     <mxGeometry x="240" y="900" width="540" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="note_am" value="Notes:&#xa;- gen/rtl/addr_map_pkg.sv carries example region constants (UART0_BASE, MEM0_BASE, ...).&#xa;- soc_top builds the AXI fabric address map at runtime from RamBaseAddr / UartBaseAddr / DebugBaseAddr parameters." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=11;align=left;spacingLeft=8;spacingTop=4" parent="1" vertex="1">
+                <mxCell id="note_am" value="Notes:&#xa;- soc_top builds the AXI fabric address map from its module parameters (RamBaseAddr / UartBaseAddr / DebugBaseAddr / ClintBaseAddr).&#xa;- The smoke stub branch (EnablePlatform=0) uses local UART0_/DEBUG0_ constants matching tb/test_smoke.py." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=11;align=left;spacingLeft=8;spacingTop=4" parent="1" vertex="1">
                     <mxGeometry x="240" y="80" width="540" height="80" as="geometry"/>
                 </mxCell>
             </root>

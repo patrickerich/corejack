@@ -15,10 +15,6 @@ coverage.xml
 htmlcov/
 pip-wheel-metadata/
 
-# Generated project artifacts
-gen/
-!gen/.gitkeep
-
 # Verilator / simulation
 obj_dir/
 sim_build/

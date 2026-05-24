@@ -78,7 +78,6 @@ filesets:
       - rtl/bus/soc_axi_to_mem.sv
       - rtl/bus/soc_axi_to_reg.sv
       - rtl/platform/soc_uart_sram_loader.sv
-      - gen/rtl/addr_map_pkg.sv
       - rtl/top/soc_top.sv
     file_type: systemVerilogSource
 

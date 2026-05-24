@@ -35,14 +35,31 @@ specific area, follow the linked documentation.
 - `cfg/boards/<board>.yaml` - per-board descriptors covering FPGA part,
   clocks, pins, UART, debug transport, and programming flow.
 - `cfg/vivado_warning_allowlist.txt` - reviewed Vivado warning IDs.
-- `cfg/platform.example.yaml` - sample platform configuration consumed by
-  the generator.
 
 ## Tooling And Build Glue
 
-- `bin/` - Python helpers including `validate_target.py`, `platform_gen.py`,
-  `uart_sram_load.py`, `fpga_debug_acceptance.sh`, and the optional
-  toolchain/tool installers.
+CoreJack does not generate any RTL. The Python under `bin/` covers
+build orchestration, descriptor resolution, lint/check, scaffolding,
+and host runtime - nothing that ends up as SystemVerilog.
+
+- `bin/validate_target.py` - resolves `cfg/cores/*.yaml` and
+  `cfg/boards/*.yaml` into Make variables (`FPGA_TOP`, `CORE_TYPE`,
+  `MARCH`, `MABI`, `TOOLCHAIN`, `SOC_CLK_HZ`, `UART_BAUD`, ...). The
+  authoritative bridge between descriptors and the build flow.
+- `bin/render_support_matrix.py` - regenerates `docs/support_matrix.md`
+  from descriptors (`make support-matrix`).
+- `bin/create_core.py`, `bin/create_board.py` - scaffolds behind
+  `make new-core` and `make new-board`.
+- `bin/check_axi_addr_map.py`, `bin/check_tools.py`,
+  `bin/check_vivado_warnings.py` - lint and acceptance checks run
+  from `make`.
+- `bin/deps_core.py` - Bender checkout-to-`deps/<name>` symlink helper.
+- `bin/vivado_tcl_to_flist.py` - Vivado project TCL -> flist helper.
+- `bin/uart_sram_load.py` - host side of the UART SRAM loader protocol
+  (talks to `rtl/platform/soc_uart_sram_loader.sv`).
+- `bin/fpga_debug_acceptance.sh`, `bin/build_*.sh`,
+  `bin/write_bitstream_manifest.sh` - shell helpers for FPGA
+  acceptance and optional tool builds.
 - `Bender.yml`, `Bender.lock` - external RTL dependency manifest and pins.
 - `corejack.core`, `corejack_common.core`, `corejack_core_<core>.core`,
   `corejack_board_<board>.core` - FuseSoC platform target plus the per-core
@@ -50,11 +67,6 @@ specific area, follow the linked documentation.
 - `Makefile` - user-facing targets for descriptor validation, FPGA build,
   software build, simulation, debug, and Zephyr.
 - `sourceme.sh` - project virtual environment activation and tool path setup.
-
-## Generated Artifacts
-
-- `gen/rtl/addr_map_pkg.sv` - generated SoC address map package.
-- `gen/rtl/soc_top_gen.sv` - generated top-level glue.
 
 ## Testbenches And Software
 
@@ -75,6 +87,7 @@ specific area, follow the linked documentation.
 - `build/fpga/<board>/<core>/fusesoc-fpga/` - FuseSoC and Vivado work root.
 - `sw/build/<target>/<core>/<toolchain>/<app>/` - software build outputs;
   `<target>` is `fpga` or `sim`.
+- `build/flist.f` - optional Bender flist output of `make flist`.
 - `build/waves/` - optional Verilator FST/VCD traces.
 - `.bender/`, `deps/` - Bender checkouts and stable symlinks.
 - `TOOLS_DIR`/`.venv/` - optional project-local tools and Python venv;

@@ -115,7 +115,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check python-tests gen flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -144,8 +144,7 @@ help:
 	@printf '  %-18s %s\n' 'new-core' 'create planned descriptor/adapter/FuseSoC scaffold for CORE'
 	@printf '  %-18s %s\n' 'support-matrix' 'generate docs/support_matrix.md from descriptors'
 	@printf '  %-18s %s\n' 'python-tests' 'run pytest coverage for Python utility scripts'
-	@printf '  %-18s %s\n' 'gen' 'generate RTL artifacts into gen/rtl/'
-	@printf '  %-18s %s\n' 'flist' 'generate Bender flist at gen/flist.f'
+	@printf '  %-18s %s\n' 'flist' 'generate Bender flist at build/flist.f'
 	@printf '  %-18s %s\n' 'list-targets' 'list descriptor-backed CORE and BOARD selections'
 	@printf '  %-18s %s\n' 'target-config' 'show descriptor-derived config for CORE/BOARD'
 	@printf '  %-18s %s\n' 'board-check' 'validate BOARD descriptor, wrapper, constraints, and debug config'
@@ -410,13 +409,10 @@ support-matrix-check:
 python-tests:
 	@$(PYTHON) -m pytest bin/tests
 
-gen: deps-base
-	@test -x "$(VENV_PY)" || { echo "Error: venv not found. Run: source ./sourceme.sh"; exit 1; }
-	@$(VENV_PY) bin/platform_gen.py --config cfg/platform.example.yaml --out gen
-
-flist: gen
-	@"$(BENDER)" script flist -t all > gen/flist.f
-	@echo "Generated gen/flist.f"
+flist: deps-base
+	@mkdir -p build
+	@"$(BENDER)" script flist -t all > build/flist.f
+	@echo "Generated build/flist.f"
 
 validate-target:
 	@$(PYTHON) bin/validate_target.py --core "$(CORE)" --board "$(BOARD)" --quiet $(VALIDATE_PLANNED_ARG)
@@ -436,7 +432,7 @@ core-check:
 target-check:
 	@$(PYTHON) bin/validate_target.py --board "$(BOARD)" --target-check
 
-fpga-flist: validate-target deps-core gen
+fpga-flist: validate-target deps-core
 	@mkdir -p "$(FPGA_BUILD_DIR)"
 	@PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
 		fusesoc --cores-root . run --clean --target "$(FPGA_TARGET)" --work-root "$(FPGA_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) --setup corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(UART_LOADER)"
@@ -445,13 +441,13 @@ fpga-flist: validate-target deps-core gen
 	@printf '%s\n' "-incdir $(CURDIR)/deps/apb/include -incdir $(CURDIR)/deps/axi/include -incdir $(CURDIR)/deps/obi/include -incdir $(CURDIR)/deps/register_interface/include -incdir $(CURDIR)/rtl/cores/vendored/corejack_ibex/include" > "$(FPGA_BUILD_DIR)/$(FPGA_TOP)_incdirs.txt"
 	@echo "Generated $(FPGA_BUILD_DIR)/$(FPGA_TOP).f"
 
-fpga-setup: validate-target deps-core gen
+fpga-setup: validate-target deps-core
 	@PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
 		fusesoc --cores-root . run --clean --target "$(FPGA_TARGET)" --work-root "$(FPGA_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) --setup corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(UART_LOADER)"
 	@$(FPGA_PATCH_PROJECT_TCL) "$(FPGA_PROJECT_TCL)"
 	@echo "FuseSoC FPGA work root: $(FPGA_WORK_ROOT)"
 
-fpga-bit: validate-target deps-core gen
+fpga-bit: validate-target deps-core
 	@PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
 		fusesoc --cores-root . run --clean --target "$(FPGA_TARGET)" --work-root "$(FPGA_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) --setup corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(UART_LOADER)"
 	@$(FPGA_PATCH_PROJECT_TCL) "$(FPGA_PROJECT_TCL)"
@@ -494,7 +490,7 @@ list-apps:
 	@$(MAKE) -C sw list-apps
 
 sim-run-sw: TARGET := sim
-sim-run-sw: deps-core gen sw-build
+sim-run-sw: deps-core sw-build
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/$(SIM_FUSESOC_TARGET)-$(CORE)-$(SW_APP).$(SIM_WAVE_FORMAT)"; fi; \
 	run_options="+MEM_PATH=$(SW_BUILD_DIR)"; \
@@ -508,7 +504,7 @@ sim-run-sw: deps-core gen sw-build
 		CCACHE_DISABLE=1 \
 		fusesoc --cores-root . run --clean --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform --run_options="$$run_options"
 
-debug-sim: gen
+debug-sim:
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/debug-sim.$(SIM_WAVE_FORMAT)"; fi; \
 	extra_args=(); \
@@ -520,7 +516,7 @@ debug-sim: gen
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
 		fusesoc --cores-root . run --clean --target debug-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
 
-axi-adapter-sim: gen
+axi-adapter-sim:
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/axi-adapter-sim.$(SIM_WAVE_FORMAT)"; fi; \
 	extra_args=(); \
@@ -606,7 +602,7 @@ fpga-uart-load-zephyr: validate-target zephyr-build
 		--capture-seconds "$(UART_CAPTURE_TIMEOUT)" \
 		"$${extra_args[@]}"
 
-smoke: gen
+smoke:
 	@test -x "$(VENV_PY)" || { echo "Error: venv not found. Run: source ./sourceme.sh"; exit 1; }
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/smoke.$(SIM_WAVE_FORMAT)"; fi; \
@@ -623,7 +619,7 @@ plan:
 	@sed -n '1,240p' docs/roadmap.md
 
 clean:
-	@rm -rf build sw/build tb/sim_build tb/results.xml gen deps
+	@rm -rf build sw/build tb/sim_build tb/results.xml deps
 
 distclean: clean
 	@rm -rf "$(TOOLS_DIR)" .bender
