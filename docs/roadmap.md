@@ -135,7 +135,8 @@ Software and validation flow:
   the canonical pattern at CoreJack's scale - Cheshire, Carfield, and
   similar PULP-based platforms use the same shape, and it is what
   `accel_socket_if`'s split `mem_axi_*` / `csr_apb_*` ports already
-  anticipate. The layered picture is documented in Tab 8 of
+  anticipate. The layered picture is documented in the
+  *Multi-Initiator Architecture (planned)* tab of
   [`media/corejack_soc.drawio`](media/corejack_soc.drawio).
 - Keep `soc_top` board-agnostic. Board wrappers provide only clock/reset,
   FPGA primitives, constraints, and physical pin wiring.
@@ -204,7 +205,7 @@ A new initiator integrates into the platform in one of two ways. Both
 are first-class; the choice is workload-driven, not architectural.
 (Note: this is about an *initiator's* integration cost - it is
 **not** the same thing as the three architectural subsystems shown
-in Tab 8 of
+in the *Multi-Initiator Architecture (planned)* tab of
 [`media/corejack_soc.drawio`](media/corejack_soc.drawio), which are
 the layers of the interconnect itself.)
 

@@ -154,7 +154,8 @@ def main() -> int:
     toolchain_root, cross_prefix = toolchain_paths(config["TOOLCHAIN"])
     toolchain_bin = (toolchain_root / "bin",) if str(toolchain_root) else ()
     venv_bin = REPO_ROOT / ".venv" / "bin"
-    bender_bin = REPO_ROOT / "bin" / ".tools"
+    tools_dir = Path(os.environ.get("COREJACK_TOOLS_DIR", REPO_ROOT / ".tools"))
+    bender_bin = tools_dir
     verilator_bin = Path(os.environ.get("COREJACK_VERILATOR", REPO_ROOT / ".tools" / "verilator")) / "bin"
     verible_bin = Path(os.environ.get("COREJACK_VERIBLE", REPO_ROOT / ".tools" / "verible")) / "bin"
 

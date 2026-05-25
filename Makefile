@@ -91,6 +91,10 @@ ALLOW_PLANNED  ?= 0
 FLOW           ?= all
 AXI_SMOKE_CORES ?= ibex cv32e40p cv32e40s cva6 serv picorv32 cvw
 
+DRAWIO         ?= drawio
+DRAWIO_SRC     ?= docs/media/corejack_soc.drawio
+DRAWIO_SVG_DIR ?= docs/media
+
 ifeq ($(ALLOW_PLANNED),1)
 VALIDATE_PLANNED_ARG := --allow-planned
 else
@@ -113,7 +117,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -143,6 +147,7 @@ help:
 	@printf '  %-18s %s\n' 'support-matrix' 'generate docs/support_matrix.md from descriptors'
 	@printf '  %-18s %s\n' 'version-check' 'verify all .core files agree on a single VLNV version'
 	@printf '  %-18s %s\n' 'bump-version' 'rewrite every CoreJack VLNV version (set VERSION=X.Y.Z)'
+	@printf '  %-18s %s\n' 'drawio-svg' 'export each docs/media/corejack_soc.drawio tab to its own SVG'
 	@printf '  %-18s %s\n' 'python-tests' 'run pytest coverage for Python utility scripts'
 	@printf '  %-18s %s\n' 'flist' 'generate Bender flist at build/flist.f'
 	@printf '  %-18s %s\n' 'list-targets' 'list descriptor-backed CORE and BOARD selections'
@@ -412,6 +417,32 @@ version-check:
 bump-version:
 	@test -n "$(VERSION)" || { echo "Error: VERSION required, e.g. make bump-version VERSION=0.2.0"; exit 1; }
 	@$(PYTHON) bin/bump_version.py --to "$(VERSION)"
+
+drawio-svg:
+	@command -v $(DRAWIO) >/dev/null 2>&1 || { echo "Error: $(DRAWIO) not found in PATH (install drawio-desktop)"; exit 1; }
+	@test -f "$(DRAWIO_SRC)" || { echo "Error: $(DRAWIO_SRC) not found"; exit 1; }
+	@mkdir -p "$(DRAWIO_SVG_DIR)"
+	@set -e; set -o pipefail; \
+	stem=$$(basename "$(DRAWIO_SRC)" .drawio); \
+	pages=$$(grep -oE '<diagram [^>]*name="[^"]*"' "$(DRAWIO_SRC)" | sed -E 's/.*name="([^"]*)".*/\1/'); \
+	test -n "$$pages" || { echo "Error: no <diagram> pages found in $(DRAWIO_SRC)"; exit 1; }; \
+	idx=0; \
+	printf '%s\n' "$$pages" | while IFS= read -r name; do \
+		idx=$$((idx+1)); \
+		slug=$$(printf '%s' "$$name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_//; s/_$$//'); \
+		out="$(DRAWIO_SVG_DIR)/$${stem}_$${slug}.svg"; \
+		echo "  EXPORT  $$out (page $$idx: $$name)"; \
+		"$(DRAWIO)" -x -f svg \
+			-p "$$idx" \
+			-b 20 \
+			-s 1 \
+			--embed-svg-images \
+			--embed-svg-fonts true \
+			--svg-theme light \
+			--svg-links-target auto \
+			-o "$$out" \
+			"$(DRAWIO_SRC)" 2>&1 | awk '!/vaInitialize|vaapi_wrapper|libva/'; \
+	done
 
 python-tests:
 	@$(PYTHON) -m pytest bin/tests
