@@ -241,7 +241,9 @@ targets:
     filesets_append:
       - core_ibex_rtl
       - core_cv32e40p_rtl
-      - core_cv32e40x_rtl
+      # CV32E40X is currently unsupported in the default regression.
+      # Re-enable once it is promoted to the supported-core set.
+      # - core_cv32e40x_rtl
       - core_cv32e40s_rtl
       - core_region_rtl
       - tb_sw_sv

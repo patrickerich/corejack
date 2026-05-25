@@ -139,6 +139,9 @@ The default supported-core simulation set is controlled by `AXI_SMOKE_CORES`
 in the Makefile and currently covers `ibex`, `cv32e40p`, `cv32e40s`, `cva6`,
 `serv`, `picorv32`, and `cvw`.
 
+Unsupported cores are not part of the default AXI smoke target and their
+optional RTL dependencies are not required for the default `debug-sim` gate.
+
 FPGA acceptance remains a separate hardware gate:
 
 ```bash
