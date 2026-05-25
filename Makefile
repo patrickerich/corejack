@@ -442,6 +442,7 @@ drawio-svg:
 			--svg-links-target auto \
 			-o "$$out" \
 			"$(DRAWIO_SRC)" 2>&1 | awk '!/vaInitialize|vaapi_wrapper|libva/'; \
+		$(PYTHON) bin/postprocess_drawio_svg.py "$$out"; \
 	done
 
 python-tests:
