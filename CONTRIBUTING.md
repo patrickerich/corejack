@@ -133,6 +133,22 @@ documentation such as `docs/` or `README.md`.
 Start from [`docs/README.md`](docs/README.md) when adding or updating
 documentation.
 
+### Architecture diagrams
+
+The SoC architecture diagrams live in
+[`docs/media/corejack_soc.drawio`](docs/media/corejack_soc.drawio); each
+tab is also exported as an SVG sibling (`corejack_soc_<slug>.svg`) that
+several docs embed inline. If you edit the `.drawio`, re-export with:
+
+```bash
+make drawio-svg
+```
+
+and commit the regenerated SVGs alongside the source. SVG is preferred
+over PNG so diffs remain text-based; the export is deterministic and
+filenames are stable across tab insertions (the slug comes from the tab
+name, not the page index).
+
 ## Coding Style
 
 CoreJack-owned RTL should follow the lowRISC/OpenTitan SystemVerilog coding

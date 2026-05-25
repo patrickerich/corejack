@@ -29,6 +29,8 @@ CVA6 is integrated as a native AXI core: its initiator port enters
 The board wrapper does not own this policy. Board wrappers only adapt clocks,
 resets, FPGA primitives, and physical IO pins.
 
+![AXI Fabric](media/corejack_soc_axi_fabric.svg)
+
 ## Address Map
 
 `soc_top` builds the active AXI decode table from its address parameters:
@@ -43,6 +45,8 @@ resets, FPGA primitives, and physical IO pins.
 The decode windows are exclusive at the upper bound: `[base, base + size)`.
 The static address-map check (`make axi-addr-map-check`) verifies that these
 windows are non-overlapping.
+
+![Memory Map](media/corejack_soc_memory_map.svg)
 
 ## Memory Width
 

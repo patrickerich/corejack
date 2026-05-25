@@ -137,7 +137,11 @@ Software and validation flow:
   `accel_socket_if`'s split `mem_axi_*` / `csr_apb_*` ports already
   anticipate. The layered picture is documented in the
   *Multi-Initiator Architecture (planned)* tab of
-  [`media/corejack_soc.drawio`](media/corejack_soc.drawio).
+  [`media/corejack_soc.drawio`](media/corejack_soc.drawio) and shown
+  below:
+
+![Multi-Initiator Architecture (planned)](media/corejack_soc_multi_initiator_architecture_planned.svg)
+
 - Keep `soc_top` board-agnostic. Board wrappers provide only clock/reset,
   FPGA primitives, constraints, and physical pin wiring.
 - Continue evolving the descriptor-driven `CORE=<core>` / `BOARD=<board>`
