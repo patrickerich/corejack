@@ -27,7 +27,8 @@ as full RTOS platform support.
 - SERV is loaded through the UART SRAM loader rather than OpenOCD/GDB
 - executable image region: `0x80000000` to `0x8003ffff`
 - Zephyr RAM region: `0x80040000` to `0x800fffff`
-- UART: `0x10000000`, `115200` baud, `25 MHz`
+- UART: `0x10000000`, `115200` baud, `25 MHz`; NS16550-compatible register
+  layout with `reg-shift = 2`
 - CLINT: `0x02000000`, with `mtime` at `0x0200bff8` and hart 0
   `mtimecmp` at `0x02004000`
 - Zephyr timer frequency: `12.5 MHz`

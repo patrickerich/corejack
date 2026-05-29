@@ -15,7 +15,7 @@ specific area, follow the linked documentation.
 - `rtl/interfaces/` - core and accelerator socket interface contracts.
 - `rtl/cores/` - core adapters and the multi-core `corejack_core_region`.
   Adapters exist for Ibex, CV32E40P, CV32E40S, CV32E40X, CVA6, SERV, PicoRV32,
-  and CVW/Wally. See [`rtl/cores/README.md`](../rtl/cores/README.md).
+  and CVW/Wally.
 - `rtl/bus/` - fabric building blocks (`soc_axi_arbiter`, `soc_axi_demux`,
   `soc_obi_to_axi`, `soc_axi_to_mem`, `soc_axi_to_apb`, `soc_axi_to_dm`,
   `soc_axi_to_reg`, `soc_axi_protocol_checker`).
@@ -26,7 +26,7 @@ specific area, follow the linked documentation.
   Currently: `axku5/corejack_axku5_wrap.sv` and `axku5/axku5.xdc`.
 - `rtl/platform/fpga/scripts/` - OpenOCD config, GDB load/run helpers, and
   Vivado utility scripts. See
-  [`rtl/platform/fpga/scripts/README.md`](../rtl/platform/fpga/scripts/README.md).
+  [`fpga_debug_stepping.md`](fpga_debug_stepping.md).
 
 ## Descriptors And Configuration
 
