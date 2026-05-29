@@ -41,8 +41,8 @@ debug:
   supported: true
   hart_count: 1
   hartsel: 0
-  halt_addr: 0x1a110800
-  exception_addr: 0x1a110810
+  halt_addr: 0x00000800
+  exception_addr: 0x00000810
 
 buses:
   instruction: obi
