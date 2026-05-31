@@ -114,6 +114,19 @@ continue
 
 At this point the core should stop at `main`.
 
+## GDB Binary Selection
+
+The `make fpga-load-sw` and `make fpga-run-sw` targets pick a RISC-V GDB in
+this order, using the first that is available:
+
+1. `$GDB`, if set
+2. `.tools/riscv/bin/riscv64-unknown-elf-gdb`, if present
+3. `$RISCV/bin/riscv64-unknown-elf-gdb`, if present
+4. `$RISCV/bin/riscv-none-elf-gdb`, if present
+5. `riscv64-unknown-elf-gdb` from `PATH`
+
+If none are found, source `./sourceme.sh` or set `GDB=/path/to/gdb`.
+
 ## Stepping
 
 Instruction stepping is the most reliable first check:

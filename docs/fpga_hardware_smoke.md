@@ -68,7 +68,12 @@ make fpga-pgm CORE=ibex BOARD=axku5
 Expected result:
 
 - Vivado programming completes without errors.
-- Board status LEDs match the board wrapper's documented idle/debug status.
+- Board status LEDs match the AXKU5 board wrapper (`corejack_axku5_wrap`)
+  status mapping:
+  - LED1: SoC reset released
+  - LED2: debug module active
+  - LED3: live debug request
+  - LED4: core sleep state
 - No UART output is required immediately after programming.
 
 ## OpenOCD Enumeration
