@@ -110,6 +110,10 @@ make smoke
 make sim-run-sw SW_APP=hello_world
 ```
 
+For the full simulation flow - the cocotb + Verilator setup, the available
+simulation targets, and waveform dumping - see
+[`docs/simulation.md`](docs/simulation.md).
+
 For FPGA bring-up, build a bitstream, program the board, and load software
 through OpenOCD/GDB:
 

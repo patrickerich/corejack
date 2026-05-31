@@ -42,6 +42,11 @@ projects.
 - [AXI4 fabric migration](axi4_fabric_migration.md) - historical migration
   notes and design rationale for moving to an AXI4-native fabric.
 
+## Simulation
+
+- [Simulation](simulation.md) - cocotb + Verilator simulation setup, the
+  simulation targets, testbench structure, waveform dumping, and other knobs.
+
 ## FPGA And Debug
 
 - [FPGA software flow](fpga_sw_flow.md) - build, program, load, and run
