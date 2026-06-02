@@ -18,6 +18,8 @@ projects.
   and where each kind of artifact lives.
 - [Roadmap](roadmap.md) - current baseline, per-core notes, and the active
   direction for cores, boards, fabric, and software.
+- [Open items](open_items.md) - noticed-but-deferred issues and improvements
+  (a lightweight tech-debt log, distinct from the roadmap).
 - [Tooling](tooling.md) - host tool checks, optional repo-local tool
   installs, and observed validation versions.
 - [Dependency management](dependency_management.md) - Bender/FuseSoC split,
