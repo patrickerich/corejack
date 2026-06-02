@@ -59,6 +59,8 @@ projects.
   integrating `riscv-dbg`.
 - [UART SRAM loader](uart_sram_loader.md) - fallback SRAM load path for
   cores without usable OpenOCD/GDB debug.
+- [Tigard JTAG wiring](jtag_tigard_wiring.md) - external-JTAG (Tigard) pin map
+  for the AXKU5 and Arty A7-100T boards.
 
 ## Software
 

@@ -8,7 +8,9 @@ promote a core, see [`core_acceptance_checklist.md`](core_acceptance_checklist.m
 ## Current Baseline
 
 The first FPGA board target `axku5` is hardware-validated across the
-supported core set.
+supported core set. A second board, `arty_a7_100t` (Arty A7-100T, Artix-7),
+is hardware-validated with Ibex (bitstream, SRAM load over the Tigard,
+bare-metal UART, and Zephyr console/timer smoke).
 
 Platform pieces:
 
