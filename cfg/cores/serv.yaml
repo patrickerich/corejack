@@ -54,7 +54,6 @@ software:
   toolchain: riscv-multilib
   zephyr:
     status: initial_supported
-    board: corejack_serv_axku5
 
 compatible_boards:
   - axku5

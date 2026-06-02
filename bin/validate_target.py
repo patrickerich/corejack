@@ -186,6 +186,9 @@ def target_config(core: str, board: str, core_text: str, board_text: str) -> dic
     openocd_cfg = require_scalar(board_text, ("debug", "openocd_cfg"), f"BOARD '{board}'")
     soc_clk_hz = require_scalar(board_text, ("clock", "soc_hz"), f"BOARD '{board}'")
     uart_baud = require_scalar(board_text, ("uart", "baud"), f"BOARD '{board}'")
+    # Optional per-board SRAM size. Unset preserves the soc_top default of
+    # 1 MiB (262144 32-bit words), so existing boards are unaffected.
+    ram_bytes = yaml_path_scalar(board_text, ("memory", "ram_bytes")) or "1048576"
     march = require_scalar(core_text, ("isa", "march"), f"CORE '{core}'")
     mabi = require_scalar(core_text, ("isa", "mabi"), f"CORE '{core}'")
     toolchain = require_scalar(core_text, ("software", "toolchain"), f"CORE '{core}'")
@@ -217,6 +220,7 @@ def target_config(core: str, board: str, core_text: str, board_text: str) -> dic
         "ZEPHYR_STATUS": zephyr,
         "SOC_CLK_HZ": soc_clk_hz,
         "UART_BAUD": uart_baud,
+        "SOC_RAM_BYTES": ram_bytes,
     }
 
 
@@ -572,8 +576,6 @@ def core_check(core: str, verbose: bool = True) -> None:
         fail(f"unsupported software.toolchain: {toolchain}")
     if zephyr not in ZEPHYR_STATUSES:
         fail(f"unsupported software.zephyr.status: {zephyr}")
-    if zephyr in {"initial_supported", "supported"}:
-        require_scalar(core_text, ("software", "zephyr", "board"), f"CORE '{core}'")
     if not compatible_boards:
         fail("compatible_boards must list at least one board")
 
@@ -661,9 +663,17 @@ def board_check(board: str, verbose: bool = True) -> None:
         "clock.soc_hz",
     )
     clk_p = require_scalar(board_text, ("clock", "constraints_ports", "p"), f"BOARD '{board}'")
-    clk_n = require_scalar(board_text, ("clock", "constraints_ports", "n"), f"BOARD '{board}'")
+    # `n` is optional: differential clock boards define it, single-ended boards
+    # (e.g. a single CMOS oscillator) omit it.
+    clk_n = yaml_path_scalar(board_text, ("clock", "constraints_ports", "n")) or ""
     reset_polarity = require_scalar(board_text, ("reset", "polarity"), f"BOARD '{board}'")
     reset_port = require_scalar(board_text, ("reset", "constraints_port"), f"BOARD '{board}'")
+    # Optional per-board SRAM size; must satisfy the 64-bit SRAM word geometry.
+    ram_bytes_raw = yaml_path_scalar(board_text, ("memory", "ram_bytes"))
+    if ram_bytes_raw is not None:
+        ram_bytes_val = parse_positive_int(ram_bytes_raw, "memory.ram_bytes")
+        if ram_bytes_val % 8 != 0:
+            fail("memory.ram_bytes must be a multiple of 8 (64-bit SRAM word)")
     uart_baud = parse_positive_int(
         require_scalar(board_text, ("uart", "baud"), f"BOARD '{board}'"),
         "uart.baud",
@@ -782,7 +792,7 @@ def board_check(board: str, verbose: bool = True) -> None:
         print(f"OPENOCD_CFG={openocd_cfg}")
         print(f"CLOCK_INPUT_HZ={input_hz}")
         print(f"SOC_CLK_HZ={soc_hz}")
-        print(f"CLOCK_PORTS={clk_p},{clk_n}")
+        print(f"CLOCK_PORTS={clk_p},{clk_n}" if clk_n else f"CLOCK_PORTS={clk_p}")
         print(f"RESET={reset_port},{reset_polarity}")
         print(f"UART={uart_tx},{uart_rx},{uart_baud}")
         print(f"SMOKE_APP={smoke_app}")

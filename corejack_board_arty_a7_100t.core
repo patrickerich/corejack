@@ -1,0 +1,16 @@
+CAPI=2:
+
+name: corejack:boards:arty_a7_100t:0.1.0
+description: Digilent Arty A7-100T FPGA board wrapper and constraints for CoreJack
+
+filesets:
+  board_rtl:
+    files:
+      - rtl/platform/fpga/boards/arty_a7_100t/corejack_arty_a7_100t_wrap.sv
+      - rtl/platform/fpga/boards/arty_a7_100t/arty_a7_100t.xdc : {file_type: xdc}
+    file_type: systemVerilogSource
+
+targets:
+  default:
+    filesets:
+      - board_rtl

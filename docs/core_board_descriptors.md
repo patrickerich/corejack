@@ -127,7 +127,6 @@ software:
   toolchain: riscv-multilib
   zephyr:
     status: initial_supported
-    board: corejack_ibex_axku5
 ```
 
 The descriptor should capture contract-level information. It should not become

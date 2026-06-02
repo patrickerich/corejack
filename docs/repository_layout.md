@@ -77,7 +77,8 @@ and host runtime - nothing that ends up as SystemVerilog.
   `test_soc_sw.py`, `test_smoke.py`, `test_axi_adapters.py`,
   `test_debug_integration.py`, and `test_uart_sram_loader.py`.
 - `sw/c/` - bare-metal apps (`hello_world`, `self_check`, `bench_smoke`,
-  `timer_uart_smoke`) sharing `sw/common/link.ld` and the common runtime
+  `timer_uart_smoke`) sharing `sw/common/link.ld.in` (the board-RAM-sized
+  linker template) and the common runtime
   under `sw/c/common/`.
 - `sw/zephyr/` - out-of-tree Zephyr boards, SoC definitions, devicetree
   fragments, and the CoreJack Zephyr smoke app.

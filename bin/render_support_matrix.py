@@ -163,7 +163,6 @@ def render_board_matrix(board: dict[str, str | list[str]], cores: dict[str, dict
                 str(core["fpga"]),
                 load_run_path(core),
                 str(core["debug"]),
-                str(core["zephyr"]),
                 default_fpga_acceptance(core),
             ]
         )
@@ -183,7 +182,6 @@ def render_board_matrix(board: dict[str, str | list[str]], cores: dict[str, dict
                 "FPGA `hello_world`",
                 "Load/run path",
                 "OpenOCD/GDB step",
-                "Zephyr console/timer smoke",
                 "Default FPGA acceptance",
             ],
             rows,
@@ -200,11 +198,15 @@ def render_core_matrix(cores: dict[str, dict[str, str | list[str]]]) -> str:
             f"`rv{core['xlen']}`",
             f"`{core['march']}`",
             f"`{core['mabi']}`",
+            str(core["zephyr"]),
             ", ".join(f"`{board}`" for board in core["compatible_boards"]),
         ]
         for name, core in cores.items()
     ]
-    return table(["Core", "Display name", "XLEN", "MARCH", "MABI", "Compatible boards"], rows)
+    return table(
+        ["Core", "Display name", "XLEN", "MARCH", "MABI", "Zephyr console/timer smoke", "Compatible boards"],
+        rows,
+    )
 
 
 def render() -> str:
