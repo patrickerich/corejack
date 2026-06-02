@@ -1,27 +1,26 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 
+/* CoreJack core/board names are injected at build time (see sw/zephyr/CMakeLists.txt
+ * and the Makefile zephyr-build target), so the banner is correct for any
+ * core/board without per-target preprocessor chains. */
+#ifndef COREJACK_CORE
+#define COREJACK_CORE "unknown"
+#endif
+#ifndef COREJACK_BOARD
+#define COREJACK_BOARD "unknown"
+#endif
+
 int main(void)
 {
 	printk("=== CoreJack Zephyr Demo ===\n");
 	printk("Target: zephyr\n");
-#if defined(CONFIG_BOARD_COREJACK_CV32E40P_AXKU5)
-	printk("Core: cv32e40p\n");
-#elif defined(CONFIG_BOARD_COREJACK_CV32E40S_AXKU5)
-	printk("Core: cv32e40s\n");
-#elif defined(CONFIG_BOARD_COREJACK_CV32E40X_AXKU5)
-	printk("Core: cv32e40x\n");
-#elif defined(CONFIG_BOARD_COREJACK_CVA6_AXKU5)
-	printk("Core: cva6\n");
-#elif defined(CONFIG_BOARD_COREJACK_SERV_AXKU5)
-	printk("Core: serv\n");
-#else
-	printk("Core: ibex\n");
-#endif
-	printk("Board: axku5\n");
+	printk("Core: " COREJACK_CORE "\n");
+	printk("Board: " COREJACK_BOARD "\n");
 	printk("UART and Zephyr console path are alive.\n");
 	k_sleep(K_MSEC(10));
 	printk("Machine timer interrupt path is alive.\n");
+	/* SERV loops rather than returning from main; other cores return cleanly. */
 #if !defined(CONFIG_BOARD_COREJACK_SERV_AXKU5)
 	return 0;
 #endif

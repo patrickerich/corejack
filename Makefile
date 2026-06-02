@@ -289,7 +289,7 @@ zephyr-check:
 	@"$(VENV_PY)" -c 'import jsonschema' >/dev/null 2>&1 || { echo "Error: Zephyr Python build requirements missing. Run: make zephyr-python-deps"; exit 1; }
 
 zephyr-build: zephyr-check validate-target
-	@test "$(BOARD)" = "axku5" || { echo "Error: initial Zephyr support is BOARD=axku5 only"; exit 1; }
+	@test "$(BOARD)" = "axku5" -o "$(BOARD)" = "arty_a7_100t" || { echo "Error: initial Zephyr support is BOARD=axku5 or BOARD=arty_a7_100t only"; exit 1; }
 	@test "$(CORE)" = "ibex" -o "$(CORE)" = "cv32e40p" -o "$(CORE)" = "cv32e40s" -o "$(CORE)" = "cva6" -o "$(CORE)" = "serv" || { echo "Error: Zephyr support is CORE=ibex, CORE=cv32e40p, CORE=cv32e40s, CORE=cva6, or CORE=serv only"; exit 1; }
 	@if [ "$(CORE)" = "cva6" ] && ! "$(RISCV_TOOLCHAIN_PREFIX)/bin/riscv64-unknown-elf-gcc" -march=rv64imc -mabi=lp64 -print-libgcc-file-name | grep -q '/rv64imc/lp64/libgcc.a$$'; then \
 		echo "Error: CVA6 Zephyr requires the rv64imc/lp64 multilib."; \
@@ -308,7 +308,9 @@ zephyr-build: zephyr-check validate-target
 		-- \
 		-DBOARD_ROOT="$(CURDIR)/sw/zephyr" \
 		-DSOC_ROOT="$(CURDIR)/sw/zephyr" \
-		-DDTS_ROOT="$(CURDIR)/sw/zephyr"
+		-DDTS_ROOT="$(CURDIR)/sw/zephyr" \
+		-DCOREJACK_CORE="$(CORE)" \
+		-DCOREJACK_BOARD="$(BOARD)"
 
 check-tools:
 	@$(PYTHON) bin/check_tools.py --core "$(CORE)" --board "$(BOARD)" --flow "$(FLOW)"
@@ -520,7 +522,7 @@ fpga-accept:
 	@bin/fpga_debug_acceptance.sh --board "$(BOARD)" --cores "$(FPGA_ACCEPT_CORES)" --firmware "$(FW)" --app "$(SW_APP)" --zephyr-app "$(ZEPHYR_APP)" --gdb-timeout "$(GDB_TIMEOUT)" --uart "$(UART_DEV)" --uart-timeout "$(UART_CAPTURE_TIMEOUT)"
 
 sw-build:
-	@$(MAKE) -C sw APP="$(SW_APP)" TARGET="$(TARGET)" CORE="$(CORE)" BOARD="$(BOARD)" TOOLCHAIN="$(TOOLCHAIN)" MARCH="$(MARCH)" MABI="$(MABI)" SOC_CLK_HZ="$(SOC_CLK_HZ)" UART_BAUD="$(UART_BAUD)"
+	@$(MAKE) -C sw APP="$(SW_APP)" TARGET="$(TARGET)" CORE="$(CORE)" BOARD="$(BOARD)" TOOLCHAIN="$(TOOLCHAIN)" MARCH="$(MARCH)" MABI="$(MABI)" SOC_CLK_HZ="$(SOC_CLK_HZ)" UART_BAUD="$(UART_BAUD)" SOC_RAM_BYTES="$(SOC_RAM_BYTES)"
 
 sw-build-hello:
 	@$(MAKE) sw-build SW_APP=hello_world

@@ -50,7 +50,7 @@ software:
   toolchain: riscv-multilib
   zephyr:
     status: initial_supported
-    board: corejack_ibex_axku5
 
 compatible_boards:
   - axku5
+  - arty_a7_100t

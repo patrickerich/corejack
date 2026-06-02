@@ -1,8 +1,10 @@
 # Zephyr Bring-Up
 
-CoreJack's first Zephyr targets are the supported cores on AXKU5. The goal is
-to reuse the validated FPGA hardware path and add a Zephyr software stack on top
-of it.
+CoreJack's Zephyr targets are the supported cores on AXKU5, plus Ibex on the
+Arty A7-100T. The goal is to reuse the validated FPGA hardware path and add a
+Zephyr software stack on top of it. Zephyr support is a per-core capability (see
+the Core ISA Summary in [`support_matrix.md`](support_matrix.md)); a board only
+needs to bring up and have enough RAM to hold the image.
 
 Zephyr support is tracked in each core descriptor under
 `software.zephyr.status`. The current supported AXKU5 cores are marked
@@ -20,13 +22,16 @@ as full RTOS platform support.
 - Zephyr app and platform files: `sw/zephyr`
 - Zephyr boards: `corejack_ibex_axku5`, `corejack_cv32e40p_axku5`,
   `corejack_cv32e40s_axku5`, `corejack_cva6_axku5`,
-  and `corejack_serv_axku5`
+  `corejack_serv_axku5`, and `corejack_ibex_arty_a7_100t`
 - CoreJack core/board pairs: `CORE=ibex BOARD=axku5`,
   `CORE=cv32e40p BOARD=axku5`, `CORE=cv32e40s BOARD=axku5`,
-  `CORE=cva6 BOARD=axku5`, `CORE=serv BOARD=axku5`
+  `CORE=cva6 BOARD=axku5`, `CORE=serv BOARD=axku5`,
+  `CORE=ibex BOARD=arty_a7_100t`
 - SERV is loaded through the UART SRAM loader rather than OpenOCD/GDB
-- executable image region: `0x80000000` to `0x8003ffff`
-- Zephyr RAM region: `0x80040000` to `0x800fffff`
+- AXKU5 executable image region: `0x80000000` to `0x8003ffff`
+- AXKU5 Zephyr RAM region: `0x80040000` to `0x800fffff`
+- Arty A7-100T (256 KiB): executable region `0x80000000` to `0x8002ffff`,
+  Zephyr RAM region `0x80030000` to `0x8003ffff`
 - UART: `0x10000000`, `115200` baud, `25 MHz`; NS16550-compatible register
   layout with `reg-shift = 2`
 - CLINT: `0x02000000`, with `mtime` at `0x0200bff8` and hart 0
@@ -45,13 +50,14 @@ CVA6 uses the platform `rv64imc/lp64` profile. The project-local RISC-V
 toolchain must therefore include an `rv64imc-lp64` multilib; older local
 toolchain builds may need to be rebuilt with `make toolchain-riscv`.
 
-The FPGA memory is implemented as a single 1 MiB SRAM window at `0x80000000`.
-For Zephyr, CoreJack models that window as two regions: an XIP-style
-`zephyr,flash` region at `0x80000000` and a writable `zephyr,sram` region at
-`0x80040000`. Both are physically SRAM in the current FPGA design. This split
-keeps executable sections out of writable RAM and avoids RWX LOAD segments while
-still using the same SRAM image layout for both OpenOCD/GDB and UART-loader
-flows.
+The FPGA SRAM window is board-specific: 1 MiB on AXKU5, 256 KiB on the Arty
+A7-100T (set by `memory.ram_bytes`). For Zephyr, CoreJack models that window as
+two regions: an XIP-style `zephyr,flash` region followed by a writable
+`zephyr,sram` region. On AXKU5 these sit at `0x80000000` and `0x80040000`; the
+Arty board's devicetree overrides them to fit 256 KiB. Both are physically SRAM
+in the current FPGA design. This split keeps executable sections out of writable
+RAM and avoids RWX LOAD segments while still using the same SRAM image layout for
+both OpenOCD/GDB and UART-loader flows.
 
 The platform includes a shared CLINT block outside the cores. Zephyr uses its
 standard `riscv,machine-timer` driver with the CLINT `mtime`/`mtimecmp`
@@ -86,6 +92,7 @@ make zephyr-build CORE=cv32e40p BOARD=axku5
 make zephyr-build CORE=cv32e40s BOARD=axku5
 make zephyr-build CORE=cva6 BOARD=axku5
 make zephyr-build CORE=serv BOARD=axku5
+make zephyr-build CORE=ibex BOARD=arty_a7_100t
 ```
 
 The build passes `BOARD_ROOT`, `SOC_ROOT`, and `DTS_ROOT` to point Zephyr at

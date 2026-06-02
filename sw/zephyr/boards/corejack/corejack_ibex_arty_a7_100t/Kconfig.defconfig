@@ -1,0 +1,9 @@
+if BOARD_COREJACK_IBEX_ARTY_A7_100T
+
+config BOARD
+	default "corejack_ibex_arty_a7_100t"
+
+config MAIN_STACK_SIZE
+	default 2048
+
+endif

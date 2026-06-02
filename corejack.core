@@ -57,6 +57,10 @@ filesets:
     depend:
       - corejack:boards:axku5:0.1.0
 
+  board_arty_a7_100t_rtl:
+    depend:
+      - corejack:boards:arty_a7_100t:0.1.0
+
   rtl:
     files:
       - rtl/pkg/platform_pkg.sv
@@ -293,7 +297,7 @@ targets:
     <<: *default
     flow: vivado
     flow_options:
-      part: board_axku5 ? (xcku5p-ffvb676-2-e)
+      part: board_axku5 ? (xcku5p-ffvb676-2-e) board_arty_a7_100t ? (xc7a100tcsg324-1)
       jobs: 4
       pgm: true
     filesets_append:
@@ -307,7 +311,8 @@ targets:
       - core_cvw ? (core_cvw_rtl)
       - core_region ? (core_region_rtl)
       - board_axku5 ? (board_axku5_rtl)
-    toplevel: board_axku5 ? (corejack_axku5_wrap)
+      - board_arty_a7_100t ? (board_arty_a7_100t_rtl)
+    toplevel: board_axku5 ? (corejack_axku5_wrap) board_arty_a7_100t ? (corejack_arty_a7_100t_wrap)
     parameters:
       - CoreType
       - EnableUartLoader

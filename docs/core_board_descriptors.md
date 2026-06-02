@@ -127,7 +127,6 @@ software:
   toolchain: riscv-multilib
   zephyr:
     status: initial_supported
-    board: corejack_ibex_axku5
 ```
 
 The descriptor should capture contract-level information. It should not become
@@ -276,6 +275,16 @@ contain SoC policy that belongs in the generic platform integration. Use the
 expected text is core- or board-specific so the same descriptor stays
 reusable across all compatible cores.
 
+Two board fields are optional:
+
+- `clock.constraints_ports.n` is only needed for a differential clock input.
+  Omit it for a single-ended oscillator (e.g. the Arty A7-100T), and the board
+  wrapper buffers the clock accordingly.
+- `memory.ram_bytes` caps the shared SRAM for boards whose block RAM cannot hold
+  the default 1 MiB (e.g. the Artix-7 100T at 256 KiB). When unset, the `soc_top`
+  1 MiB default applies. It drives both the board wrapper's `RamWords` and the
+  board-RAM-sized bare-metal linker (`sw/common/link.ld.in`).
+
 For the practical core bring-up checklist, see
 [`core_porting.md`](core_porting.md).
 
@@ -319,7 +328,8 @@ required validation gate before changing descriptor support status to
 ## What The Descriptors Drive Today
 
 Descriptor files currently exist for every supported core
-(`cfg/cores/*.yaml`) and the `axku5` board (`cfg/boards/axku5.yaml`). The
+(`cfg/cores/*.yaml`) and the `axku5` and `arty_a7_100t` boards
+(`cfg/boards/*.yaml`). The
 authoritative per-core/board status comes from these descriptors and is
 rendered into [`support_matrix.md`](support_matrix.md) by
 `make support-matrix`.

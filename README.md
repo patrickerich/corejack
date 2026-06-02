@@ -37,7 +37,8 @@ see [`docs/about.md`](docs/about.md).
 
 Validated baseline:
 
-- FPGA board target: `axku5`
+- FPGA board targets: `axku5` (validated across the supported core set) and
+  `arty_a7_100t` (Arty A7-100T, Artix-7; validated with Ibex, 256 KiB SRAM)
 - supported cores: Ibex, CV32E40P, CV32E40S, CVA6, SERV, PicoRV32, and
   CVW/Wally
 - SoC clock: `25 MHz`
@@ -45,8 +46,8 @@ Validated baseline:
   `115200` baud
 - CLINT machine timer at `0x02000000`; Zephyr timer frequency `12.5 MHz`
 - debug transport: external JTAG through `riscv-dbg` (`dmi_jtag` + `dm_top`)
-- Zephyr: `initial_supported` on the validated Zephyr-capable core/board
-  pairs
+- Zephyr: `initial_supported` on the Zephyr-capable cores (a per-core
+  capability; see the support matrix)
 
 CV32E40X is intentionally excluded from default regressions; see
 [`docs/cv32e40x_boot_issue.md`](docs/cv32e40x_boot_issue.md).

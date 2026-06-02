@@ -1,0 +1,60 @@
+name: arty_a7_100t
+display_name: Digilent Arty A7-100T
+
+fpga:
+  part: xc7a100tcsg324-1
+  top_template: corejack_{board}_wrap
+  target: fpga
+  work_root: build/fpga/{board}/{core}/fusesoc-fpga
+
+fusesoc:
+  board_flag: board_arty_a7_100t
+
+clock:
+  input_hz: 100000000
+  soc_hz: 25000000
+  # Single-ended 100 MHz oscillator (no differential pair on this board), so
+  # only the `p` port is defined. The board wrapper buffers it with IBUF and
+  # synthesises the 25 MHz SoC clock with PLLE2_BASE.
+  constraints_ports:
+    p: sys_clk
+
+reset:
+  polarity: active_low
+  constraints_port: sys_rst_n
+
+memory:
+  # Artix-7 100T has only ~607 KB of block RAM, so the platform default 1 MiB
+  # SRAM does not fit. Cap the shared SRAM at 256 KiB, which leaves routing and
+  # timing headroom on the -1 part. This value drives both the wrapper RamWords
+  # and the bare-metal linker RAM region (build-substituted into link.ld).
+  ram_bytes: 262144
+
+uart:
+  baud: 115200
+  tx_port: uart_tx
+  rx_port: uart_rx
+
+debug:
+  transport: jtag
+  openocd_cfg: rtl/platform/fpga/scripts/openocd.cfg
+
+constraints:
+  xdc: rtl/platform/fpga/boards/arty_a7_100t/arty_a7_100t.xdc
+
+programming:
+  flow: vivado
+  bitstream_target: fpga-bit
+  program_target: fpga-pgm
+
+validation:
+  smoke_app: hello_world
+  expected_uart:
+    - "=== CoreJack SoC Demo ==="
+    - "Target: fpga"
+    - "Core: {core}"
+    - "Board: {board}"
+    - "path is alive."
+
+compatible_cores:
+  - ibex

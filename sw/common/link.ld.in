@@ -1,9 +1,15 @@
 OUTPUT_ARCH(riscv)
 
+/* Generated from link.ld.in by CMake (configure_file). The RAM size is
+   board-driven via COREJACK_RAM_BYTES (default 1 MiB); see
+   cfg/boards/<board>.yaml: memory.ram_bytes. The stack occupies the top
+   COREJACK_STACK_BYTES of RAM, so the usable code/data region is the
+   remainder below it. */
+
 MEMORY
 {
-  ram   (rwx) : ORIGIN = 0x80000000, LENGTH = 0xF8000
-  stack (rw)  : ORIGIN = 0x800F8000, LENGTH = 0x08000
+  ram   (rwx) : ORIGIN = 0x80000000, LENGTH = @COREJACK_RAM_REGION_BYTES@
+  stack (rw)  : ORIGIN = @COREJACK_STACK_ORIGIN@, LENGTH = @COREJACK_STACK_BYTES@
 }
 
 _min_stack   = 0x1000;

@@ -63,7 +63,13 @@ clock:
   soc_hz: 25000000
   constraints_ports:
     p: sys_clk_p
-    n: sys_clk_n
+    n: sys_clk_n        # omit for a single-ended clock input
+
+# Optional. Cap the shared SRAM for boards whose block RAM cannot hold the
+# 1 MiB default; unset keeps the soc_top default. Drives the wrapper RamWords
+# and the bare-metal linker. Example for a 256 KiB board:
+# memory:
+#   ram_bytes: 262144
 
 reset:
   polarity: active_low
