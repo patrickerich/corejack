@@ -58,3 +58,9 @@ validation:
 
 compatible_cores:
   - ibex
+  - cv32e40p
+  - cv32e40s
+  - cva6
+  - serv
+  - picorv32
+  - cvw

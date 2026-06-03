@@ -57,3 +57,4 @@ software:
 
 compatible_boards:
   - axku5
+  - arty_a7_100t
