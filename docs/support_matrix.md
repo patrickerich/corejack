@@ -21,6 +21,12 @@ corresponding acceptance criteria have been validated for that flow.
 | Core | Display name | Sim `hello_world` | FPGA `hello_world` | Load/run path | OpenOCD/GDB step | Default FPGA acceptance |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ibex` | Ibex | supported | supported | OpenOCD/GDB | supported | yes |
+| `cv32e40p` | CV32E40P | supported | supported | OpenOCD/GDB | supported | yes |
+| `cv32e40s` | CV32E40S | supported | supported | OpenOCD/GDB | supported | yes |
+| `cva6` | CVA6 | supported | supported | OpenOCD/GDB | supported | yes |
+| `serv` | SERV | supported | supported | UART loader | unsupported | yes |
+| `picorv32` | PicoRV32 | supported | supported | UART loader | unsupported | yes |
+| `cvw` | CORE-V-Wally | supported | supported | UART loader | unsupported | yes |
 
 ## ALINX AXKU5 (`axku5`)
 
@@ -43,11 +49,11 @@ corresponding acceptance criteria have been validated for that flow.
 
 | Core | Display name | XLEN | MARCH | MABI | Zephyr console/timer smoke | Compatible boards |
 | --- | --- | --- | --- | --- | --- | --- |
-| `cv32e40p` | CV32E40P | `rv32` | `rv32imc` | `ilp32` | initial_supported | `axku5` |
-| `cv32e40s` | CV32E40S | `rv32` | `rv32imc` | `ilp32` | initial_supported | `axku5` |
+| `cv32e40p` | CV32E40P | `rv32` | `rv32imc` | `ilp32` | initial_supported | `axku5`, `arty_a7_100t` |
+| `cv32e40s` | CV32E40S | `rv32` | `rv32imc` | `ilp32` | initial_supported | `axku5`, `arty_a7_100t` |
 | `cv32e40x` | CV32E40X | `rv32` | `rv32imc` | `ilp32` | unsupported | `axku5` |
-| `cva6` | CVA6 | `rv64` | `rv64imc` | `lp64` | initial_supported | `axku5` |
-| `cvw` | CORE-V-Wally | `rv32` | `rv32imc` | `ilp32` | planned | `axku5` |
+| `cva6` | CVA6 | `rv64` | `rv64imc` | `lp64` | initial_supported | `axku5`, `arty_a7_100t` |
+| `cvw` | CORE-V-Wally | `rv32` | `rv32imc` | `ilp32` | planned | `axku5`, `arty_a7_100t` |
 | `ibex` | Ibex | `rv32` | `rv32imcb` | `ilp32` | initial_supported | `axku5`, `arty_a7_100t` |
-| `picorv32` | PicoRV32 | `rv32` | `rv32imc` | `ilp32` | unsupported | `axku5` |
-| `serv` | SERV | `rv32` | `rv32i` | `ilp32` | initial_supported | `axku5` |
+| `picorv32` | PicoRV32 | `rv32` | `rv32imc` | `ilp32` | unsupported | `axku5`, `arty_a7_100t` |
+| `serv` | SERV | `rv32` | `rv32i` | `ilp32` | initial_supported | `axku5`, `arty_a7_100t` |
