@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -199,3 +201,30 @@ def test_create_core_scaffold_core_check_and_overwrite_guard(tmp_path: Path) -> 
     )
     assert duplicate.returncode != 0
     assert "refusing to overwrite" in duplicate.stderr or "already exists" in duplicate.stderr
+
+
+def make_var(stdout: str, name: str) -> str:
+    """Extract VALUE from a `$(eval NAME := VALUE)` line in --make output."""
+    marker = f"$(eval {name} := "
+    for line in stdout.splitlines():
+        if line.startswith(marker):
+            return line[len(marker):].rstrip(")").strip()
+    raise AssertionError(f"{name} not emitted in --make output:\n{stdout}")
+
+
+@pytest.mark.parametrize(
+    "board,expected_bytes,expected_words",
+    [
+        ("axku5", "1048576", "262144"),       # platform default 1 MiB
+        ("arty_a7_100t", "262144", "65536"),  # board-pinned 256 KiB
+    ],
+)
+def test_ram_size_derives_from_descriptor(board: str, expected_bytes: str, expected_words: str) -> None:
+    # The board descriptor's memory.ram_bytes is the single source of truth;
+    # SOC_RAM_BYTES (linker) and RAM_WORDS (FPGA soc_top RamWords) both derive
+    # from it, with RAM_WORDS == ram_bytes / 4 (32-bit words).
+    result = run_cmd(
+        [sys.executable, "bin/validate_target.py", "--core", "ibex", "--board", board, "--make"]
+    )
+    assert make_var(result.stdout, "SOC_RAM_BYTES") == expected_bytes
+    assert make_var(result.stdout, "RAM_WORDS") == expected_words

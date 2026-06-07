@@ -26,8 +26,10 @@ reset:
 memory:
   # Artix-7 100T has only ~607 KB of block RAM, so the platform default 1 MiB
   # SRAM does not fit. Cap the shared SRAM at 256 KiB, which leaves routing and
-  # timing headroom on the -1 part. This value drives both the wrapper RamWords
-  # and the bare-metal linker RAM region (build-substituted into link.ld).
+  # timing headroom on the -1 part. This is the single source of truth for the
+  # board SRAM size: it is derived into the FPGA wrapper RamWords (soc_top
+  # RamWords vlogparam), the bare-metal linker RAM region (build-substituted
+  # into link.ld), and the Zephyr devicetree (COREJACK_RAM_BYTES).
   ram_bytes: 262144
 
 uart:

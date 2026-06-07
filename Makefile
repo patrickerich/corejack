@@ -53,6 +53,8 @@ CORE_XLEN      ?= 32
 CORE_MARCH     ?= rv32imc
 CORE_MABI      ?= ilp32
 CORE_TYPE      ?= 0
+RAM_WORDS      ?= 262144
+SOC_RAM_BYTES  ?= 1048576
 FPGA_TOP       ?= corejack_$(BOARD)_wrap
 FPGA_TARGET    ?= fpga-$(BOARD)
 FPGA_WORK_ROOT ?= $(FPGA_BUILD_DIR)/$(BOARD)/$(CORE)/fusesoc-$(FPGA_TARGET)
@@ -310,7 +312,8 @@ zephyr-build: zephyr-check validate-target
 		-DSOC_ROOT="$(CURDIR)/sw/zephyr" \
 		-DDTS_ROOT="$(CURDIR)/sw/zephyr" \
 		-DCOREJACK_CORE="$(CORE)" \
-		-DCOREJACK_BOARD="$(BOARD)"
+		-DCOREJACK_BOARD="$(BOARD)" \
+		-DDTS_EXTRA_CPPFLAGS="-DCOREJACK_RAM_BYTES=$(SOC_RAM_BYTES)"
 
 check-tools:
 	@$(PYTHON) bin/check_tools.py --core "$(CORE)" --board "$(BOARD)" --flow "$(FLOW)"
@@ -476,7 +479,7 @@ target-check:
 fpga-flist: validate-target deps-core
 	@mkdir -p "$(FPGA_BUILD_DIR)"
 	@PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
-		fusesoc --cores-root . run --clean --target "$(FPGA_TARGET)" --work-root "$(FPGA_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) --setup corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(UART_LOADER)"
+		fusesoc --cores-root . run --clean --target "$(FPGA_TARGET)" --work-root "$(FPGA_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) --setup corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(UART_LOADER)" --RamWords="$(RAM_WORDS)"
 	@$(FPGA_PATCH_PROJECT_TCL) "$(FPGA_PROJECT_TCL)"
 	@$(PYTHON) bin/vivado_tcl_to_flist.py --tcl "$(FPGA_PROJECT_TCL)" --work-root "$(FPGA_WORK_ROOT)" --out "$(FPGA_BUILD_DIR)/$(FPGA_TOP).f"
 	@printf '%s\n' "-incdir $(CURDIR)/deps/apb/include -incdir $(CURDIR)/deps/axi/include -incdir $(CURDIR)/deps/obi/include -incdir $(CURDIR)/deps/register_interface/include -incdir $(CURDIR)/rtl/cores/vendored/corejack_ibex/include" > "$(FPGA_BUILD_DIR)/$(FPGA_TOP)_incdirs.txt"
@@ -484,13 +487,13 @@ fpga-flist: validate-target deps-core
 
 fpga-setup: validate-target deps-core
 	@PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
-		fusesoc --cores-root . run --clean --target "$(FPGA_TARGET)" --work-root "$(FPGA_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) --setup corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(UART_LOADER)"
+		fusesoc --cores-root . run --clean --target "$(FPGA_TARGET)" --work-root "$(FPGA_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) --setup corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(UART_LOADER)" --RamWords="$(RAM_WORDS)"
 	@$(FPGA_PATCH_PROJECT_TCL) "$(FPGA_PROJECT_TCL)"
 	@echo "FuseSoC FPGA work root: $(FPGA_WORK_ROOT)"
 
 fpga-bit: validate-target deps-core
 	@PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
-		fusesoc --cores-root . run --clean --target "$(FPGA_TARGET)" --work-root "$(FPGA_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) --setup corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(UART_LOADER)"
+		fusesoc --cores-root . run --clean --target "$(FPGA_TARGET)" --work-root "$(FPGA_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) --setup corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(UART_LOADER)" --RamWords="$(RAM_WORDS)"
 	@$(FPGA_PATCH_PROJECT_TCL) "$(FPGA_PROJECT_TCL)"
 	@mkdir -p "$(VIVADO_HOME)"
 	@HOME="$(VIVADO_HOME)" $(MAKE) -C "$(FPGA_WORK_ROOT)"

@@ -14,6 +14,11 @@ parameters:
     default: 0
     paramtype: vlogparam
     description: Enable the UART-side SRAM loader and hold the selected core in reset until release
+  RamWords:
+    datatype: int
+    default: 262144
+    paramtype: vlogparam
+    description: Shared SRAM size in 32-bit words, derived from cfg/boards/<board>.yaml memory.ram_bytes / 4 (default 1 MiB)
 
 filesets:
   common_deps:
@@ -316,3 +321,4 @@ targets:
     parameters:
       - CoreType
       - EnableUartLoader
+      - RamWords

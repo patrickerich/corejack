@@ -1,6 +1,13 @@
 module corejack_arty_a7_100t_wrap #(
   parameter int unsigned CoreType = platform_pkg::CORE_IBEX,
-  parameter bit EnableUartLoader = 1'b0
+  parameter bit EnableUartLoader = 1'b0,
+  // Shared SRAM size in 32-bit words, derived from the single source of truth
+  // (cfg/boards/arty_a7_100t.yaml: memory.ram_bytes / 4) and driven in by the
+  // FPGA build via the corejack.core RamWords vlogparam. The default matches
+  // the soc_top default and is only used for standalone elaboration; the build
+  // always overrides it with the descriptor value (65536 words = 256 KiB,
+  // which fits the Artix-7 100T block-RAM budget of ~607 KB).
+  parameter int unsigned RamWords = 262144
 ) (
   input  logic       sys_clk,     // 100 MHz single-ended oscillator (E3)
   input  logic       sys_rst_n,   // active-low reset button (ck_rst, C2)
@@ -15,12 +22,6 @@ module corejack_arty_a7_100t_wrap #(
 );
   import dm::*;
   import soc_bus_pkg::*;
-
-  // The Artix-7 100T block-RAM budget (~607 KB) cannot hold the platform
-  // default 1 MiB SRAM, so this board caps RAM at 256 KiB. This must match
-  // cfg/boards/arty_a7_100t.yaml: memory.ram_bytes (262144), which also drives
-  // the bare-metal linker RAM region.
-  localparam int unsigned BoardRamWords = 65536; // 65536 * 4 B = 256 KiB
 
   logic clk_in_100;
   logic core_clk_raw;
@@ -93,7 +94,7 @@ module corejack_arty_a7_100t_wrap #(
     .CoreType        (CoreType),
     .EnablePlatform  (1'b1),
     .EnableUartLoader(EnableUartLoader),
-    .RamWords        (BoardRamWords),
+    .RamWords        (RamWords),
     .MemImpl         (mem_ss_pkg::MemImplXilinx)
   ) i_soc_top (
     .clk_i                  (core_clk),
