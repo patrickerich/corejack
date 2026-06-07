@@ -15,6 +15,16 @@ Files under `rtl/cores/vendored/corejack_ibex/` are derived from Ibex and
 OpenTitan/lowRISC source files. These files carry Apache-2.0 SPDX headers and
 copyright notices from their original authors.
 
+### CORE-V-Wally renamed overrides
+
+Files `rtl/cores/cvw_lzc.sv`, `rtl/cores/cvw_cnt.sv`, `rtl/cores/cvw_fmalza.sv`,
+`rtl/cores/cvw_fcvt.sv`, and `rtl/cores/cvw_fdivsqrtpreproc.sv` are verbatim
+copies of the corresponding CORE-V-Wally (`openhwgroup/cvw`) source files with
+only the leading-zero-counter module renamed `lzc` -> `cvw_lzc` to avoid a name
+collision with the PULP `common_cells` `lzc` used by the system AXI crossbar.
+They retain their upstream Apache-2.0 WITH SHL-2.1 headers and copyright notices
+and are used in place of the upstream files via `corejack_core_cvw.core`.
+
 ### Tiny printf
 
 Files under `sw/c/common/printf.*` are based on the MIT-licensed tiny printf

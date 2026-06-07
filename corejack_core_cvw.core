@@ -25,7 +25,7 @@ filesets:
       - rtl/cores/cvw_counter.sv
       - deps/cvw/src/generic/csa.sv
       - deps/cvw/src/generic/decoder.sv
-      - deps/cvw/src/generic/lzc.sv
+      - rtl/cores/cvw_lzc.sv
       - deps/cvw/src/generic/mem/ram1p1rwbe.sv
       - deps/cvw/src/generic/mem/ram1p1rwbe_64x128.sv
       - deps/cvw/src/generic/mem/ram1p1rwbe_64x22.sv
@@ -61,7 +61,7 @@ filesets:
       - deps/cvw/src/fpu/fclassify.sv
       - deps/cvw/src/fpu/fcmp.sv
       - deps/cvw/src/fpu/fctrl.sv
-      - deps/cvw/src/fpu/fcvt.sv
+      - rtl/cores/cvw_fcvt.sv
       - deps/cvw/src/fpu/fdivsqrt/fdivsqrt.sv
       - deps/cvw/src/fpu/fdivsqrt/fdivsqrtcycles.sv
       - deps/cvw/src/fpu/fdivsqrt/fdivsqrtexpcalc.sv
@@ -70,7 +70,7 @@ filesets:
       - deps/cvw/src/fpu/fdivsqrt/fdivsqrtfsm.sv
       - deps/cvw/src/fpu/fdivsqrt/fdivsqrtiter.sv
       - deps/cvw/src/fpu/fdivsqrt/fdivsqrtpostproc.sv
-      - deps/cvw/src/fpu/fdivsqrt/fdivsqrtpreproc.sv
+      - rtl/cores/cvw_fdivsqrtpreproc.sv
       - deps/cvw/src/fpu/fdivsqrt/fdivsqrtstage2.sv
       - deps/cvw/src/fpu/fdivsqrt/fdivsqrtstage4.sv
       - deps/cvw/src/fpu/fdivsqrt/fdivsqrtuotfc2.sv
@@ -84,7 +84,7 @@ filesets:
       - deps/cvw/src/fpu/fma/fmaadd.sv
       - deps/cvw/src/fpu/fma/fmaalign.sv
       - deps/cvw/src/fpu/fma/fmaexpadd.sv
-      - deps/cvw/src/fpu/fma/fmalza.sv
+      - rtl/cores/cvw_fmalza.sv
       - deps/cvw/src/fpu/fma/fmamult.sv
       - deps/cvw/src/fpu/fma/fmasign.sv
       - deps/cvw/src/fpu/fmtparams.sv
@@ -134,7 +134,7 @@ filesets:
       - deps/cvw/src/ieu/bmu/bmuctrl.sv
       - deps/cvw/src/ieu/bmu/byteop.sv
       - deps/cvw/src/ieu/bmu/clmul.sv
-      - deps/cvw/src/ieu/bmu/cnt.sv
+      - rtl/cores/cvw_cnt.sv
       - deps/cvw/src/ieu/bmu/ext.sv
       - deps/cvw/src/ieu/bmu/popcnt.sv
       - deps/cvw/src/ieu/bmu/zbb.sv

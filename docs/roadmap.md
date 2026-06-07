@@ -115,19 +115,21 @@ Software and validation flow:
   `NumBanks` and `NumInitPorts`, and `soc_top.MemNumBanks` is a
   parameter (default 4) - so the platform is set up to grow the bank
   count when a workload warrants it.
-- Widen the AXI fabric. The current `soc_axi_arbiter` is single-beat and
-  single-outstanding, so today's three initiators (core instruction,
-  core data, debug SBA) are serialized upstream of the banked memory.
-  Widening the arbiter to forward multiple outstanding requests is the
-  natural next platform step, and it pays off with the *existing*
-  initiator set - it is not blocked on AXI-native burst initiators
-  arriving. See [`axi4_fabric.md`](axi4_fabric.md).
+- Widen the AXI fabric. **Done (sim-validated):** the single-outstanding
+  `soc_axi_arbiter` + `soc_axi_demux` pair has been replaced by a PULP
+  `axi_xbar` system crossbar, so today's three initiators (core instruction,
+  core data, debug SBA) decode per initiator and arbitrate per target with
+  multiple outstanding requests, instead of serializing upstream of the banked
+  memory. This paid off with the *existing* initiator set - it was not blocked
+  on AXI-native burst initiators arriving. FPGA timing re-validation with the
+  crossbar on the fabric path remains a hardware gate. See
+  [`axi4_fabric.md`](axi4_fabric.md).
 - Adopt a layered interconnect as the platform endpoint, structured as
   three named subsystems: a **memory subsystem** (`soc_mem_ss`, per-bank
-  round-robin arbitration); a **system bus** (PULP `axi_xbar`, replacing
-  the current `soc_axi_arbiter` + `soc_axi_demux` pair - per-target
-  arbitration, multiple outstanding requests); and a **peripheral
-  subsystem** (a single APB peripheral bus behind one `soc_axi_to_apb`
+  round-robin arbitration); a **system bus** (PULP `axi_xbar` - per-target
+  arbitration, multiple outstanding requests; **this is now in place**,
+  having replaced the `soc_axi_arbiter` + `soc_axi_demux` pair); and a
+  **peripheral subsystem** (a single APB peripheral bus behind one `soc_axi_to_apb`
   bridge, carrying UART today and CLINT-wrap / DM-regs-wrap / accel CSR /
   future SPI/I2C/GPIO/timers in the end state). Memory-heavy initiators
   (CPU instr and data via planned direct mem ports, DMA, accelerators,

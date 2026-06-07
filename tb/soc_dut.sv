@@ -132,11 +132,17 @@ module soc_dut;
     .status_code_o(obi_sim_status_code)
   );
 
+  // The sim-ctrl status write targets a magic address outside every decoded
+  // window, so with the crossbar it lands on the error slave rather than a
+  // target port. Observe it at the initiator side instead: core_axi_req[0]
+  // carries CVA6's data writes (the AXI-native case the OBI monitor above
+  // cannot see); the aw/w handshake still completes against the xbar error
+  // slave, so the write is captured here.
   axi_sim_ctrl_monitor i_axi_sim_ctrl_monitor (
     .clk_i(clk_i),
     .rst_ni(rst_ni),
-    .req_i(i_soc_top.gen_platform.fabric_axi_req),
-    .rsp_i(i_soc_top.gen_platform.fabric_axi_rsp),
+    .req_i(i_soc_top.gen_platform.core_axi_req[0]),
+    .rsp_i(i_soc_top.gen_platform.core_axi_rsp[0]),
     .status_valid_o(axi_sim_status_valid),
     .status_pass_o(axi_sim_status_pass),
     .status_code_o(axi_sim_status_code)

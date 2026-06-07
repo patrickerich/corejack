@@ -1,11 +1,20 @@
 module soc_axi_to_apb #(
-  parameter logic [31:0] BaseAddr = 32'h0
+  parameter logic [31:0] BaseAddr = 32'h0,
+  // AXI slave-port types. Default to the platform initiator-side types; the
+  // platform overrides these with the wider master-side types behind the xbar.
+  parameter type axi_req_t     = soc_bus_pkg::soc_axi_req_t,
+  parameter type axi_resp_t    = soc_bus_pkg::soc_axi_resp_t,
+  parameter type axi_aw_chan_t = soc_bus_pkg::soc_axi_aw_chan_t,
+  parameter type axi_w_chan_t  = soc_bus_pkg::soc_axi_w_chan_t,
+  parameter type axi_ar_chan_t = soc_bus_pkg::soc_axi_ar_chan_t,
+  parameter type axi_b_chan_t  = soc_bus_pkg::soc_axi_b_chan_t,
+  parameter type axi_r_chan_t  = soc_bus_pkg::soc_axi_r_chan_t
 ) (
   input  logic clk_i,
   input  logic rst_ni,
 
-  input  soc_bus_pkg::soc_axi_req_t  s_axi_req_i,
-  output soc_bus_pkg::soc_axi_resp_t s_axi_rsp_o,
+  input  axi_req_t                   s_axi_req_i,
+  output axi_resp_t                  s_axi_rsp_o,
   output soc_bus_pkg::soc_apb_req_t  m_apb_req_o,
   input  soc_bus_pkg::soc_apb_resp_t m_apb_rsp_i
 );
@@ -20,12 +29,12 @@ module soc_axi_to_apb #(
   } state_e;
 
   state_e state_q;
-  soc_bus_pkg::soc_axi_aw_chan_t aw_q;
-  soc_bus_pkg::soc_axi_w_chan_t  w_q;
-  soc_bus_pkg::soc_axi_ar_chan_t ar_q;
-  soc_bus_pkg::soc_axi_b_chan_t  b_q;
-  soc_bus_pkg::soc_axi_r_chan_t  r_q;
-  logic                          op_write_q;
+  axi_aw_chan_t aw_q;
+  axi_w_chan_t  w_q;
+  axi_ar_chan_t ar_q;
+  axi_b_chan_t  b_q;
+  axi_r_chan_t  r_q;
+  logic         op_write_q;
 
   function automatic logic [31:0] select_wdata(input logic [31:0] addr,
                                                input soc_bus_pkg::axi_data_t data);

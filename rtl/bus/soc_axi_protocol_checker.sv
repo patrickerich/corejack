@@ -1,15 +1,25 @@
-module soc_axi_protocol_checker (
+module soc_axi_protocol_checker #(
+  // AXI port types. Default to the platform initiator-side types; the platform
+  // overrides these with the wider master-side types on the xbar master ports.
+  parameter type req_t         = soc_bus_pkg::soc_axi_req_t,
+  parameter type rsp_t         = soc_bus_pkg::soc_axi_resp_t,
+  parameter type axi_aw_chan_t = soc_bus_pkg::soc_axi_aw_chan_t,
+  parameter type axi_w_chan_t  = soc_bus_pkg::soc_axi_w_chan_t,
+  parameter type axi_ar_chan_t = soc_bus_pkg::soc_axi_ar_chan_t,
+  parameter type axi_b_chan_t  = soc_bus_pkg::soc_axi_b_chan_t,
+  parameter type axi_r_chan_t  = soc_bus_pkg::soc_axi_r_chan_t
+) (
   input  logic clk_i,
   input  logic rst_ni,
-  input  soc_bus_pkg::soc_axi_req_t  req_i,
-  input  soc_bus_pkg::soc_axi_resp_t rsp_i
+  input  req_t req_i,
+  input  rsp_t rsp_i
 );
 `ifndef SYNTHESIS
-  soc_bus_pkg::soc_axi_aw_chan_t aw_hold_q;
-  soc_bus_pkg::soc_axi_w_chan_t  w_hold_q;
-  soc_bus_pkg::soc_axi_ar_chan_t ar_hold_q;
-  soc_bus_pkg::soc_axi_b_chan_t  b_hold_q;
-  soc_bus_pkg::soc_axi_r_chan_t  r_hold_q;
+  axi_aw_chan_t aw_hold_q;
+  axi_w_chan_t  w_hold_q;
+  axi_ar_chan_t ar_hold_q;
+  axi_b_chan_t  b_hold_q;
+  axi_r_chan_t  r_hold_q;
   logic aw_wait_q;
   logic w_wait_q;
   logic ar_wait_q;

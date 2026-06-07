@@ -84,6 +84,23 @@ filesets:
       - deps/common_cells/src/addr_decode.sv
     file_type: systemVerilogSource
 
+  # PULP axi_xbar and its transitive dependencies, used as the CoreJack system
+  # crossbar in soc_top (replaces the former soc_axi_arbiter + soc_axi_demux).
+  # Ordered leaf-first; relies on axi_pkg, cf_math_pkg, addr_decode, counter,
+  # delta_counter, fifo_v3, and spill_register from the filesets above.
+  platform_fabric_rtl:
+    files:
+      - deps/common_cells/src/lzc.sv
+      - deps/common_cells/src/rr_arb_tree.sv
+      - deps/common_cells/src/stream_register.sv
+      - deps/axi/src/axi_id_prepend.sv
+      - deps/axi/src/axi_atop_filter.sv
+      - deps/axi/src/axi_err_slv.sv
+      - deps/axi/src/axi_demux.sv
+      - deps/axi/src/axi_mux.sv
+      - deps/axi/src/axi_xbar.sv
+    file_type: systemVerilogSource
+
 targets:
   default:
     filesets:
@@ -93,3 +110,4 @@ targets:
       - platform_uart_rtl
       - platform_debug_rtl
       - common_addr_decode_rtl
+      - platform_fabric_rtl
