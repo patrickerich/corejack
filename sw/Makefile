@@ -4,6 +4,12 @@ CORE ?= ibex
 BOARD ?= axku5
 BUILD_DIR ?= build
 CMAKE_BUILD_DIR := $(BUILD_DIR)/$(TARGET)/$(CORE)/$(TOOLCHAIN)/$(APP)/cmake
+# Marker token written into each CMake build dir after a successful configure.
+# Bump this whenever the build-dir layout changes in a way an incremental
+# reconfigure cannot recover from (e.g. a moved/renamed linker script), so a
+# pre-existing build dir is wiped and reconfigured cleanly instead of failing.
+# Layout 1 = static sw/common/link.ld; layout 2 = generated link.ld.in.
+SW_BUILD_LAYOUT := 2
 ELF := $(CMAKE_BUILD_DIR)/$(APP)/$(APP)
 BIN := $(BUILD_DIR)/$(TARGET)/$(CORE)/$(TOOLCHAIN)/$(APP)/$(APP).bin
 DIS := $(BUILD_DIR)/$(TARGET)/$(CORE)/$(TOOLCHAIN)/$(APP)/$(APP).dis
@@ -79,9 +85,14 @@ $(BUILD_DIR)/$(TARGET)/$(CORE)/$(TOOLCHAIN)/$(APP)/bank_%.hex: $(BUILD_DIR)/$(TA
 	@test -f "$@" || : > "$@"
 
 $(ELF): toolchain-check
+	@if [ -e "$(CMAKE_BUILD_DIR)/CMakeCache.txt" ] && [ "$$(cat "$(CMAKE_BUILD_DIR)/.layout-version" 2>/dev/null)" != "$(SW_BUILD_LAYOUT)" ]; then \
+		echo "sw: build dir layout changed or pre-dates layout $(SW_BUILD_LAYOUT); wiping $(CMAKE_BUILD_DIR) for a clean reconfigure"; \
+		rm -rf "$(CMAKE_BUILD_DIR)"; \
+	fi
 	@mkdir -p "$(CMAKE_BUILD_DIR)"
 	@cd c && PATH="$(TOOLCHAIN_PATH)$$PATH" cmake -B "../$(CMAKE_BUILD_DIR)" -DCMAKE_BUILD_TYPE=Release -DCOREJACK_CROSS_COMPILE="$(CROSS_COMPILE)" -DCOREJACK_TARGET="$(TARGET)" -DCOREJACK_CORE="$(CORE)" -DCOREJACK_BOARD="$(BOARD)" -DCOREJACK_MARCH="$(MARCH)" -DCOREJACK_MABI="$(MABI)" -DCOREJACK_CORE_CLK_HZ="$(SOC_CLK_HZ)" -DCOREJACK_UART_BAUD="$(UART_BAUD)" -DCOREJACK_RAM_BYTES="$(SOC_RAM_BYTES)" .
 	@PATH="$(TOOLCHAIN_PATH)$$PATH" cmake --build "$(CMAKE_BUILD_DIR)" --target "$(APP)"
+	@printf '%s\n' "$(SW_BUILD_LAYOUT)" > "$(CMAKE_BUILD_DIR)/.layout-version"
 
 list-apps:
 	@find c -mindepth 1 -maxdepth 1 -type d ! -name common -printf '%f\n' | sort

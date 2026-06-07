@@ -29,19 +29,3 @@ Possible resolutions: derive the wrapper `RamWords` and the Zephyr regions from
 minimum add a consistency check (e.g. in `make board-check`) that the three
 values agree.
 
-## Stale software build dirs survive the descriptor-driven linker change
-
-Replacing the static `sw/common/link.ld` with the generated `link.ld.in`
-(CMake `configure_file`) leaves pre-existing `sw/build/.../cmake` directories
-with a cached linker flag pointing at the now-deleted script:
-
-```
-ld: cannot open linker script file .../sw/c/../common/link.ld: No such file
-```
-
-A one-time `make -C sw clean` fixes it; fresh checkouts and CI are unaffected
-(`sw/build/` is gitignored). Surfaced during the Arty regression — every core
-with a stale build dir failed `sw-build` until the dirs were cleaned. Consider
-having the software build invalidate stale linker configuration automatically,
-or documenting the clean step alongside the linker change.
-
