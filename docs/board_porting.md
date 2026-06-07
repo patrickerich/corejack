@@ -66,8 +66,11 @@ clock:
     n: sys_clk_n        # omit for a single-ended clock input
 
 # Optional. Cap the shared SRAM for boards whose block RAM cannot hold the
-# 1 MiB default; unset keeps the soc_top default. Drives the wrapper RamWords
-# and the bare-metal linker. Example for a 256 KiB board:
+# 1 MiB default; unset keeps the soc_top default. This is the single source of
+# truth for the board's SRAM size: it is derived into the FPGA wrapper RamWords
+# (soc_top RamWords vlogparam), the bare-metal linker, and the Zephyr
+# devicetree (COREJACK_RAM_BYTES) - do not hardcode the size in those places.
+# Example for a 256 KiB board:
 # memory:
 #   ram_bytes: 262144
 

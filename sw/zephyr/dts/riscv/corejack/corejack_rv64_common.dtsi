@@ -1,18 +1,39 @@
 #include <skeleton.dtsi>
 
+/*
+ * Memory geometry derives from a single source of truth: the total shared SRAM
+ * size, COREJACK_RAM_BYTES, comes from cfg/boards/<board>.yaml memory.ram_bytes
+ * (passed in by the build via DTS_EXTRA_CPPFLAGS). flash0 is the executable
+ * region and sram0 the writable region; both are halves of the one contiguous
+ * physical SRAM at COREJACK_RAM_BASE. COREJACK_FLASH_BYTES (the code budget) is
+ * the only board-tunable split knob - a board #defines it before including this
+ * file when it wants a different split; sram0 takes the remainder. The defaults
+ * reproduce the 1 MiB AXKU5 layout. Address/size are two cells each here.
+ */
+#ifndef COREJACK_RAM_BASE
+#define COREJACK_RAM_BASE 0x80000000
+#endif
+#ifndef COREJACK_RAM_BYTES
+#define COREJACK_RAM_BYTES 0x100000
+#endif
+#ifndef COREJACK_FLASH_BYTES
+#define COREJACK_FLASH_BYTES 0x40000
+#endif
+
 / {
 	#address-cells = <2>;
 	#size-cells = <2>;
 
 	flash0: flash@80000000 {
 		compatible = "soc-nv-flash";
-		reg = <0x0 0x80000000 0x0 0x00040000>;
+		reg = <0x0 COREJACK_RAM_BASE 0x0 COREJACK_FLASH_BYTES>;
 	};
 
 	sram0: memory@80040000 {
 		device_type = "memory";
 		compatible = "mmio-sram";
-		reg = <0x0 0x80040000 0x0 0x000c0000>;
+		reg = <0x0 (COREJACK_RAM_BASE + COREJACK_FLASH_BYTES)
+		       0x0 (COREJACK_RAM_BYTES - COREJACK_FLASH_BYTES)>;
 	};
 
 	soc {

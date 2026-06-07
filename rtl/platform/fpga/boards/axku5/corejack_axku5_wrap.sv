@@ -1,6 +1,12 @@
 module corejack_axku5_wrap #(
   parameter int unsigned CoreType = platform_pkg::CORE_IBEX,
-  parameter bit EnableUartLoader = 1'b0
+  parameter bit EnableUartLoader = 1'b0,
+  // Shared SRAM size in 32-bit words, derived from the single source of truth
+  // (cfg/boards/axku5.yaml: memory.ram_bytes / 4) and driven in by the FPGA
+  // build via the corejack.core RamWords vlogparam. The default matches the
+  // soc_top default (262144 words = 1 MiB), which is also the AXKU5 size, so
+  // standalone elaboration and the build agree.
+  parameter int unsigned RamWords = 262144
 ) (
   input  logic       sys_clk_p,
   input  logic       sys_clk_n,
@@ -94,6 +100,7 @@ module corejack_axku5_wrap #(
     .CoreType        (CoreType),
     .EnablePlatform  (1'b1),
     .EnableUartLoader(EnableUartLoader),
+    .RamWords        (RamWords),
     .MemImpl         (mem_ss_pkg::MemImplXilinx)
   ) i_soc_top (
     .clk_i                  (core_clk),

@@ -187,8 +187,12 @@ def target_config(core: str, board: str, core_text: str, board_text: str) -> dic
     soc_clk_hz = require_scalar(board_text, ("clock", "soc_hz"), f"BOARD '{board}'")
     uart_baud = require_scalar(board_text, ("uart", "baud"), f"BOARD '{board}'")
     # Optional per-board SRAM size. Unset preserves the soc_top default of
-    # 1 MiB (262144 32-bit words), so existing boards are unaffected.
+    # 1 MiB (262144 32-bit words), so existing boards are unaffected. This is
+    # the single source of truth: the bare-metal linker (SOC_RAM_BYTES), the
+    # FPGA wrapper (RAM_WORDS -> soc_top RamWords vlogparam), and the Zephyr
+    # devicetree (COREJACK_RAM_BYTES cpp define) all derive from it.
     ram_bytes = yaml_path_scalar(board_text, ("memory", "ram_bytes")) or "1048576"
+    ram_words = str(int(ram_bytes, 0) // 4)
     march = require_scalar(core_text, ("isa", "march"), f"CORE '{core}'")
     mabi = require_scalar(core_text, ("isa", "mabi"), f"CORE '{core}'")
     toolchain = require_scalar(core_text, ("software", "toolchain"), f"CORE '{core}'")
@@ -221,6 +225,7 @@ def target_config(core: str, board: str, core_text: str, board_text: str) -> dic
         "SOC_CLK_HZ": soc_clk_hz,
         "UART_BAUD": uart_baud,
         "SOC_RAM_BYTES": ram_bytes,
+        "RAM_WORDS": ram_words,
     }
 
 

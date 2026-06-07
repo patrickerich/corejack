@@ -133,7 +133,13 @@ def board_wrapper(args: argparse.Namespace) -> str:
     module = f"corejack_{args.board}_wrap"
     return f"""module {module} #(
   parameter int unsigned CoreType = platform_pkg::CORE_IBEX,
-  parameter bit EnableUartLoader = 1'b0
+  parameter bit EnableUartLoader = 1'b0,
+  // Shared SRAM size in 32-bit words, derived from the single source of truth
+  // (cfg/boards/{args.board}.yaml: memory.ram_bytes / 4) and driven in by the
+  // FPGA build via the corejack.core RamWords vlogparam. The default matches
+  // the soc_top default (1 MiB); set memory.ram_bytes in the descriptor to
+  // change it - do not hardcode the size here.
+  parameter int unsigned RamWords = 262144
 ) (
   input  logic       {args.clock_p},
   input  logic       {args.clock_n},
@@ -228,6 +234,7 @@ def board_wrapper(args: argparse.Namespace) -> str:
     .CoreType        (CoreType),
     .EnablePlatform  (1'b1),
     .EnableUartLoader(EnableUartLoader),
+    .RamWords        (RamWords),
     .MemImpl         (mem_ss_pkg::MemImplXilinx)
   ) i_soc_top (
     .clk_i                  (core_clk),
