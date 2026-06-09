@@ -125,10 +125,12 @@ that the downstream bridge can track and must return exactly one response per
 accepted request.
 
 The current platform routes instruction, data, and SBA initiators through
-OBI-to-AXI adapters, a shared AXI arbiter, explicit AXI address decode, and the
-AXI-to-DM bridge. If this logic grows or becomes more contended, replace the
-current small arbiter with a wider starvation-free
-policy.
+OBI-to-AXI adapters into the `axi_xbar` system crossbar (per-initiator address
+decode, per-target round-robin arbitration, multiple outstanding requests),
+which reaches the debug module through the AXI-to-DM bridge. The crossbar
+replaced the earlier single-outstanding shared arbiter, so SBA traffic no
+longer serializes against instruction and data accesses headed to other
+targets.
 
 ## SBA Integration
 
