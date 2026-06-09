@@ -44,7 +44,7 @@ root is `build/sim/fusesoc/<core>/<target>/`, and optional waveforms land in
 | `make smoke` | cocotb smoke against the `EnablePlatform=0` stub of `soc_top` | `smoke_dut` / `test_smoke` | no | — |
 | `make sim-run-sw SW_APP=<app>` | build a bare-metal app and run it on the full platform | `soc_dut` / `test_soc_sw` | yes | [`fpga_sw_flow.md`](fpga_sw_flow.md) |
 | `make debug-sim` | debug ROM and system-bus-access (SBA) regression | `soc_dut` / `test_debug_integration` | no | [`riscv_dbg_integration.md`](riscv_dbg_integration.md) |
-| `make axi-adapter-sim` | AXI adapter, protocol checker, and 32-to-64-bit lane behavior | `axi_adapter_dut` / `test_axi_adapters` | no | [`axi4_fabric.md`](axi4_fabric.md) |
+| `make axi-adapter-sim` | AXI adapters, the `axi_xbar` system crossbar (incl. cross-target concurrency and same-target arbitration), protocol checker, and 32-to-64-bit lane behavior | `axi_adapter_dut` / `test_axi_adapters` | no | [`axi4_fabric.md`](axi4_fabric.md) |
 | `make uart-loader-sim` | UART SRAM loader protocol regression | `uart_sram_loader_dut` / `test_uart_sram_loader` | no | [`uart_sram_loader.md`](uart_sram_loader.md) |
 | `make axi-smoke` | aggregate gate: address-map check, the three focused sims above, then `hello_world` on each supported core | (composite) | yes | [`axi4_fabric.md`](axi4_fabric.md) |
 

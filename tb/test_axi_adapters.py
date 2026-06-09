@@ -259,8 +259,10 @@ async def invalid_axi_address_returns_decode_error(dut):
     await reset_dut(dut)
 
     await issue_obi(dut, we=False, addr=0x2000_0000)
-    data, err = await wait_obi_rsp(dut)
-    assert data == 0
+    _data, err = await wait_obi_rsp(dut)
+    # The crossbar's error slave answers a decode miss with RESP_DECERR; the
+    # read data is implementation-defined poison (axi_err_slv default), so only
+    # the error flag is checked here.
     assert err == 1
     assert int(dut.mem_req_o.value) == 0
     assert int(dut.apb_psel_o.value) == 0
@@ -287,8 +289,7 @@ async def decode_error_response_obeys_backpressure(dut):
         assert int(dut.obi_err_o.value) == 1
 
     dut.obi_rready_i.value = 1
-    data, err = await wait_obi_rsp(dut)
-    assert data == 0
+    _data, err = await wait_obi_rsp(dut)
     assert err == 1
 
 
@@ -346,3 +347,139 @@ async def debug_write_routes_through_axi_to_dm_bridge(dut):
     data, err = await wait_obi_rsp(dut)
     assert data == 0
     assert err == 0
+
+
+@cocotb.test()
+async def concurrent_initiators_reach_distinct_targets(dut):
+    """Two initiators targeting different fabric targets must progress
+    concurrently. This is the property the crossbar buys over the former
+    single-outstanding arbiter: with that arbiter a transaction stalled at one
+    target blocked the whole fabric, so the second initiator could never reach
+    its target and this test would deadlock."""
+    cocotb.start_soon(Clock(dut.clk_i, 10, unit="ns").start())
+    await reset_dut(dut)
+
+    # Initiator 0 reads RAM, but the memory side is never granted: the read
+    # stays outstanding at the RAM target (mem_req_o asserted, no grant).
+    dut.mem_gnt_i.value = 0
+    await issue_obi(dut, we=False, addr=0x8000_0000)
+    await wait_mem_req(dut, we=False, addr=0x8000_0000)
+    assert int(dut.mem_req_o.value) == 1
+
+    # While that RAM read is still in flight, initiator 1 targets the debug
+    # module. With per-target arbitration it reaches and completes independently.
+    await issue_obi1(dut, we=False, addr=0x0000_0804)
+    await wait_dm_req(dut, we=False, addr=0x804)
+    dut.dm_rdata_i.value = 0x0180006F_00000000
+    data1, err1 = await wait_obi1_rsp(dut)
+    assert err1 == 0
+    assert data1 == 0x0180006F
+
+    # The RAM read is still parked; release it now and confirm it completes.
+    assert int(dut.mem_req_o.value) == 1
+    dut.mem_gnt_i.value = 1
+    dut.mem_rvalid_i.value = 1
+    dut.mem_rdata_i.value = 0x11223344_AABBCCDD
+    data0, err0 = await wait_obi_rsp(dut)
+    assert err0 == 0
+    assert data0 == 0xAABBCCDD
+
+
+@cocotb.test()
+async def both_initiators_share_one_target(dut):
+    """Both initiators read the same target. The single-outstanding memory
+    adapter serializes them, but the crossbar must round-robin between the two
+    slave ports and route each response back to the correct initiator by ID."""
+    cocotb.start_soon(Clock(dut.clk_i, 10, unit="ns").start())
+    await reset_dut(dut)
+
+    # Free-running memory: grant and return the same word for every request.
+    dut.mem_gnt_i.value = 1
+    dut.mem_rvalid_i.value = 1
+    dut.mem_rdata_i.value = 0x11223344_AABBCCDD
+
+    rsp0 = cocotb.start_soon(wait_obi_rsp(dut))
+    rsp1 = cocotb.start_soon(wait_obi1_rsp(dut))
+
+    await issue_obi(dut, we=False, addr=0x8000_0000)
+    await issue_obi1(dut, we=False, addr=0x8000_0000)
+
+    data0, err0 = await rsp0
+    data1, err1 = await rsp1
+    assert err0 == 0 and err1 == 0
+    assert data0 == 0xAABBCCDD
+    assert data1 == 0xAABBCCDD
+
+
+async def _issue_both_same_cycle(dut, *, addr0, wdata0, addr1):
+    """Drive a write on initiator 0 and a read on initiator 1 in the same
+    cycle, so AW+W and AR reach the shared target adapter together after
+    identical crossbar latency."""
+    dut.obi_we_i.value = 1
+    dut.obi_addr_i.value = addr0
+    dut.obi_wdata_i.value = wdata0
+    dut.obi_be_i.value = 0xF
+    dut.obi_req_i.value = 1
+    dut.obi1_we_i.value = 0
+    dut.obi1_addr_i.value = addr1
+    dut.obi1_be_i.value = 0xF
+    dut.obi1_req_i.value = 1
+
+    got0 = got1 = False
+    for _ in range(20):
+        await RisingEdge(dut.clk_i)
+        if not got0 and dut.obi_gnt_o.value:
+            dut.obi_req_i.value = 0
+            got0 = True
+        if not got1 and dut.obi1_gnt_o.value:
+            dut.obi1_req_i.value = 0
+            got1 = True
+        if got0 and got1:
+            return
+    raise AssertionError("OBI requests were not both granted")
+
+
+@cocotb.test()
+async def concurrent_read_write_same_apb_target(dut):
+    """A write and a read presented to the APB target in the same cycle must
+    serialize through soc_axi_to_apb's read/write arbiter. The pre-fix
+    adapter gated each AXI channel's ready on the other channel's valid, so
+    this exact pattern parked both initiators forever (reachable in practice
+    as a core UART write colliding with a debug-SBA peripheral read)."""
+    cocotb.start_soon(Clock(dut.clk_i, 10, unit="ns").start())
+    await reset_dut(dut)
+
+    dut.apb_pready_i.value = 1
+    dut.apb_prdata_i.value = 0x13579BDF
+
+    rsp0 = cocotb.start_soon(wait_obi_rsp(dut))
+    rsp1 = cocotb.start_soon(wait_obi1_rsp(dut))
+    await _issue_both_same_cycle(
+        dut, addr0=0x1000_0004, wdata0=0xA5A55A5A, addr1=0x1000_0004)
+
+    data0, err0 = await rsp0
+    data1, err1 = await rsp1
+    assert err0 == 0 and err1 == 0
+    assert data0 == 0
+    assert data1 == 0x13579BDF
+
+
+@cocotb.test()
+async def concurrent_read_write_same_dm_target(dut):
+    """Same deadlock pattern against the debug-module target: a write and a
+    read hitting soc_axi_to_dm in the same cycle must both complete."""
+    cocotb.start_soon(Clock(dut.clk_i, 10, unit="ns").start())
+    await reset_dut(dut)
+
+    dut.dm_rdata_i.value = 0x0180006F_00000000
+
+    rsp0 = cocotb.start_soon(wait_obi_rsp(dut))
+    rsp1 = cocotb.start_soon(wait_obi1_rsp(dut))
+    await _issue_both_same_cycle(
+        dut, addr0=0x0000_0004, wdata0=0xDEADBEEF, addr1=0x0000_0804)
+
+    data0, err0 = await rsp0
+    data1, err1 = await rsp1
+    assert err0 == 0 and err1 == 0
+    assert data0 == 0
+    assert data1 == 0x0180006F

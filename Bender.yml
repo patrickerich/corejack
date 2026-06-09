@@ -68,8 +68,6 @@ sources:
     - rtl/mem/soc_obi_mem_buffer.sv
     - rtl/mem/soc_mem_ss.sv
     - rtl/bus/soc_obi_to_axi.sv
-    - rtl/bus/soc_axi_arbiter.sv
-    - rtl/bus/soc_axi_demux.sv
     - rtl/bus/soc_axi_to_apb.sv
     - rtl/bus/soc_axi_to_dm.sv
     - rtl/bus/soc_axi_to_mem.sv

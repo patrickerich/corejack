@@ -6,10 +6,10 @@ across cores and boards: a thin board wrapper provides clocks, resets, FPGA
 primitives, and pin mapping, while per-core adapters translate each RISC-V
 core into the shared CoreJack memory, AXI4 fabric, and debug contract.
 
-The first FPGA board target (`axku5`) is hardware-validated across the
-supported core set. Bitstreams build, software loads into SRAM through
-OpenOCD/GDB or the side-path UART SRAM loader, and `hello_world` prints over
-the platform APB UART.
+Both FPGA board targets (`axku5` and `arty_a7_100t`) are hardware-validated
+across the supported core set. Bitstreams build, software loads into SRAM
+through OpenOCD/GDB or the side-path UART SRAM loader, and `hello_world`
+prints over the platform APB UART.
 
 ## Why CoreJack
 
@@ -38,7 +38,8 @@ see [`docs/about.md`](docs/about.md).
 Validated baseline:
 
 - FPGA board targets: `axku5` (validated across the supported core set) and
-  `arty_a7_100t` (Arty A7-100T, Artix-7; validated with Ibex, 256 KiB SRAM)
+  `arty_a7_100t` (Arty A7-100T, Artix-7; validated across the supported core
+  set, 256 KiB SRAM)
 - supported cores: Ibex, CV32E40P, CV32E40S, CVA6, SERV, PicoRV32, and
   CVW/Wally
 - SoC clock: `25 MHz`

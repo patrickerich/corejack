@@ -8,9 +8,15 @@ promote a core, see [`core_acceptance_checklist.md`](core_acceptance_checklist.m
 ## Current Baseline
 
 The first FPGA board target `axku5` is hardware-validated across the
-supported core set. A second board, `arty_a7_100t` (Arty A7-100T, Artix-7),
-is hardware-validated with Ibex (bitstream, SRAM load over the Tigard,
-bare-metal UART, and Zephyr console/timer smoke).
+supported core set (last full pass on the pre-crossbar fabric; re-validation
+with the `axi_xbar` fabric is tracked in [`open_items.md`](open_items.md)).
+A second board, `arty_a7_100t` (Arty A7-100T, Artix-7),
+is hardware-validated across the supported core set with the crossbar fabric: a full
+`make fpga-accept` regression builds a bitstream, programs the board, and runs
+bare-metal `hello_world` for all seven cores - OpenOCD/GDB load/run for the
+debug-capable cores (ibex, cv32e40p, cv32e40s, cva6) and the UART SRAM loader
+for the rest (serv, picorv32, cvw). Zephyr console/timer smoke on Arty is
+validated with Ibex.
 
 Platform pieces:
 
@@ -23,7 +29,9 @@ Platform pieces:
   arbitration and exposes a separate init port that the AXI fabric, the
   simulation preloader, and the optional UART SRAM loader share.
 - `riscv-dbg` (`dmi_jtag` + `dm_top`) and CLINT are integrated in `soc_top`.
-- The AXKU5 bitstream closes timing at the conservative `25 MHz` default.
+- Bitstreams close timing at the conservative `25 MHz` default (AXKU5 last
+  built on the pre-crossbar fabric; the Arty A7-100T closes timing with the
+  `axi_xbar` crossbar at `+6.5 ns` WNS on ibex).
 - OpenOCD enumerates and examines the RISC-V target over external JTAG;
   GDB loads an ELF into SRAM through the debug module SBA path.
 - `hello_world` runs from SRAM and prints through the platform APB UART at
@@ -115,19 +123,23 @@ Software and validation flow:
   `NumBanks` and `NumInitPorts`, and `soc_top.MemNumBanks` is a
   parameter (default 4) - so the platform is set up to grow the bank
   count when a workload warrants it.
-- Widen the AXI fabric. The current `soc_axi_arbiter` is single-beat and
-  single-outstanding, so today's three initiators (core instruction,
-  core data, debug SBA) are serialized upstream of the banked memory.
-  Widening the arbiter to forward multiple outstanding requests is the
-  natural next platform step, and it pays off with the *existing*
-  initiator set - it is not blocked on AXI-native burst initiators
-  arriving. See [`axi4_fabric.md`](axi4_fabric.md).
+- Widen the AXI fabric. **Done (sim- and hardware-validated):** the
+  single-outstanding `soc_axi_arbiter` + `soc_axi_demux` pair has been replaced
+  by a PULP `axi_xbar` system crossbar, so today's three initiators (core
+  instruction, core data, debug SBA) decode per initiator and arbitrate per
+  target with multiple outstanding requests, instead of serializing upstream of
+  the banked memory. This paid off with the *existing* initiator set - it was
+  not blocked on AXI-native burst initiators arriving. Validated by the full
+  `make axi-smoke` simulation set and by a full `make fpga-accept` regression on
+  the Arty A7-100T across all seven supported cores; the crossbar closes timing
+  at the 25 MHz default (ibex WNS +6.5 ns). See
+  [`axi4_fabric.md`](axi4_fabric.md).
 - Adopt a layered interconnect as the platform endpoint, structured as
   three named subsystems: a **memory subsystem** (`soc_mem_ss`, per-bank
-  round-robin arbitration); a **system bus** (PULP `axi_xbar`, replacing
-  the current `soc_axi_arbiter` + `soc_axi_demux` pair - per-target
-  arbitration, multiple outstanding requests); and a **peripheral
-  subsystem** (a single APB peripheral bus behind one `soc_axi_to_apb`
+  round-robin arbitration); a **system bus** (PULP `axi_xbar` - per-target
+  arbitration, multiple outstanding requests; **this is now in place**,
+  having replaced the `soc_axi_arbiter` + `soc_axi_demux` pair); and a
+  **peripheral subsystem** (a single APB peripheral bus behind one `soc_axi_to_apb`
   bridge, carrying UART today and CLINT-wrap / DM-regs-wrap / accel CSR /
   future SPI/I2C/GPIO/timers in the end state). Memory-heavy initiators
   (CPU instr and data via planned direct mem ports, DMA, accelerators,

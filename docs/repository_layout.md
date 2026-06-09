@@ -15,15 +15,19 @@ specific area, follow the linked documentation.
 - `rtl/interfaces/` - core and accelerator socket interface contracts.
 - `rtl/cores/` - core adapters and the multi-core `corejack_core_region`.
   Adapters exist for Ibex, CV32E40P, CV32E40S, CV32E40X, CVA6, SERV, PicoRV32,
-  and CVW/Wally.
-- `rtl/bus/` - fabric building blocks (`soc_axi_arbiter`, `soc_axi_demux`,
-  `soc_obi_to_axi`, `soc_axi_to_mem`, `soc_axi_to_apb`, `soc_axi_to_dm`,
-  `soc_axi_to_reg`, `soc_axi_protocol_checker`).
+  and CVW/Wally, plus small per-core shims and renamed third-party overrides
+  (e.g. the `cvw_*` copies that avoid module-name collisions).
+- `rtl/bus/` - fabric building blocks (`soc_obi_to_axi`, `soc_axi_to_mem`,
+  `soc_axi_to_apb`, `soc_axi_to_dm`, `soc_axi_to_reg`,
+  `soc_axi_protocol_checker`). The system crossbar itself is the PULP
+  `axi_xbar` from the Bender-managed `axi` dependency; see
+  [`axi4_fabric.md`](axi4_fabric.md).
 - `rtl/mem/` - banked SRAM subsystem (`soc_mem_ss`), OBI memory buffer, and
   SRAM slice models/wrappers for behavioral and Xilinx targets.
 - `rtl/platform/soc_uart_sram_loader.sv` - side-path UART SRAM loader.
 - `rtl/platform/fpga/boards/<board>/` - per-board wrapper and XDC.
-  Currently: `axku5/corejack_axku5_wrap.sv` and `axku5/axku5.xdc`.
+  Currently: `axku5/` and `arty_a7_100t/` (one wrapper module plus one
+  constraints file each).
 - `rtl/platform/fpga/scripts/` - OpenOCD config, GDB load/run helpers, and
   Vivado utility scripts. See
   [`fpga_debug_stepping.md`](fpga_debug_stepping.md).

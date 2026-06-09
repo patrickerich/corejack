@@ -110,6 +110,24 @@ module soc_top #(
     localparam int unsigned MemInitPorts = 2;
     localparam int unsigned CoreAxiPorts = 3;
     localparam int unsigned FabricAxiPorts = 4;
+    // System crossbar configuration. Replaces the former single-outstanding
+    // soc_axi_arbiter + soc_axi_demux pair: per-target arbitration with up to
+    // MaxTrans outstanding so independent initiators no longer serialize. Cores
+    // emit single-beat, non-atomic traffic (no A extension), so ATOPs are off.
+    localparam axi_pkg::xbar_cfg_t FabricXbarCfg = '{
+      NoSlvPorts:         CoreAxiPorts,
+      NoMstPorts:         FabricAxiPorts,
+      MaxMstTrans:        4,
+      MaxSlvTrans:        4,
+      FallThrough:        1'b0,
+      LatencyMode:        axi_pkg::NO_LATENCY,
+      AxiIdWidthSlvPorts: soc_bus_pkg::AxiIdWidth,
+      AxiIdUsedSlvPorts:  soc_bus_pkg::AxiIdWidth,
+      UniqueIds:          1'b0,
+      AxiAddrWidth:       soc_bus_pkg::AxiAddrWidth,
+      AxiDataWidth:       soc_bus_pkg::AxiDataWidth,
+      NoAddrRules:        FabricAxiPorts
+    };
     localparam int unsigned MemDataWidth = 64;
     localparam int unsigned MemBytesPerWord = MemDataWidth / 8;
     localparam int unsigned MemWords = RamWords / 2;
@@ -214,11 +232,11 @@ module soc_top #(
     soc_axi_resp_t                                data_axi_rsp;
     soc_axi_req_t                                 cva6_axi_req;
     soc_axi_resp_t                                cva6_axi_rsp;
-    soc_axi_req_t                                 fabric_axi_req;
-    soc_axi_resp_t                                fabric_axi_rsp;
-    soc_axi_req_t [FabricAxiPorts-1:0]            target_axi_req;
-    soc_axi_resp_t [FabricAxiPorts-1:0]           target_axi_rsp;
-    axi_pkg::xbar_rule_32_t [FabricAxiPorts-1:0]  fabric_addr_map;
+    // Target ports carry the wider crossbar master-side ID (`axi_xbar` prepends
+    // the initiator index to the AXI ID); the target adapters are typed to match.
+    soc_axi_mst_req_t [FabricAxiPorts-1:0]        target_axi_req;
+    soc_axi_mst_resp_t [FabricAxiPorts-1:0]       target_axi_rsp;
+    axi_pkg::xbar_rule_64_t [FabricAxiPorts-1:0]  fabric_addr_map;
 
     soc_apb_req_t  uart_apb_req;
     soc_apb_resp_t uart_apb_rsp;
@@ -240,15 +258,19 @@ module soc_top #(
       );
     end
 
-    soc_axi_protocol_checker i_fabric_axi_checker (
-      .clk_i,
-      .rst_ni,
-      .req_i (fabric_axi_req),
-      .rsp_i (fabric_axi_rsp)
-    );
-
+    // No single shared fabric stream exists anymore: `axi_xbar` decodes per
+    // initiator and arbitrates per target, so the per-target checkers (typed to
+    // the wider master-side AXI) cover the fabric outputs.
     for (genvar i = 0; i < FabricAxiPorts; i++) begin : gen_target_axi_checkers
-      soc_axi_protocol_checker i_axi_checker (
+      soc_axi_protocol_checker #(
+        .req_t         (soc_axi_mst_req_t),
+        .rsp_t         (soc_axi_mst_resp_t),
+        .axi_aw_chan_t (soc_axi_mst_aw_chan_t),
+        .axi_w_chan_t  (soc_axi_mst_w_chan_t),
+        .axi_ar_chan_t (soc_axi_mst_ar_chan_t),
+        .axi_b_chan_t  (soc_axi_mst_b_chan_t),
+        .axi_r_chan_t  (soc_axi_mst_r_chan_t)
+      ) i_axi_checker (
         .clk_i,
         .rst_ni,
         .req_i (target_axi_req[i]),
@@ -510,34 +532,49 @@ module soc_top #(
       .m_axi_rsp_i (core_axi_rsp[2])
     );
 
-    soc_axi_arbiter #(
-      .NumSlvPorts (CoreAxiPorts)
-    ) i_core_axi_arbiter (
+    // System crossbar: the three initiators (core instruction, core data,
+    // debug SBA) decode per port and arbitrate per target. Decode misses land
+    // on the xbar's built-in error slave (no explicit default master port).
+    axi_xbar #(
+      .Cfg           (FabricXbarCfg),
+      .ATOPs         (1'b0),
+      .slv_aw_chan_t (soc_axi_aw_chan_t),
+      .mst_aw_chan_t (soc_axi_mst_aw_chan_t),
+      .w_chan_t      (soc_axi_w_chan_t),
+      .slv_b_chan_t  (soc_axi_b_chan_t),
+      .mst_b_chan_t  (soc_axi_mst_b_chan_t),
+      .slv_ar_chan_t (soc_axi_ar_chan_t),
+      .mst_ar_chan_t (soc_axi_mst_ar_chan_t),
+      .slv_r_chan_t  (soc_axi_r_chan_t),
+      .mst_r_chan_t  (soc_axi_mst_r_chan_t),
+      .slv_req_t     (soc_axi_req_t),
+      .slv_resp_t    (soc_axi_resp_t),
+      .mst_req_t     (soc_axi_mst_req_t),
+      .mst_resp_t    (soc_axi_mst_resp_t),
+      .rule_t        (axi_pkg::xbar_rule_64_t)
+    ) i_fabric_axi_xbar (
       .clk_i,
       .rst_ni,
-      .slv_reqs_i  (core_axi_req),
-      .slv_resps_o (core_axi_rsp),
-      .mst_req_o   (fabric_axi_req),
-      .mst_resp_i  (fabric_axi_rsp)
-    );
-
-    soc_axi_demux #(
-      .NumMstPorts (FabricAxiPorts),
-      .NoAddrRules (FabricAxiPorts),
-      .rule_t      (axi_pkg::xbar_rule_32_t)
-    ) i_fabric_axi_demux (
-      .clk_i,
-      .rst_ni,
-      .slv_req_i   (fabric_axi_req),
-      .slv_resp_o  (fabric_axi_rsp),
-      .mst_reqs_o  (target_axi_req),
-      .mst_resps_i (target_axi_rsp),
-      .addr_map_i  (fabric_addr_map)
+      .test_i                (1'b0),
+      .slv_ports_req_i       (core_axi_req),
+      .slv_ports_resp_o      (core_axi_rsp),
+      .mst_ports_req_o       (target_axi_req),
+      .mst_ports_resp_i      (target_axi_rsp),
+      .addr_map_i            (fabric_addr_map),
+      .en_default_mst_port_i ('0),
+      .default_mst_port_i    ('0)
     );
 
     soc_axi_to_mem #(
-      .AddrWidth (32),
-      .DataWidth (MemDataWidth)
+      .AddrWidth     (32),
+      .DataWidth     (MemDataWidth),
+      .axi_req_t     (soc_axi_mst_req_t),
+      .axi_resp_t    (soc_axi_mst_resp_t),
+      .axi_aw_chan_t (soc_axi_mst_aw_chan_t),
+      .axi_w_chan_t  (soc_axi_mst_w_chan_t),
+      .axi_ar_chan_t (soc_axi_mst_ar_chan_t),
+      .axi_b_chan_t  (soc_axi_mst_b_chan_t),
+      .axi_r_chan_t  (soc_axi_mst_r_chan_t)
     ) i_axi_to_mem (
       .clk_i,
       .rst_ni,
@@ -593,7 +630,14 @@ module soc_top #(
     end
 
     soc_axi_to_apb #(
-      .BaseAddr (UartBaseAddr)
+      .BaseAddr      (UartBaseAddr),
+      .axi_req_t     (soc_axi_mst_req_t),
+      .axi_resp_t    (soc_axi_mst_resp_t),
+      .axi_aw_chan_t (soc_axi_mst_aw_chan_t),
+      .axi_w_chan_t  (soc_axi_mst_w_chan_t),
+      .axi_ar_chan_t (soc_axi_mst_ar_chan_t),
+      .axi_b_chan_t  (soc_axi_mst_b_chan_t),
+      .axi_r_chan_t  (soc_axi_mst_r_chan_t)
     ) i_axi_to_uart_apb (
       .clk_i,
       .rst_ni,
@@ -604,7 +648,14 @@ module soc_top #(
     );
 
     soc_axi_to_dm #(
-      .BaseAddr (DebugBaseAddr)
+      .BaseAddr      (DebugBaseAddr),
+      .axi_req_t     (soc_axi_mst_req_t),
+      .axi_resp_t    (soc_axi_mst_resp_t),
+      .axi_aw_chan_t (soc_axi_mst_aw_chan_t),
+      .axi_w_chan_t  (soc_axi_mst_w_chan_t),
+      .axi_ar_chan_t (soc_axi_mst_ar_chan_t),
+      .axi_b_chan_t  (soc_axi_mst_b_chan_t),
+      .axi_r_chan_t  (soc_axi_mst_r_chan_t)
     ) i_axi_to_dm (
       .clk_i,
       .rst_ni,
@@ -619,7 +670,14 @@ module soc_top #(
     );
 
     soc_axi_to_reg #(
-      .BaseAddr (ClintBaseAddr)
+      .BaseAddr      (ClintBaseAddr),
+      .axi_req_t     (soc_axi_mst_req_t),
+      .axi_resp_t    (soc_axi_mst_resp_t),
+      .axi_aw_chan_t (soc_axi_mst_aw_chan_t),
+      .axi_w_chan_t  (soc_axi_mst_w_chan_t),
+      .axi_ar_chan_t (soc_axi_mst_ar_chan_t),
+      .axi_b_chan_t  (soc_axi_mst_b_chan_t),
+      .axi_r_chan_t  (soc_axi_mst_r_chan_t)
     ) i_axi_to_clint_reg (
       .clk_i,
       .rst_ni,

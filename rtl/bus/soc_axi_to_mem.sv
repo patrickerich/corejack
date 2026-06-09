@@ -3,13 +3,22 @@ module soc_axi_to_mem
   import soc_bus_pkg::*;
 #(
   parameter int unsigned AddrWidth = 32,
-  parameter int unsigned DataWidth = soc_bus_pkg::AxiDataWidth
+  parameter int unsigned DataWidth = soc_bus_pkg::AxiDataWidth,
+  // AXI slave-port types. Default to the platform initiator-side types; the
+  // platform overrides these with the wider master-side types behind the xbar.
+  parameter type axi_req_t     = soc_bus_pkg::soc_axi_req_t,
+  parameter type axi_resp_t    = soc_bus_pkg::soc_axi_resp_t,
+  parameter type axi_aw_chan_t = soc_bus_pkg::soc_axi_aw_chan_t,
+  parameter type axi_w_chan_t  = soc_bus_pkg::soc_axi_w_chan_t,
+  parameter type axi_ar_chan_t = soc_bus_pkg::soc_axi_ar_chan_t,
+  parameter type axi_b_chan_t  = soc_bus_pkg::soc_axi_b_chan_t,
+  parameter type axi_r_chan_t  = soc_bus_pkg::soc_axi_r_chan_t
 ) (
   input  logic clk_i,
   input  logic rst_ni,
 
-  input  soc_bus_pkg::soc_axi_req_t  s_axi_req_i,
-  output soc_bus_pkg::soc_axi_resp_t s_axi_rsp_o,
+  input  axi_req_t  s_axi_req_i,
+  output axi_resp_t s_axi_rsp_o,
 
   output logic                       mem_req_o,
   output logic                       mem_we_o,
@@ -34,13 +43,23 @@ module soc_axi_to_mem
   } state_e;
 
   state_e state_q;
-  soc_bus_pkg::soc_axi_aw_chan_t aw_q;
-  soc_bus_pkg::soc_axi_w_chan_t  w_q;
-  soc_bus_pkg::soc_axi_ar_chan_t ar_q;
-  soc_bus_pkg::soc_axi_r_chan_t  r_q;
-  soc_bus_pkg::soc_axi_b_chan_t  b_q;
+  axi_aw_chan_t aw_q;
+  axi_w_chan_t  w_q;
+  axi_ar_chan_t ar_q;
+  axi_r_chan_t  r_q;
+  axi_b_chan_t  b_q;
   logic                          have_aw_q;
   logic                          have_w_q;
+  // Round-robin tie-break between a pending read and a pending write so neither
+  // starves. 1 => a read wins a simultaneous read/write tie.
+  logic                          rr_prefer_read_q;
+  logic                          rd_req;
+  logic                          wr_req;
+  logic                          arb_read;
+
+  assign rd_req   = s_axi_req_i.ar_valid;
+  assign wr_req   = s_axi_req_i.aw_valid || s_axi_req_i.w_valid;
+  assign arb_read = rd_req && (!wr_req || rr_prefer_read_q);
 
   always_comb begin
     s_axi_rsp_o = '0;
@@ -53,9 +72,18 @@ module soc_axi_to_mem
 
     unique case (state_q)
       StateIdle: begin
-        s_axi_rsp_o.aw_ready = s_axi_req_i.aw_valid && !s_axi_req_i.ar_valid;
-        s_axi_rsp_o.w_ready  = s_axi_req_i.w_valid && !s_axi_req_i.ar_valid;
-        s_axi_rsp_o.ar_ready = !s_axi_req_i.aw_valid && !s_axi_req_i.w_valid;
+        // Serve exactly one side, chosen by arb_read. The earlier form
+        //   aw_ready = aw_valid && !ar_valid;  ar_ready = !aw_valid && !w_valid;
+        // gated each channel on the other's valid, so a simultaneous read+write
+        // left both readies low forever - a deadlock once the system crossbar
+        // began presenting a data-write AW and an instruction-read AR to RAM in
+        // the same cycle (the former arbiter serialized initiators, hiding it).
+        if (arb_read) begin
+          s_axi_rsp_o.ar_ready = 1'b1;
+        end else begin
+          s_axi_rsp_o.aw_ready = s_axi_req_i.aw_valid;
+          s_axi_rsp_o.w_ready  = s_axi_req_i.w_valid;
+        end
       end
 
       StateWriteCollect: begin
@@ -112,6 +140,7 @@ module soc_axi_to_mem
       b_q       <= '0;
       have_aw_q <= 1'b0;
       have_w_q  <= 1'b0;
+      rr_prefer_read_q <= 1'b1;
     end else begin
       unique case (state_q)
         StateIdle: begin
@@ -120,9 +149,11 @@ module soc_axi_to_mem
 
           if (s_axi_rsp_o.ar_ready && s_axi_req_i.ar_valid) begin
             ar_q    <= s_axi_req_i.ar;
+            rr_prefer_read_q <= 1'b0;  // just served a read; favor a write next
             state_q <= StateReadMem;
           end else if ((s_axi_rsp_o.aw_ready && s_axi_req_i.aw_valid) ||
                        (s_axi_rsp_o.w_ready  && s_axi_req_i.w_valid)) begin
+            rr_prefer_read_q <= 1'b1;  // serving a write; favor a read next
             if (s_axi_rsp_o.aw_ready && s_axi_req_i.aw_valid) begin
               aw_q      <= s_axi_req_i.aw;
               have_aw_q <= 1'b1;

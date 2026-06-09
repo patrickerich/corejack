@@ -80,8 +80,6 @@ filesets:
       - rtl/mem/soc_mem_ss.sv
       - rtl/bus/soc_obi_to_axi.sv
       - rtl/bus/soc_axi_protocol_checker.sv
-      - rtl/bus/soc_axi_arbiter.sv
-      - rtl/bus/soc_axi_demux.sv
       - rtl/bus/soc_axi_to_apb.sv
       - rtl/bus/soc_axi_to_dm.sv
       - rtl/bus/soc_axi_to_mem.sv
@@ -153,6 +151,9 @@ targets:
         - trace_vcd ? (--trace)
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
+        # axi_xbar dependencies (rr_arb_tree, lzc) raise these benign lints.
+        - -Wno-UNSIGNED
+        - -Wno-SPLITVAR
     filesets_append:
       - tb_sv
       - tb_cocotb
@@ -202,12 +203,14 @@ targets:
         - -Wno-UNOPTFLAT
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
+        # axi_xbar dependencies (rr_arb_tree, lzc) raise these benign lints
+        # unconditionally, independent of the selected core.
+        - -Wno-UNSIGNED
+        - -Wno-SPLITVAR
         - core_cva6 ? (-Wno-IMPLICITSTATIC)
         - core_cvw ? (-Wno-IMPLICITSTATIC)
         - core_cva6 ? (-Wno-SELRANGE)
         - core_cvw ? (-Wno-SELRANGE)
-        - core_cva6 ? (-Wno-UNSIGNED)
-        - core_cvw ? (-Wno-UNSIGNED)
         - core_cva6 ? (-Wno-CMPCONST)
         - core_cvw ? (-Wno-CMPCONST)
         - core_cva6 ? (-Wno-SPLITVAR)
@@ -247,6 +250,9 @@ targets:
         - -Wno-UNOPTFLAT
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
+        # axi_xbar dependencies (rr_arb_tree, lzc) raise these benign lints.
+        - -Wno-UNSIGNED
+        - -Wno-SPLITVAR
     filesets_append:
       - core_ibex_rtl
       - core_cv32e40p_rtl
@@ -277,6 +283,9 @@ targets:
         - -Wno-UNOPTFLAT
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
+        # axi_xbar dependencies (rr_arb_tree, lzc) raise these benign lints.
+        - -Wno-UNSIGNED
+        - -Wno-SPLITVAR
     filesets_append:
       - tb_axi_adapter_sv
       - tb_axi_adapter_cocotb

@@ -1,7 +1,9 @@
 # AXI4 Fabric Migration
 
 This document records the migration path that moved the CoreJack platform to an
-AXI4-native central fabric. The current supported architecture is documented in
+AXI4-native central fabric. It is historical: the single-outstanding arbiter +
+demux stage described below was itself later replaced by a PULP `axi_xbar`
+system crossbar. The current supported architecture is documented in
 [`docs/axi4_fabric.md`](axi4_fabric.md).
 
 ## Direction

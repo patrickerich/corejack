@@ -7,4 +7,20 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
-_No open items at present._
+- **Re-validate the AXKU5 board with the crossbar fabric.** The widened
+  `axi_xbar` fabric is hardware-validated on the Arty A7-100T across all seven
+  supported cores, but the AXKU5 has not been re-run since the fabric change -
+  its last full `make fpga-accept` pass predates the crossbar. Re-run the
+  acceptance regression (`make fpga-accept BOARD=axku5 UART_DEV=...`) when the
+  AXKU5 is next connected; only one board can be attached to the build server
+  at a time and the Arty currently occupies it.
+- **`soc_mem_ss` init ports assume single-outstanding clients.** Each bank
+  arbitrates independently and holds one response register, but nothing stops
+  one init port from having two requests outstanding to two *different* banks;
+  the response collector would then present colliding (and possibly reordered)
+  responses for that port. Safe today because every init-port client -
+  `soc_axi_to_mem`, the UART SRAM loader, and the simulation preloader - issues
+  one request at a time. Revisit before adding multi-outstanding clients (the
+  planned direct CPU mem ports or DMA streams from
+  [`roadmap.md`](roadmap.md)): either add per-port response ordering/merging in
+  `soc_mem_ss` or document single-outstanding as a hard init-port contract.
