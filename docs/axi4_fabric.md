@@ -127,13 +127,15 @@ saw no contention. The `axi_xbar` removed that funnel - per-target arbitration
 with multiple outstanding requests lets distinct initiators reach distinct
 banks concurrently.
 
-Because the crossbar can now present a read (e.g. instruction fetch) and a write
-(e.g. a data store) to the RAM target in the same cycle, `soc_axi_to_mem`
-arbitrates the two with a starvation-free round-robin. The earlier adapter gated
-each AXI channel on the other's `valid`, which deadlocked under simultaneous
-read+write - a case the old serializing arbiter never produced. The peripheral
-adapters still use the simpler single-initiator arbiter; see
-[`open_items.md`](open_items.md).
+Because the crossbar can present a read and a write to the same target in the
+same cycle (e.g. an instruction fetch and a data store to RAM, or a debug-SBA
+peripheral read colliding with a core UART write), all four target adapters
+(`soc_axi_to_mem`, `soc_axi_to_apb`, `soc_axi_to_dm`, `soc_axi_to_reg`)
+arbitrate the two sides with a starvation-free round-robin. The earlier
+adapters gated each AXI channel's `ready` on the other channel's `valid`, which
+deadlocked under simultaneous read+write - a case the old serializing arbiter
+never produced. `axi-adapter-sim` drives this exact collision against the RAM,
+APB, and DM targets.
 
 The remaining follow-up is **revisiting the bank count** once a second
 concurrent initiator (for example the planned uDMA on `accel_socket_if`) is

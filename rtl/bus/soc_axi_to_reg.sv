@@ -40,6 +40,18 @@ module soc_axi_to_reg #(
   logic op_write_q;
   logic split_q;
   logic err_q;
+  // Round-robin tie-break between a pending read and a pending write so
+  // neither starves. A write only competes once both AW and W are valid
+  // (this adapter captures them together and has no collect state).
+  // 1 => a read wins a simultaneous read/write tie.
+  logic rr_prefer_read_q;
+  logic rd_req;
+  logic wr_req;
+  logic arb_read;
+
+  assign rd_req   = s_axi_req_i.ar_valid;
+  assign wr_req   = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
+  assign arb_read = rd_req && (!wr_req || rr_prefer_read_q);
 
   function automatic logic [31:0] active_addr(input logic second);
     logic [31:0] addr;
@@ -79,9 +91,16 @@ module soc_axi_to_reg #(
 
     unique case (state_q)
       StateIdle: begin
-        s_axi_rsp_o.aw_ready = s_axi_req_i.aw_valid && s_axi_req_i.w_valid && !s_axi_req_i.ar_valid;
-        s_axi_rsp_o.w_ready  = s_axi_req_i.aw_valid && s_axi_req_i.w_valid && !s_axi_req_i.ar_valid;
-        s_axi_rsp_o.ar_ready = s_axi_req_i.ar_valid && !s_axi_req_i.aw_valid && !s_axi_req_i.w_valid;
+        // Serve exactly one side, chosen by arb_read. Gating each channel on
+        // the other's valid would leave both readies low forever when the
+        // crossbar presents a read and a write in the same cycle - see the
+        // identical fix in soc_axi_to_mem.
+        if (arb_read) begin
+          s_axi_rsp_o.ar_ready = 1'b1;
+        end else begin
+          s_axi_rsp_o.aw_ready = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
+          s_axi_rsp_o.w_ready  = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
+        end
       end
 
       StateFirst,
@@ -115,6 +134,7 @@ module soc_axi_to_reg #(
       op_write_q <= 1'b0;
       split_q    <= 1'b0;
       err_q      <= 1'b0;
+      rr_prefer_read_q <= 1'b1;
     end else begin
       unique case (state_q)
         StateIdle: begin
@@ -124,6 +144,7 @@ module soc_axi_to_reg #(
             op_write_q <= 1'b1;
             split_q    <= (s_axi_req_i.aw.size == axi_pkg::size_t'(3));
             err_q      <= (s_axi_req_i.aw.len != '0) || (s_axi_req_i.aw.size > axi_pkg::size_t'(3));
+            rr_prefer_read_q <= 1'b1;  // serving a write; favor a read next
             state_q    <= StateFirst;
           end else if (s_axi_rsp_o.ar_ready && s_axi_req_i.ar_valid) begin
             ar_q       <= s_axi_req_i.ar;
@@ -131,6 +152,7 @@ module soc_axi_to_reg #(
             split_q    <= (s_axi_req_i.ar.size == axi_pkg::size_t'(3));
             err_q      <= (s_axi_req_i.ar.len != '0) || (s_axi_req_i.ar.size > axi_pkg::size_t'(3));
             r_q.data   <= '0;
+            rr_prefer_read_q <= 1'b0;  // just served a read; favor a write next
             state_q    <= StateFirst;
           end
         end

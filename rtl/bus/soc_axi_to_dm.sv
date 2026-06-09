@@ -39,6 +39,18 @@ module soc_axi_to_dm #(
   axi_b_chan_t  b_q;
   axi_r_chan_t  r_q;
   logic         op_write_q;
+  // Round-robin tie-break between a pending read and a pending write so
+  // neither starves. A write only competes once both AW and W are valid
+  // (this adapter captures them together and has no collect state).
+  // 1 => a read wins a simultaneous read/write tie.
+  logic         rr_prefer_read_q;
+  logic         rd_req;
+  logic         wr_req;
+  logic         arb_read;
+
+  assign rd_req   = s_axi_req_i.ar_valid;
+  assign wr_req   = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
+  assign arb_read = rd_req && (!wr_req || rr_prefer_read_q);
 
   always_comb begin
     s_axi_rsp_o = '0;
@@ -50,9 +62,16 @@ module soc_axi_to_dm #(
 
     unique case (state_q)
       StateIdle: begin
-        s_axi_rsp_o.aw_ready = s_axi_req_i.aw_valid && s_axi_req_i.w_valid && !s_axi_req_i.ar_valid;
-        s_axi_rsp_o.w_ready  = s_axi_req_i.aw_valid && s_axi_req_i.w_valid && !s_axi_req_i.ar_valid;
-        s_axi_rsp_o.ar_ready = s_axi_req_i.ar_valid && !s_axi_req_i.aw_valid && !s_axi_req_i.w_valid;
+        // Serve exactly one side, chosen by arb_read. Gating each channel on
+        // the other's valid would leave both readies low forever when the
+        // crossbar presents a read and a write in the same cycle - see the
+        // identical fix in soc_axi_to_mem.
+        if (arb_read) begin
+          s_axi_rsp_o.ar_ready = 1'b1;
+        end else begin
+          s_axi_rsp_o.aw_ready = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
+          s_axi_rsp_o.w_ready  = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
+        end
       end
 
       StateWriteResp: begin
@@ -79,6 +98,7 @@ module soc_axi_to_dm #(
       b_q        <= '0;
       r_q        <= '0;
       op_write_q <= 1'b0;
+      rr_prefer_read_q <= 1'b1;
     end else begin
       unique case (state_q)
         StateIdle: begin
@@ -86,10 +106,12 @@ module soc_axi_to_dm #(
             aw_q       <= s_axi_req_i.aw;
             w_q        <= s_axi_req_i.w;
             op_write_q <= 1'b1;
+            rr_prefer_read_q <= 1'b1;  // serving a write; favor a read next
             state_q    <= StateAccess;
           end else if (s_axi_rsp_o.ar_ready && s_axi_req_i.ar_valid) begin
             ar_q       <= s_axi_req_i.ar;
             op_write_q <= 1'b0;
+            rr_prefer_read_q <= 1'b0;  // just served a read; favor a write next
             state_q    <= StateAccess;
           end
         end

@@ -409,3 +409,77 @@ async def both_initiators_share_one_target(dut):
     assert err0 == 0 and err1 == 0
     assert data0 == 0xAABBCCDD
     assert data1 == 0xAABBCCDD
+
+
+async def _issue_both_same_cycle(dut, *, addr0, wdata0, addr1):
+    """Drive a write on initiator 0 and a read on initiator 1 in the same
+    cycle, so AW+W and AR reach the shared target adapter together after
+    identical crossbar latency."""
+    dut.obi_we_i.value = 1
+    dut.obi_addr_i.value = addr0
+    dut.obi_wdata_i.value = wdata0
+    dut.obi_be_i.value = 0xF
+    dut.obi_req_i.value = 1
+    dut.obi1_we_i.value = 0
+    dut.obi1_addr_i.value = addr1
+    dut.obi1_be_i.value = 0xF
+    dut.obi1_req_i.value = 1
+
+    got0 = got1 = False
+    for _ in range(20):
+        await RisingEdge(dut.clk_i)
+        if not got0 and dut.obi_gnt_o.value:
+            dut.obi_req_i.value = 0
+            got0 = True
+        if not got1 and dut.obi1_gnt_o.value:
+            dut.obi1_req_i.value = 0
+            got1 = True
+        if got0 and got1:
+            return
+    raise AssertionError("OBI requests were not both granted")
+
+
+@cocotb.test()
+async def concurrent_read_write_same_apb_target(dut):
+    """A write and a read presented to the APB target in the same cycle must
+    serialize through soc_axi_to_apb's read/write arbiter. The pre-fix
+    adapter gated each AXI channel's ready on the other channel's valid, so
+    this exact pattern parked both initiators forever (reachable in practice
+    as a core UART write colliding with a debug-SBA peripheral read)."""
+    cocotb.start_soon(Clock(dut.clk_i, 10, unit="ns").start())
+    await reset_dut(dut)
+
+    dut.apb_pready_i.value = 1
+    dut.apb_prdata_i.value = 0x13579BDF
+
+    rsp0 = cocotb.start_soon(wait_obi_rsp(dut))
+    rsp1 = cocotb.start_soon(wait_obi1_rsp(dut))
+    await _issue_both_same_cycle(
+        dut, addr0=0x1000_0004, wdata0=0xA5A55A5A, addr1=0x1000_0004)
+
+    data0, err0 = await rsp0
+    data1, err1 = await rsp1
+    assert err0 == 0 and err1 == 0
+    assert data0 == 0
+    assert data1 == 0x13579BDF
+
+
+@cocotb.test()
+async def concurrent_read_write_same_dm_target(dut):
+    """Same deadlock pattern against the debug-module target: a write and a
+    read hitting soc_axi_to_dm in the same cycle must both complete."""
+    cocotb.start_soon(Clock(dut.clk_i, 10, unit="ns").start())
+    await reset_dut(dut)
+
+    dut.dm_rdata_i.value = 0x0180006F_00000000
+
+    rsp0 = cocotb.start_soon(wait_obi_rsp(dut))
+    rsp1 = cocotb.start_soon(wait_obi1_rsp(dut))
+    await _issue_both_same_cycle(
+        dut, addr0=0x0000_0004, wdata0=0xDEADBEEF, addr1=0x0000_0804)
+
+    data0, err0 = await rsp0
+    data1, err1 = await rsp1
+    assert err0 == 0 and err1 == 0
+    assert data0 == 0
+    assert data1 == 0x0180006F
