@@ -9,8 +9,12 @@ promote a core, see [`core_acceptance_checklist.md`](core_acceptance_checklist.m
 
 The first FPGA board target `axku5` is hardware-validated across the
 supported core set. A second board, `arty_a7_100t` (Arty A7-100T, Artix-7),
-is hardware-validated with Ibex (bitstream, SRAM load over the Tigard,
-bare-metal UART, and Zephyr console/timer smoke).
+is now also hardware-validated across the supported core set: a full
+`make fpga-accept` regression builds a bitstream, programs the board, and runs
+bare-metal `hello_world` for all seven cores - OpenOCD/GDB load/run for the
+debug-capable cores (ibex, cv32e40p, cv32e40s, cva6) and the UART SRAM loader
+for the rest (serv, picorv32, cvw). Zephyr console/timer smoke on Arty is
+validated with Ibex.
 
 Platform pieces:
 
@@ -115,14 +119,16 @@ Software and validation flow:
   `NumBanks` and `NumInitPorts`, and `soc_top.MemNumBanks` is a
   parameter (default 4) - so the platform is set up to grow the bank
   count when a workload warrants it.
-- Widen the AXI fabric. **Done (sim-validated):** the single-outstanding
-  `soc_axi_arbiter` + `soc_axi_demux` pair has been replaced by a PULP
-  `axi_xbar` system crossbar, so today's three initiators (core instruction,
-  core data, debug SBA) decode per initiator and arbitrate per target with
-  multiple outstanding requests, instead of serializing upstream of the banked
-  memory. This paid off with the *existing* initiator set - it was not blocked
-  on AXI-native burst initiators arriving. FPGA timing re-validation with the
-  crossbar on the fabric path remains a hardware gate. See
+- Widen the AXI fabric. **Done (sim- and hardware-validated):** the
+  single-outstanding `soc_axi_arbiter` + `soc_axi_demux` pair has been replaced
+  by a PULP `axi_xbar` system crossbar, so today's three initiators (core
+  instruction, core data, debug SBA) decode per initiator and arbitrate per
+  target with multiple outstanding requests, instead of serializing upstream of
+  the banked memory. This paid off with the *existing* initiator set - it was
+  not blocked on AXI-native burst initiators arriving. Validated by the full
+  `make axi-smoke` simulation set and by a full `make fpga-accept` regression on
+  the Arty A7-100T across all seven supported cores; the crossbar closes timing
+  at the 25 MHz default (ibex WNS +6.5 ns). See
   [`axi4_fabric.md`](axi4_fabric.md).
 - Adopt a layered interconnect as the platform endpoint, structured as
   three named subsystems: a **memory subsystem** (`soc_mem_ss`, per-bank

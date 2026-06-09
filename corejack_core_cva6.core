@@ -8,10 +8,12 @@ filesets:
     files:
       - deps/cva6/core/include/rvfi_types.svh : {file_type : user, copyto : rvfi_types.svh}
       - deps/cva6/core/include/cvxif_types.svh : {file_type : user, copyto : cvxif_types.svh}
-      - deps/common_cells/src/lzc.sv
+      # lzc, rr_arb_tree, and stream_register are provided by the shared
+      # corejack:common:deps fileset (added for the axi_xbar system crossbar);
+      # listing them here too would double-define the modules and trip Vivado
+      # CRITICAL WARNING [Synth 8-9873]. Keep only the common_cells that the
+      # platform fileset does not already supply.
       - deps/common_cells/src/onehot_to_bin.sv
-      - deps/common_cells/src/rr_arb_tree.sv
-      - deps/common_cells/src/stream_register.sv
       - deps/common_cells/src/lfsr.sv
       - deps/common_cells/src/exp_backoff.sv
       - deps/common_cells/src/shift_reg.sv
