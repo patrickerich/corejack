@@ -184,8 +184,8 @@ make fpga-accept BOARD=<board> UART_DEV=/dev/ttyUSBx
 
 Debug-capable cores use OpenOCD/GDB in that gate. Supported cores without a
 RISC-V debug interface use the UART SRAM loader. The crossbar fabric has passed
-this gate on the Arty A7-100T across all seven supported cores, and closes
-timing at the 25 MHz default (ibex WNS +6.5 ns).
+this gate on both boards (AXKU5 and Arty A7-100T) across all seven supported
+cores, and closes timing at the 25 MHz default on both.
 
 ## Future Work
 
@@ -203,6 +203,7 @@ closure:
   parallelism the crossbar now exposes
 
 FPGA timing closure with the crossbar on the fabric path is validated at the
-25 MHz default (ibex WNS +6.5 ns on the Arty A7-100T). If a future higher clock
-or a larger initiator set regresses timing, the crossbar's `LatencyMode` (e.g.
-`CUT_ALL_AX`) is the first knob to try.
+25 MHz default on both boards (ibex WNS: +12.6 ns on the AXKU5, +6.5 ns on the
+Arty A7-100T). If a future higher clock or a larger initiator set regresses
+timing, the crossbar's `LatencyMode` (e.g. `CUT_ALL_AX`) is the first knob to
+try.

@@ -7,13 +7,11 @@ promote a core, see [`core_acceptance_checklist.md`](core_acceptance_checklist.m
 
 ## Current Baseline
 
-The first FPGA board target `axku5` is hardware-validated across the
-supported core set (last full pass on the pre-crossbar fabric; re-validation
-with the `axi_xbar` fabric is tracked in [`open_items.md`](open_items.md)).
-A second board, `arty_a7_100t` (Arty A7-100T, Artix-7),
-is hardware-validated across the supported core set with the crossbar fabric: a full
-`make fpga-accept` regression builds a bitstream, programs the board, and runs
-bare-metal `hello_world` for all seven cores - OpenOCD/GDB load/run for the
+Both FPGA board targets - `axku5` (ALINX AXKU5, Kintex UltraScale+) and
+`arty_a7_100t` (Arty A7-100T, Artix-7) - are hardware-validated across the
+supported core set with the crossbar fabric: a full `make fpga-accept`
+regression builds a bitstream, programs the board, and runs bare-metal
+`hello_world` for all seven cores - OpenOCD/GDB load/run for the
 debug-capable cores (ibex, cv32e40p, cv32e40s, cva6) and the UART SRAM loader
 for the rest (serv, picorv32, cvw). Zephyr console/timer smoke on Arty is
 validated with Ibex.
@@ -29,9 +27,9 @@ Platform pieces:
   arbitration and exposes a separate init port that the AXI fabric, the
   simulation preloader, and the optional UART SRAM loader share.
 - `riscv-dbg` (`dmi_jtag` + `dm_top`) and CLINT are integrated in `soc_top`.
-- Bitstreams close timing at the conservative `25 MHz` default (AXKU5 last
-  built on the pre-crossbar fabric; the Arty A7-100T closes timing with the
-  `axi_xbar` crossbar at `+6.5 ns` WNS on ibex).
+- Bitstreams close timing at the conservative `25 MHz` default with the
+  `axi_xbar` crossbar on both boards (ibex WNS: `+12.6 ns` on the AXKU5,
+  `+6.5 ns` on the Arty A7-100T).
 - OpenOCD enumerates and examines the RISC-V target over external JTAG;
   GDB loads an ELF into SRAM through the debug module SBA path.
 - `hello_world` runs from SRAM and prints through the platform APB UART at
@@ -130,9 +128,9 @@ Software and validation flow:
   target with multiple outstanding requests, instead of serializing upstream of
   the banked memory. This paid off with the *existing* initiator set - it was
   not blocked on AXI-native burst initiators arriving. Validated by the full
-  `make axi-smoke` simulation set and by a full `make fpga-accept` regression on
-  the Arty A7-100T across all seven supported cores; the crossbar closes timing
-  at the 25 MHz default (ibex WNS +6.5 ns). See
+  `make axi-smoke` simulation set and by full `make fpga-accept` regressions on
+  both boards (AXKU5 and Arty A7-100T) across all seven supported cores; the
+  crossbar closes timing at the 25 MHz default on both. See
   [`axi4_fabric.md`](axi4_fabric.md).
 - Adopt a layered interconnect as the platform endpoint, structured as
   three named subsystems: a **memory subsystem** (`soc_mem_ss`, per-bank

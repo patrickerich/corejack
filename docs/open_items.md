@@ -7,13 +7,6 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
-- **Re-validate the AXKU5 board with the crossbar fabric.** The widened
-  `axi_xbar` fabric is hardware-validated on the Arty A7-100T across all seven
-  supported cores, but the AXKU5 has not been re-run since the fabric change -
-  its last full `make fpga-accept` pass predates the crossbar. Re-run the
-  acceptance regression (`make fpga-accept BOARD=axku5 UART_DEV=...`) when the
-  AXKU5 is next connected; only one board can be attached to the build server
-  at a time and the Arty currently occupies it.
 - **`soc_mem_ss` init ports assume single-outstanding clients.** Each bank
   arbitrates independently and holds one response register, but nothing stops
   one init port from having two requests outstanding to two *different* banks;
