@@ -11,6 +11,7 @@ module soc_top #(
   parameter logic [31:0] DebugBaseAddr = 32'h0000_0000,
   parameter logic [31:0] ClintBaseAddr = 32'h0200_0000,
   parameter logic [31:0] DmaBaseAddr = 32'h0100_0000,
+  parameter logic [31:0] PlicBaseAddr = 32'h0C00_0000,
   parameter logic [31:0] UartBaseAddr = 32'h1000_0000,
   parameter logic [31:0] RamBaseAddr = 32'h8000_0000,
   parameter int unsigned RamWords = 262144,
@@ -110,8 +111,15 @@ module soc_top #(
     localparam logic [31:0] DmRomBaseSelect = 32'h0000_1000;
     localparam int unsigned MemInitPorts = 2;
     localparam logic [31:0] DmaSize = 32'h0000_1000;
+    // The PLIC window spans the full standard layout (context block at
+    // +0x200000), hence 4 MiB.
+    localparam logic [31:0] PlicSize = 32'h0040_0000;
+    // PLIC source IDs are 1-based; bit i of the source vector is ID i+1.
+    // ID 1: UART. ID 2: reserved for the iDMA completion interrupt (tied off
+    // until the DMA exposes one through the accelerator socket).
+    localparam int unsigned PlicNumSources = 2;
     localparam int unsigned CoreAxiPorts = 4;
-    localparam int unsigned FabricAxiPorts = 5;
+    localparam int unsigned FabricAxiPorts = 6;
     // System crossbar configuration. Replaces the former single-outstanding
     // soc_axi_arbiter + soc_axi_demux pair: per-target arbitration with up to
     // MaxTrans outstanding so independent initiators no longer serialize. Cores
@@ -252,7 +260,11 @@ module soc_top #(
     soc_reg_rsp_t  clint_reg_rsp;
     soc_reg_req_t  dma_reg_req;
     soc_reg_rsp_t  dma_reg_rsp;
+    soc_reg_req_t  plic_reg_req;
+    soc_reg_rsp_t  plic_reg_rsp;
     apb_rsp_t      apb_rsp;
+    logic [PlicNumSources-1:0] plic_irq_sources;
+    logic          plic_irq;
     logic          uart_irq;
     logic [1:0]    clint_timer_irq;
     logic [1:0]    clint_ipi;
@@ -324,7 +336,8 @@ module soc_top #(
       '{idx: 1, start_addr: UartBaseAddr,  end_addr: UartBaseAddr + UartSize},
       '{idx: 2, start_addr: DebugBaseAddr, end_addr: DebugBaseAddr + DebugSize},
       '{idx: 3, start_addr: ClintBaseAddr, end_addr: ClintBaseAddr + ClintSize},
-      '{idx: 4, start_addr: DmaBaseAddr,   end_addr: DmaBaseAddr + DmaSize}
+      '{idx: 4, start_addr: DmaBaseAddr,   end_addr: DmaBaseAddr + DmaSize},
+      '{idx: 5, start_addr: PlicBaseAddr,  end_addr: PlicBaseAddr + PlicSize}
     };
 
     if (CoreType == platform_pkg::CORE_CVA6) begin : gen_cva6_core_path
@@ -374,7 +387,7 @@ module soc_top #(
         .debug_req_i            (debug_req_o),
         .irq_software_i         (clint_ipi[0]),
         .irq_timer_i            (clint_timer_irq[0]),
-        .irq_external_i         (uart_irq),
+        .irq_external_i         (plic_irq),
         .axi_req_o              (cva6_axi_req),
         .axi_rsp_i              (cva6_axi_rsp),
         .alert_minor_o          (alert_minor_o),
@@ -403,7 +416,7 @@ module soc_top #(
         .debug_req_i            (debug_req_o),
         .irq_software_i         (clint_ipi[0]),
         .irq_timer_i            (clint_timer_irq[0]),
-        .irq_external_i         (uart_irq),
+        .irq_external_i         (plic_irq),
         .irq_fast_i             ('0),
         .irq_nm_i               (1'b0),
         .instr_req_o            (core_instr_req),
@@ -727,6 +740,41 @@ module soc_top #(
       .s_axi_rsp_o (target_axi_rsp[4]),
       .m_reg_req_o (dma_reg_req),
       .m_reg_rsp_i (dma_reg_rsp)
+    );
+
+    soc_axi_to_reg #(
+      .BaseAddr      (PlicBaseAddr),
+      .axi_req_t     (soc_axi_mst_req_t),
+      .axi_resp_t    (soc_axi_mst_resp_t),
+      .axi_aw_chan_t (soc_axi_mst_aw_chan_t),
+      .axi_w_chan_t  (soc_axi_mst_w_chan_t),
+      .axi_ar_chan_t (soc_axi_mst_ar_chan_t),
+      .axi_b_chan_t  (soc_axi_mst_b_chan_t),
+      .axi_r_chan_t  (soc_axi_mst_r_chan_t)
+    ) i_axi_to_plic_reg (
+      .clk_i,
+      .rst_ni,
+      .s_axi_req_i (target_axi_req[5]),
+      .s_axi_rsp_o (target_axi_rsp[5]),
+      .m_reg_req_o (plic_reg_req),
+      .m_reg_rsp_i (plic_reg_rsp)
+    );
+
+    // Platform interrupt controller: aggregates peripheral interrupts onto
+    // the one external-interrupt line every core contract provides (MEIP).
+    // Source IDs: 1 = UART, 2 = reserved for the iDMA (tied off until the
+    // DMA exposes a completion interrupt through the accelerator socket).
+    assign plic_irq_sources = {1'b0, uart_irq};
+
+    soc_plic #(
+      .NumSources (PlicNumSources)
+    ) i_plic (
+      .clk_i,
+      .rst_ni,
+      .reg_req_i     (plic_reg_req),
+      .reg_rsp_o     (plic_reg_rsp),
+      .irq_sources_i (plic_irq_sources),
+      .irq_o         (plic_irq)
     );
 
     soc_mem_ss #(

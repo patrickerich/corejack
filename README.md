@@ -48,6 +48,9 @@ Validated baseline:
 - CLINT machine timer at `0x02000000`; Zephyr timer frequency `12.5 MHz`
 - iDMA system DMA: config window at `0x01000000`, driven from C via
   `sw/c/common/dma.h` (`dma_smoke` is the validation app)
+- PLIC at `0x0C000000` (standard RISC-V PLIC layout, `soc_plic`): platform
+  interrupts reach every core's machine external interrupt line; driven from
+  C via `sw/c/common/plic.h` (`plic_smoke` is the validation app)
 - debug transport: external JTAG through `riscv-dbg` (`dmi_jtag` + `dm_top`)
 - Zephyr: `initial_supported` on the Zephyr-capable cores (a per-core
   capability; see the support matrix)

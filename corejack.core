@@ -86,6 +86,7 @@ filesets:
       - rtl/bus/soc_axi_to_reg.sv
       - rtl/platform/soc_uart_sram_loader.sv
       - rtl/platform/soc_idma.sv
+      - rtl/platform/soc_plic.sv
       - rtl/top/soc_top.sv
     file_type: systemVerilogSource
 
@@ -133,6 +134,17 @@ filesets:
     files:
       - tb/test_uart_sram_loader.py : {file_type : user, copyto : .}
 
+  tb_plic_sv:
+    files:
+      - rtl/pkg/soc_bus_pkg.sv
+      - rtl/platform/soc_plic.sv
+      - tb/plic_dut.sv
+    file_type: systemVerilogSource
+
+  tb_plic_cocotb:
+    files:
+      - tb/test_plic.py : {file_type : user, copyto : .}
+
 targets:
   default: &default
     filesets:
@@ -173,6 +185,11 @@ targets:
       verilator_options:
         - trace_fst ? (--trace-fst)
         - trace_vcd ? (--trace)
+        # Treat 2-state initialization as an edge so async-reset flops behind
+        # gated core clocks (e.g. ibex priv_lvl_q, reset value M != '0) still
+        # take their reset value: with the clock gated during reset and rst_ni
+        # starting at 0, no negedge event ever fires without this.
+        - --x-initial-edge
         - core_ibex ? (-DCOREJACK_SIM_XILINX_SRAM)
         - core_cv32e40p ? (-DCOREJACK_CORE_CV32E40P)
         - core_cv32e40x ? (-DCOREJACK_CORE_CV32E40X)
@@ -245,6 +262,8 @@ targets:
       verilator_options:
         - trace_fst ? (--trace-fst)
         - trace_vcd ? (--trace)
+        # See sw-sim: required for async-reset flops behind gated core clocks.
+        - --x-initial-edge
         - -DDEBUG_TEST_HOOKS
         - -DASSERTS_OFF
         - -Wno-MODDUP
@@ -313,6 +332,27 @@ targets:
       - tb_uart_loader_sv
       - tb_uart_loader_cocotb
     toplevel: uart_sram_loader_dut
+
+  plic-sim:
+    flow: sim
+    flow_options:
+      tool: verilator
+      cocotb_module: test_plic
+      timescale: 1ns/1ps
+      verilator_options:
+        - trace_fst ? (--trace-fst)
+        - trace_vcd ? (--trace)
+        - -Wno-WIDTHEXPAND
+        - -Wno-WIDTHTRUNC
+        - -Wno-PINMISSING
+        - -Wno-UNOPTFLAT
+        - -Wno-UNSIGNED
+        - -Wno-SPLITVAR
+    filesets:
+      - common_deps
+      - tb_plic_sv
+      - tb_plic_cocotb
+    toplevel: plic_dut
 
   fpga:
     <<: *default

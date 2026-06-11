@@ -16,7 +16,11 @@ package soc_bus_pkg;
   localparam int unsigned ApbAddrWidth = 32;
   localparam int unsigned ApbDataWidth = 32;
   localparam int unsigned ApbStrbWidth = ApbDataWidth / 8;
-  localparam int unsigned RegAddrWidth = 16;
+  // Wide enough for the largest register window behind a soc_axi_to_reg
+  // adapter: the PLIC's standard layout places claim/complete at +0x200004
+  // inside a 4 MiB window, so offsets need 24 bits (CLINT and the iDMA
+  // window decode only their low bits and are unaffected).
+  localparam int unsigned RegAddrWidth = 24;
   localparam int unsigned RegDataWidth = 32;
   localparam int unsigned RegStrbWidth = RegDataWidth / 8;
 

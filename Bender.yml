@@ -80,6 +80,7 @@ sources:
     - rtl/bus/soc_axi_to_reg.sv
     - rtl/platform/soc_uart_sram_loader.sv
     - rtl/platform/soc_idma.sv
+    - rtl/platform/soc_plic.sv
     - deps/register_interface/vendor/lowrisc_opentitan/src/prim_subreg_arb.sv
     - deps/register_interface/vendor/lowrisc_opentitan/src/prim_subreg.sv
     - deps/clint/src/clint_reg_pkg.sv

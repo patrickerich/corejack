@@ -46,11 +46,12 @@ root is `build/sim/fusesoc/<core>/<target>/`, and optional waveforms land in
 | `make debug-sim` | debug ROM and system-bus-access (SBA) regression | `soc_dut` / `test_debug_integration` | no | [`riscv_dbg_integration.md`](riscv_dbg_integration.md) |
 | `make axi-adapter-sim` | AXI adapters, the `axi_xbar` system crossbar (incl. cross-target concurrency and same-target arbitration), protocol checker, and 32-to-64-bit lane behavior | `axi_adapter_dut` / `test_axi_adapters` | no | [`axi4_fabric.md`](axi4_fabric.md) |
 | `make uart-loader-sim` | UART SRAM loader protocol regression | `uart_sram_loader_dut` / `test_uart_sram_loader` | no | [`uart_sram_loader.md`](uart_sram_loader.md) |
+| `make plic-sim` | `soc_plic` claim/complete, gateway, and threshold regression | `plic_dut` / `test_plic` | no | [`axi4_fabric.md`](axi4_fabric.md) |
 | `make axi-smoke` | aggregate gate: address-map check, the three focused sims above, then `hello_world` on each supported core | (composite) | yes | [`axi4_fabric.md`](axi4_fabric.md) |
 
-`make axi-smoke` runs `axi-adapter-sim`, `uart-loader-sim`, and `debug-sim`,
-then `sim-run-sw` for each core in `AXI_SMOKE_CORES` (default `ibex cv32e40p
-cv32e40s cva6 serv picorv32 cvw`). Unsupported cores are intentionally excluded;
+`make axi-smoke` runs `axi-adapter-sim`, `uart-loader-sim`, `plic-sim`, and
+`debug-sim`, then `sim-run-sw` for each core in `AXI_SMOKE_CORES` (default
+`ibex cv32e40p cv32e40s cva6 serv picorv32 cvw`). Unsupported cores are intentionally excluded;
 see [`support_matrix.md`](support_matrix.md).
 
 A typical first run, with no RISC-V toolchain required:
@@ -74,10 +75,10 @@ The cocotb tests and testbench-only SystemVerilog live under `tb/`:
 
 - **DUT wrappers** select the toplevel for each flow: `smoke_dut.sv` (stub),
   `soc_dut.sv` (full platform, used by both the software and debug flows),
-  `axi_adapter_dut.sv`, and `uart_sram_loader_dut.sv`.
+  `axi_adapter_dut.sv`, `uart_sram_loader_dut.sv`, and `plic_dut.sv`.
 - **cocotb tests:** `test_smoke.py`, `test_soc_sw.py`,
-  `test_debug_integration.py`, `test_axi_adapters.py`, and
-  `test_uart_sram_loader.py`.
+  `test_debug_integration.py`, `test_axi_adapters.py`,
+  `test_uart_sram_loader.py`, and `test_plic.py`.
 - **TB-only monitors:** `sim_ctrl_monitor.sv`, `axi_sim_ctrl_monitor.sv`, and
   `uart_apb_tx_monitor.sv`.
 
@@ -122,8 +123,8 @@ All trace artifacts stay under `build/` and are covered by `.gitignore`
 - `SIM_TIMEOUT_CYCLES` (default `1000000`) bounds a software simulation; it is
   passed through to the testbench as the `COREJACK_TIMEOUT_CYCLES` cocotb
   environment variable. Print-heavy apps need more than the default -
-  `dma_smoke` runs with `SIM_TIMEOUT_CYCLES=2000000` (the FPGA acceptance
-  script accepts the same variable).
+  `dma_smoke` and `plic_smoke` run with `SIM_TIMEOUT_CYCLES=2000000` (the FPGA
+  acceptance script accepts the same variable).
 - `SW_APP` selects the bare-metal application for `sim-run-sw`; `make list-apps`
   lists the available apps under `sw/c/`.
 - `CORE` / `BOARD` select the descriptor-driven target; `AXI_SMOKE_CORES`
