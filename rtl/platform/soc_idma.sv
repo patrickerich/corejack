@@ -37,7 +37,10 @@ module soc_idma #(
   output axi_req_t m_axi_req_o,
   input  axi_rsp_t m_axi_rsp_i,
 
-  output logic busy_o
+  output logic busy_o,
+  // One-cycle pulse per retired (fully completed) transfer; the socket
+  // adapter turns it into the sticky completion interrupt.
+  output logic done_o
 );
   import soc_bus_pkg::*;
 
@@ -283,4 +286,5 @@ module soc_idma #(
   );
 
   assign busy_o = midend_busy || (|backend_busy);
+  assign done_o = nd_rsp_valid;
 endmodule

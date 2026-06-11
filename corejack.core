@@ -86,6 +86,7 @@ filesets:
       - rtl/bus/soc_axi_to_reg.sv
       - rtl/platform/soc_uart_sram_loader.sv
       - rtl/platform/soc_idma.sv
+      - rtl/platform/corejack_idma_socket_adapter.sv
       - rtl/platform/soc_plic.sv
       - rtl/top/soc_top.sv
     file_type: systemVerilogSource

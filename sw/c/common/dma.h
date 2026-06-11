@@ -18,6 +18,14 @@
 #define DMA_REG_SRC_ADDR 0xd8u
 #define DMA_REG_LENGTH 0xe0u
 
+/* CoreJack completion-interrupt status register, implemented in the socket
+ * adapter (corejack_idma_socket_adapter) beside the iDMA register block.
+ * Bit 0 reads the sticky completion flag (the level on PLIC source 2);
+ * writing 1 to bit 0 clears it. Interrupt handlers must clear it here
+ * before completing the claim at the PLIC, or the still-high level pends
+ * again immediately. */
+#define DMA_REG_IRQ_STATUS 0xf00u
+
 /* Start a 1D memory-to-memory copy of len bytes; returns the transfer id. */
 uint32_t dma_memcpy_start(uintptr_t dst, uintptr_t src, uint32_t len);
 
@@ -26,5 +34,9 @@ void dma_wait(uint32_t transfer_id);
 
 /* Convenience: start a copy and wait for completion. */
 void dma_memcpy(uintptr_t dst, uintptr_t src, uint32_t len);
+
+/* Completion-interrupt helpers (PLIC source 2). */
+uint32_t dma_irq_pending(void);
+void dma_irq_ack(void);
 
 #endif

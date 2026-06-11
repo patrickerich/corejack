@@ -33,3 +33,11 @@ void dma_wait(uint32_t transfer_id) {
 void dma_memcpy(uintptr_t dst, uintptr_t src, uint32_t len) {
   dma_wait(dma_memcpy_start(dst, src, len));
 }
+
+uint32_t dma_irq_pending(void) {
+  return mmio_read32(DMA0_BASE + DMA_REG_IRQ_STATUS) & 1u;
+}
+
+void dma_irq_ack(void) {
+  mmio_write32(DMA0_BASE + DMA_REG_IRQ_STATUS, 1u);
+}

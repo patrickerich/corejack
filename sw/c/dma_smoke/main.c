@@ -1,13 +1,70 @@
 #include "dma.h"
 #include "platform.h"
+#include "plic.h"
 #include "printf.h"
 #include "sim_ctrl.h"
 #include "uart.h"
 
 #define DMA_BUF_BYTES 1024u
 
+#define MSTATUS_MIE (1u << 3)
+#define MIE_MEIE    (1u << 11)
+
+#define IRQ_SPIN_LIMIT 200000u
+
 static uint8_t src_buf[DMA_BUF_BYTES] __attribute__((aligned(8)));
 static uint8_t dst_buf[DMA_BUF_BYTES] __attribute__((aligned(8)));
+
+#if COREJACK_HAS_EXT_IRQ
+static volatile uint32_t dma_irq_seen;
+static volatile uint32_t dma_irq_claimed_id;
+
+/* crt0.S vector table; mtvec points here in vectored mode. */
+extern const char _vectors[];
+
+static inline void csr_write_mtvec(uintptr_t value) {
+  __asm__ volatile(".option push\n"
+                   ".option arch,+zicsr\n"
+                   "csrw mtvec, %0\n"
+                   ".option pop" : : "r"(value));
+}
+
+static inline void csr_set_mie(uintptr_t mask) {
+  __asm__ volatile(".option push\n"
+                   ".option arch,+zicsr\n"
+                   "csrs mie, %0\n"
+                   ".option pop" : : "r"(mask));
+}
+
+static inline void csr_set_mstatus(uintptr_t mask) {
+  __asm__ volatile(".option push\n"
+                   ".option arch,+zicsr\n"
+                   "csrs mstatus, %0\n"
+                   ".option pop" : : "r"(mask));
+}
+
+static inline void csr_clear_mstatus(uintptr_t mask) {
+  __asm__ volatile(".option push\n"
+                   ".option arch,+zicsr\n"
+                   "csrc mstatus, %0\n"
+                   ".option pop" : : "r"(mask));
+}
+
+/* External-interrupt slot of the crt0 vector table. Acknowledge the level
+ * source at the DMA before completing at the PLIC, or it pends again. */
+void corejack_external_vector(void) __attribute__((interrupt("machine")));
+void corejack_external_vector(void) {
+  uint32_t id = plic_claim();
+
+  if (id == PLIC_SRC_DMA0) {
+    dma_irq_ack();
+  }
+  plic_complete(id);
+
+  dma_irq_claimed_id = id;
+  dma_irq_seen = 1u;
+}
+#endif
 
 static int str_eq(const char *lhs, const char *rhs) {
   while (*lhs != '\0' && *rhs != '\0') {
@@ -55,6 +112,55 @@ static int run_case(const char *name, uint32_t src_off, uint32_t dst_off,
   return 0;
 }
 
+#if COREJACK_HAS_EXT_IRQ
+/* Interrupt-driven completion: the copy is started without polling and the
+ * ISR observes it through PLIC source 2 (claim, dma_irq_ack, complete). */
+static int run_case_irq(void) {
+  fill_buffers(0x44u);
+
+  plic_set_priority(PLIC_SRC_DMA0, 1u);
+  plic_set_threshold(0u);
+  plic_enable(PLIC_SRC_DMA0);
+  csr_write_mtvec((uintptr_t)_vectors | 1u);  /* vectored mode */
+  csr_set_mie(MIE_MEIE);
+  csr_set_mstatus(MSTATUS_MIE);
+
+  dma_irq_seen = 0u;
+  (void)dma_memcpy_start((uintptr_t)dst_buf, (uintptr_t)src_buf, 256u);
+
+  for (uint32_t i = 0; i < IRQ_SPIN_LIMIT && dma_irq_seen == 0u; i++) {
+  }
+
+  csr_clear_mstatus(MSTATUS_MIE);
+  plic_disable(PLIC_SRC_DMA0);
+
+  if (dma_irq_seen == 0u) {
+    printf("DMA FAIL [irq]: completion interrupt never arrived\n");
+    return 1;
+  }
+  if (dma_irq_claimed_id != PLIC_SRC_DMA0) {
+    printf("DMA FAIL [irq]: claimed %u, expected %u\n", dma_irq_claimed_id,
+           PLIC_SRC_DMA0);
+    return 1;
+  }
+  if (dma_irq_pending() != 0u) {
+    printf("DMA FAIL [irq]: completion flag still pending after ack\n");
+    return 1;
+  }
+  for (uint32_t i = 0; i < 256u; i++) {
+    if (dst_buf[i] != src_buf[i]) {
+      printf("DMA FAIL [irq]: dst[%u] = 0x%02x, expected 0x%02x\n", i,
+             dst_buf[i], src_buf[i]);
+      return 1;
+    }
+  }
+
+  printf("DMA case irq: OK (claimed source %u in the ISR)\n",
+         dma_irq_claimed_id);
+  return 0;
+}
+#endif
+
 int main(void) {
   int failures = 0;
 
@@ -70,6 +176,9 @@ int main(void) {
   failures += run_case("aligned", 0u, 0u, 256u, 0x11u);
   failures += run_case("unaligned", 3u, 5u, 61u, 0x22u);
   failures += run_case("large", 0u, 0u, DMA_BUF_BYTES, 0x33u);
+#if COREJACK_HAS_EXT_IRQ
+  failures += run_case_irq();
+#endif
 
   if (failures != 0) {
     printf("DMA smoke FAILED (%d case%s)\n", failures,

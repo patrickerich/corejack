@@ -190,20 +190,21 @@ Planned next FPGA board target:
 
 ## System IP And Accelerator Expansion
 
-CoreJack sketches an accelerator socket interface
-(`rtl/interfaces/accel_socket_if.sv`) alongside the core socket. As of
-the current baseline, this interface is a **declared contract, not a
-validated one**: it exists in source but has no consumer in the
-platform yet. The "jack in an IP" pitch in [`about.md`](about.md)
-describes the intent. The iDMA integration below lands as a direct
-single-port initiator first (the cheap integration the dual-port
-pattern recommends); migrating it onto the socket - validating the
-power/reset, AXI memory, CSR, and IRQ pieces of the contract end to
-end - is the natural follow-up that will shape the socket's final
-form. The IRQ leg now has a defined landing place: the socket's
-`irq_o` becomes PLIC source 2 (reserved and tied off today), so the
-completion interrupt reaches every external-interrupt-capable core
-instead of a per-core fast-IRQ line.
+CoreJack defines an accelerator socket interface
+(`rtl/interfaces/accel_socket_if.sv`) alongside the core socket, and
+the socket is now a **validated contract**: the iDMA is its first
+tenant. `corejack_idma_socket_adapter` wraps the unchanged `soc_idma`
+engine and presents exactly the socket boundary - clock/reset and the
+power-intent pins (driven to the static active state until a platform
+power controller exists, asserted in the adapter), the AXI memory
+manager into the crossbar, the APB CSR leg (the engine-side
+`apb_to_reg_v2` conversion lives inside the adapter, so the iDMA's
+register offsets are unchanged), and the completion interrupt on PLIC
+source 2 (a sticky flag, W1C at DMA window offset `0xF00`). The
+"jack in an IP" pitch in [`about.md`](about.md) describes the intent;
+the interrupt-driven `dma_smoke` case validates the full loop (start a
+copy, take the external interrupt, claim/ack/complete in the ISR) on
+the external-interrupt-capable cores.
 
 The direction is to grow the set of integrated system IP that plugs
 into the shared AXI fabric the same way cores do, so hobbyists and IP
@@ -217,7 +218,7 @@ The first system IP has landed:
   M-mode subset of the RISC-V PLIC specification with the standard
   (SiFive/QEMU `virt`) register layout at `PlicBaseAddr`, so stock
   Zephyr/Linux PLIC drivers work unmodified. It multiplexes platform
-  interrupt sources (UART today, iDMA completion next) onto the one
+  interrupt sources (UART and the iDMA completion) onto the one
   interrupt line every core contract provides - machine external - in
   place of the vendor-specific fast-IRQ inputs only the Ibex/CV32E40*
   family has. A hand-written controller was chosen over vendoring
@@ -226,12 +227,16 @@ The first system IP has landed:
   small; the spec-compliant layout is the part that matters for driver
   compatibility. Validated by the `plic-sim` cocotb regression and the
   `plic_smoke` app (ibex, cv32e40p, and cva6 in simulation).
-- **DMA engine - integrated**: PULP `iDMA` (`rtl/platform/soc_idma.sv`) -
-  the `idma_reg32_3d` register frontend, ND midend, and `idma_backend_rw_axi`
-  behind a burst splitter, entering the crossbar as the fourth initiator with
-  a register window at `DmaBaseAddr`. Cheshire integrates the same engine in
-  the same shape. Software drives it through `sw/c/common/dma.{c,h}` and the
-  `dma_smoke` app, validated in simulation and on AXKU5 hardware. (The
+- **DMA engine - integrated, first socket tenant**: PULP `iDMA`
+  (`rtl/platform/soc_idma.sv`) - the `idma_reg32_3d` register frontend, ND
+  midend, and `idma_backend_rw_axi` behind a burst splitter, entering the
+  crossbar as the fourth initiator with a register window at `DmaBaseAddr`.
+  Cheshire integrates the same engine in the same shape. It plugs into the
+  platform through `accel_socket_if` via `corejack_idma_socket_adapter`
+  (APB CSR leg, completion interrupt on PLIC source 2; see above). Software
+  drives it through `sw/c/common/dma.{c,h}` and the `dma_smoke` app
+  (including an interrupt-driven completion case), validated in simulation
+  and on both boards' hardware. (The
   earlier candidate, the CORE-V MCU uDMA, was dropped: it is a peripheral
   DMA subsystem whose UART/I2C/QSPI/SDIO peripherals are integral to it,
   its memory side is not AXI, and its upstream `udma_core` repository is
