@@ -78,9 +78,13 @@ static void write_mtimecmp(uint64_t value) {
   mmio_write32(CLINT_MTIMECMP_HI, (uint32_t)(value >> 32));
 }
 
-// CV32E40X/CV32E40S CLINT-mode mtvec bases are WARL-aligned to 128 bytes.
-void timer_isr(void) __attribute__((interrupt("machine"), aligned(128)));
-void timer_isr(void) {
+/* crt0.S vector table; mtvec points here in vectored mode, which is what
+ * the vectored-only cores (Ibex, CV32E40*) require. */
+extern const char _vectors[];
+
+/* Timer slot of the crt0 vector table (overrides the weak default). */
+void corejack_timer_vector(void) __attribute__((interrupt("machine")));
+void corejack_timer_vector(void) {
   timer_seen = 1u;
   write_mtimecmp(UINT64_MAX);
 }
@@ -93,7 +97,7 @@ int main(void) {
   printf("Core: " COREJACK_CORE "\n");
 
   timer_seen = 0u;
-  csr_write_mtvec((uint32_t)(uintptr_t)&timer_isr);
+  csr_write_mtvec((uint32_t)(uintptr_t)_vectors | 1u);  /* vectored mode */
 
   now = read_mtime();
   write_mtimecmp(now + 1000u);

@@ -26,6 +26,11 @@ Platform pieces:
 - The iDMA system DMA moves memory-to-memory data as the platform's first
   non-CPU initiator; `dma_smoke` validates it in simulation and on both
   boards' hardware.
+- The `soc_plic` platform interrupt controller (standard RISC-V PLIC layout,
+  M-mode, single context) aggregates peripheral interrupts onto every core's
+  machine external interrupt line; `plic-sim` is its focused regression and
+  `plic_smoke` validates poll, threshold-masked, and interrupt-driven
+  delivery end to end. See [`axi4_fabric.md`](axi4_fabric.md).
 - The banked 64-bit SRAM (`soc_mem_ss`) uses per-bank round-robin
   arbitration and exposes a separate init port that the AXI fabric, the
   simulation preloader, and the optional UART SRAM loader share.
@@ -195,7 +200,10 @@ single-port initiator first (the cheap integration the dual-port
 pattern recommends); migrating it onto the socket - validating the
 power/reset, AXI memory, CSR, and IRQ pieces of the contract end to
 end - is the natural follow-up that will shape the socket's final
-form.
+form. The IRQ leg now has a defined landing place: the socket's
+`irq_o` becomes PLIC source 2 (reserved and tied off today), so the
+completion interrupt reaches every external-interrupt-capable core
+instead of a per-core fast-IRQ line.
 
 The direction is to grow the set of integrated system IP that plugs
 into the shared AXI fabric the same way cores do, so hobbyists and IP
@@ -204,6 +212,20 @@ without rebuilding the integration layer.
 
 The first system IP has landed:
 
+- **Platform interrupt controller - integrated**: `soc_plic`
+  (`rtl/platform/soc_plic.sv`), CoreJack-original RTL implementing the
+  M-mode subset of the RISC-V PLIC specification with the standard
+  (SiFive/QEMU `virt`) register layout at `PlicBaseAddr`, so stock
+  Zephyr/Linux PLIC drivers work unmodified. It multiplexes platform
+  interrupt sources (UART today, iDMA completion next) onto the one
+  interrupt line every core contract provides - machine external - in
+  place of the vendor-specific fast-IRQ inputs only the Ibex/CV32E40*
+  family has. A hand-written controller was chosen over vendoring
+  `pulp-platform/rv_plic` because the standard layout decodes cleanly
+  from parameters (no offline regmap generation step) and the IP is
+  small; the spec-compliant layout is the part that matters for driver
+  compatibility. Validated by the `plic-sim` cocotb regression and the
+  `plic_smoke` app (ibex, cv32e40p, and cva6 in simulation).
 - **DMA engine - integrated**: PULP `iDMA` (`rtl/platform/soc_idma.sv`) -
   the `idma_reg32_3d` register frontend, ND midend, and `idma_backend_rw_axi`
   behind a burst splitter, entering the crossbar as the fourth initiator with

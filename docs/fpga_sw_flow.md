@@ -193,6 +193,14 @@ simulation budget, so give it more cycles:
 make sim-run-sw SW_APP=dma_smoke SIM_TIMEOUT_CYCLES=2000000
 ```
 
+For the PLIC there is `plic_smoke`, which validates poll-mode claim/complete,
+threshold masking, and interrupt-driven delivery of the UART interrupt through
+`sw/c/common/plic.h` and the crt0 vector table:
+
+```bash
+make sim-run-sw SW_APP=plic_smoke SIM_TIMEOUT_CYCLES=2000000
+```
+
 ## Run On FPGA
 
 Start OpenOCD:

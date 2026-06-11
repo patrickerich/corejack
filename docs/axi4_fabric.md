@@ -29,6 +29,11 @@ the fabric targets:
 - CLINT through `soc_axi_to_reg`
 - the iDMA configuration window through a second `soc_axi_to_reg` into the
   `idma_reg32_3d` register frontend
+- the PLIC (`rtl/platform/soc_plic.sv`) through a third `soc_axi_to_reg`;
+  it aggregates the platform interrupt sources (UART today, the iDMA
+  completion interrupt when it lands) onto each core's machine external
+  interrupt line, with the standard RISC-V PLIC register layout (see
+  [Platform Interrupts](#platform-interrupts))
 
 The crossbar runs with `LatencyMode = CUT_ALL_AX` (registered AW/AR channels
 at both boundaries): with a fully combinational crossbar, the valid-dependent
@@ -72,6 +77,7 @@ resets, FPGA primitives, and physical IO pins.
 | Debug module window | `DebugBaseAddr` | `0x00000000` | `0x00001000` |
 | iDMA configuration | `DmaBaseAddr` | `0x01000000` | `0x00001000` |
 | CLINT | `ClintBaseAddr` | `0x02000000` | `0x00010000` |
+| PLIC | `PlicBaseAddr` | `0x0C000000` | `0x00400000` |
 | UART | `UartBaseAddr` | `0x10000000` | `0x00001000` |
 | RAM | `RamBaseAddr` | `0x80000000` | `RamWords * 4` |
 
@@ -80,6 +86,41 @@ The static address-map check (`make axi-addr-map-check`) verifies that these
 windows are non-overlapping.
 
 ![Memory Map](media/corejack_soc_memory_map.svg)
+
+## Platform Interrupts
+
+`soc_plic` is a CoreJack-original implementation of the M-mode subset of the
+RISC-V PLIC specification: one hart context, level-triggered sources,
+per-source priority and enable, a context threshold, and the claim/complete
+handshake. Its register layout follows the de-facto standard PLIC memory map
+(SiFive E/U series, QEMU `virt`), so stock Zephyr/Linux PLIC drivers program
+it unmodified; `make plic-sim` runs its focused cocotb regression.
+
+The PLIC exists for uniformity: fast IRQ inputs are a vendor-specific feature
+of the Ibex/CV32E40* family, but the machine external interrupt (`mip.MEIP`)
+is the one interrupt line every core contract provides. The PLIC's context-0
+EIP output drives `irq_external_i` of every core, and peripheral interrupts
+become PLIC sources instead of per-core wiring decisions:
+
+| Source ID | Interrupt |
+| ---: | --- |
+| 1 | UART (16550 `INT`, enabled through the UART `IER`) |
+| 2 | reserved for the iDMA completion interrupt (tied off today) |
+
+Software drives it through `sw/c/common/plic.h`; `plic_smoke` validates
+poll-mode claim/complete, threshold masking, and interrupt-driven delivery
+through the crt0 vector table (see below). SERV and PicoRV32 have no external
+interrupt input in their socket adapters and keep polling - that is a core
+capability limit, not a PLIC one.
+
+Bare-metal interrupt handling uses **vectored mode** as the portable contract:
+Ibex and the CV32E40* cores implement `mtvec` as vectored-only WARL, so
+pointing `mtvec` directly at a handler would enter it at `+4*cause`. Apps set
+`mtvec = _vectors | 1` (the 32-slot table in `sw/c/common/crt0.S`) and
+override the weak per-cause symbols (`corejack_timer_vector`,
+`corejack_external_vector`) with `__attribute__((interrupt))` handlers. The
+CVA6 configuration enables vectored support for this (`DirectVecOnly = 0`);
+direct mode still works for software that writes `mtvec[0] = 0`.
 
 ## Memory Width
 
@@ -144,7 +185,7 @@ banks concurrently.
 
 Because the crossbar can present a read and a write to the same target in the
 same cycle (e.g. an instruction fetch and a data store to RAM, or a debug-SBA
-peripheral read colliding with a core UART write), all four target adapters
+peripheral read colliding with a core UART write), all the target adapters
 (`soc_axi_to_mem`, `soc_axi_to_apb`, `soc_axi_to_dm`, `soc_axi_to_reg`)
 arbitrate the two sides with a starvation-free round-robin. The earlier
 adapters gated each AXI channel's `ready` on the other channel's `valid`, which

@@ -64,19 +64,40 @@ sleep_loop:
 simple_exc_handler:
   j simple_exc_handler
 
+# Default targets for the interrupt slots of the vector table below. Apps
+# override them by defining a strong symbol of the same name (a C function
+# with __attribute__((interrupt("machine"))), see timer_uart_smoke and
+# plic_smoke) and pointing mtvec at _vectors in vectored mode. Vectored mode
+# is the portable choice: Ibex and the CV32E40* cores implement mtvec as
+# vectored-only WARL, so an mtvec that points directly at a handler would
+# enter that handler at offset 4*cause instead of at its first instruction.
+.weak corejack_timer_vector
+corejack_timer_vector:
+.weak corejack_external_vector
+corejack_external_vector:
+  j default_exc_handler
+
 .section .vectors, "ax"
   .option norvc
+  .global _vectors
+_vectors:
   .org 0x00
 #if COREJACK_RESET_AT_VECTOR_BASE
   jal x0, reset_handler
-  .rept 31
-  jal x0, default_exc_handler
-  .endr
 #else
-  .rept 32
+  jal x0, default_exc_handler
+#endif
+  .rept 6
   jal x0, default_exc_handler
   .endr
-#endif
+  jal x0, corejack_timer_vector     # cause 7: machine timer interrupt
+  .rept 3
+  jal x0, default_exc_handler
+  .endr
+  jal x0, corejack_external_vector  # cause 11: machine external interrupt
+  .rept 20
+  jal x0, default_exc_handler
+  .endr
 
   .org 0x80
   jal x0, reset_handler

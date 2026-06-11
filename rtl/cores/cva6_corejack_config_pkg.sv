@@ -57,7 +57,11 @@ package cva6_config_pkg;
     BHTHist: unsigned'(3),
     DmBaseAddress: 64'h0,
     TvalEn: bit'(0),
-    DirectVecOnly: bit'(1),
+    // Vectored mtvec support is required by the platform interrupt contract:
+    // bare-metal apps point mtvec at the crt0 vector table in vectored mode
+    // (the portable choice across Ibex/CV32E40*, which are vectored-only).
+    // Direct mode still works when software writes mtvec[0] = 0.
+    DirectVecOnly: bit'(0),
     NrPMPEntries: unsigned'(0),
     PMPCfgRstVal: {64{64'h0}},
     PMPAddrRstVal: {64{64'h0}},

@@ -27,7 +27,10 @@ module corejack_cva6_axi_adapter #(
     .rst_ni,
     .boot_addr_i  (BootAddr[cva6_config_pkg::CVA6ConfigXlen-1:0]),
     .hart_id_i    (HartId[cva6_config_pkg::CVA6ConfigXlen-1:0]),
-    .irq_i        ({irq_external_i, irq_software_i}),
+    // irq_i[0] feeds mip.MEIP (machine external); irq_i[1] feeds the
+    // supervisor external pending bit, which does not exist with RVS = 0.
+    // The software IPI arrives through the dedicated ipi_i port.
+    .irq_i        ({1'b0, irq_external_i}),
     .ipi_i        (irq_software_i),
     .time_irq_i   (irq_timer_i),
     .debug_req_i,
