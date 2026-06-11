@@ -606,7 +606,7 @@ for core in $cores; do
 
   if [ "$skip_sim" -eq 0 ]; then
     if [ "$firmware" = "baremetal" ]; then
-      make sim-run-sw CORE="$core" BOARD="$board" SW_APP="$app" SIM_TIMEOUT_CYCLES=1000000
+      make sim-run-sw CORE="$core" BOARD="$board" SW_APP="$app" SIM_TIMEOUT_CYCLES="${SIM_TIMEOUT_CYCLES:-1000000}"
     else
       echo "Skipping sim-run-sw for firmware=zephyr; this acceptance flow checks FPGA/OpenOCD/GDB."
     fi

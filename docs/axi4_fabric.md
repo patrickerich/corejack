@@ -8,13 +8,18 @@ traffic are routed through one explicit AXI address-decode path.
 
 Current RV32 cores expose separate instruction and data OBI-style interfaces.
 The debug module exposes a system bus access path for GDB/OpenOCD memory loads.
-Inside `soc_top`, these initiators become AXI initiators:
+The iDMA system DMA (`rtl/platform/soc_idma.sv`) adds a fourth, non-CPU
+initiator. Inside `soc_top`, these become AXI initiators:
 
 - instruction OBI through `soc_obi_to_axi`
 - data OBI through `soc_obi_to_axi`
 - debug SBA OBI through `soc_obi_to_axi`
+- the iDMA AXI manager (PULP iDMA: `idma_reg32_3d` register frontend, ND
+  midend, `idma_backend_rw_axi`, joined read/write managers, then an
+  `axi_burst_splitter` so the fabric only ever sees single-beat transfers,
+  and `axi_cut` stages that register the DMA leg)
 
-The three AXI initiators enter a PULP `axi_xbar` system crossbar. The crossbar
+The four AXI initiators enter a PULP `axi_xbar` system crossbar. The crossbar
 decodes each initiator's address independently and routes the request to one of
 the fabric targets:
 
@@ -22,6 +27,15 @@ the fabric targets:
 - UART through `soc_axi_to_apb`
 - debug module register/ROM window through `soc_axi_to_dm`
 - CLINT through `soc_axi_to_reg`
+- the iDMA configuration window through a second `soc_axi_to_reg` into the
+  `idma_reg32_3d` register frontend
+
+The crossbar runs with `LatencyMode = CUT_ALL_AX` (registered AW/AR channels
+at both boundaries): with a fully combinational crossbar, the valid-dependent
+readies of the target adapters and the iDMA backend's internally coupled
+streams compose into structural combinational loops (Vivado DRC LUTLP-1).
+Together with the `axi_cut` stages inside `soc_idma`, every loop candidate is
+registered; CPU request paths keep one added cycle of address latency only.
 
 Because address decode is per initiator and arbitration is per target (inside
 the crossbar's per-master-port multiplexers), initiators targeting different
@@ -56,6 +70,7 @@ resets, FPGA primitives, and physical IO pins.
 | Target | Parameter | Default Base | Size |
 | --- | --- | ---: | ---: |
 | Debug module window | `DebugBaseAddr` | `0x00000000` | `0x00001000` |
+| iDMA configuration | `DmaBaseAddr` | `0x01000000` | `0x00001000` |
 | CLINT | `ClintBaseAddr` | `0x02000000` | `0x00010000` |
 | UART | `UartBaseAddr` | `0x10000000` | `0x00001000` |
 | RAM | `RamBaseAddr` | `0x80000000` | `RamWords * 4` |
@@ -138,7 +153,7 @@ never produced. `axi-adapter-sim` drives this exact collision against the RAM,
 APB, and DM targets.
 
 The remaining follow-up is **revisiting the bank count** once a second
-concurrent initiator (for example the planned uDMA on `accel_socket_if`) is
+concurrent initiator (the iDMA, now integrated) is
 actually exploiting the bank parallelism the crossbar now exposes.
 `soc_top.MemNumBanks` is a parameter, so experiments at 8 or 16 banks need only
 an override at instantiation; `sw/Makefile` already responds to a matching

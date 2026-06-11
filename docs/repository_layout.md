@@ -25,6 +25,9 @@ specific area, follow the linked documentation.
 - `rtl/mem/` - banked SRAM subsystem (`soc_mem_ss`), OBI memory buffer, and
   SRAM slice models/wrappers for behavioral and Xilinx targets.
 - `rtl/platform/soc_uart_sram_loader.sv` - side-path UART SRAM loader.
+- `rtl/platform/soc_idma.sv` - PULP iDMA system DMA wrapper (register
+  frontend, ND midend, AXI backend, burst splitter, fabric cut); enters the
+  crossbar as the fourth initiator with a config window at `DmaBaseAddr`.
 - `rtl/platform/fpga/boards/<board>/` - per-board wrapper and XDC.
   Currently: `axku5/` and `arty_a7_100t/` (one wrapper module plus one
   constraints file each).
@@ -81,9 +84,10 @@ and host runtime - nothing that ends up as SystemVerilog.
   `test_soc_sw.py`, `test_smoke.py`, `test_axi_adapters.py`,
   `test_debug_integration.py`, and `test_uart_sram_loader.py`.
 - `sw/c/` - bare-metal apps (`hello_world`, `self_check`, `bench_smoke`,
-  `timer_uart_smoke`) sharing `sw/common/link.ld.in` (the board-RAM-sized
-  linker template) and the common runtime
-  under `sw/c/common/`.
+  `timer_uart_smoke`, `dma_smoke`) sharing `sw/common/link.ld.in` (the
+  board-RAM-sized linker template) and the common runtime
+  under `sw/c/common/` (UART, printf, sim_ctrl, and the iDMA driver
+  `dma.{c,h}`).
 - `sw/zephyr/` - out-of-tree Zephyr boards, SoC definitions, devicetree
   fragments, and the CoreJack Zephyr smoke app.
 

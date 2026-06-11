@@ -153,6 +153,15 @@ recommended human-readable build identity for any bitstream.
   requires an older `pulp-platform/axi` version than CoreJack, while Bender's
   vendor-copy mode also trips over optional auxiliary upstream paths.
 
+One known resolution conflict: `clint` and `apb_uart` declare
+`register_interface ^0.3.x` upstream while `idma` requires `^0.4.3`. The
+committed `Bender.lock` records `register_interface 0.4.x` (the reg-bus
+typedefs and vendored lowRISC `prim_subreg*` files are source-compatible
+across the bump, proven by the simulation and FPGA acceptance gates).
+`bender checkout` follows the lock silently; only a deliberate
+`make deps-update` re-resolves and will prompt interactively to pick the
+`^0.4.3` requirement again.
+
 The current CVA6 pin is implemented by these Makefile variables:
 
 ```make

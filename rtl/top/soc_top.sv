@@ -10,6 +10,7 @@ module soc_top #(
   parameter bit EnablePlatform = 1'b0,
   parameter logic [31:0] DebugBaseAddr = 32'h0000_0000,
   parameter logic [31:0] ClintBaseAddr = 32'h0200_0000,
+  parameter logic [31:0] DmaBaseAddr = 32'h0100_0000,
   parameter logic [31:0] UartBaseAddr = 32'h1000_0000,
   parameter logic [31:0] RamBaseAddr = 32'h8000_0000,
   parameter int unsigned RamWords = 262144,
@@ -108,19 +109,26 @@ module soc_top #(
     localparam logic [31:0] DmExceptionAddr = DebugBaseAddr + 32'h0000_0810;
     localparam logic [31:0] DmRomBaseSelect = 32'h0000_1000;
     localparam int unsigned MemInitPorts = 2;
-    localparam int unsigned CoreAxiPorts = 3;
-    localparam int unsigned FabricAxiPorts = 4;
+    localparam logic [31:0] DmaSize = 32'h0000_1000;
+    localparam int unsigned CoreAxiPorts = 4;
+    localparam int unsigned FabricAxiPorts = 5;
     // System crossbar configuration. Replaces the former single-outstanding
     // soc_axi_arbiter + soc_axi_demux pair: per-target arbitration with up to
     // MaxTrans outstanding so independent initiators no longer serialize. Cores
     // emit single-beat, non-atomic traffic (no A extension), so ATOPs are off.
+    // CUT_ALL_AX registers the AW/AR channels at both crossbar boundaries:
+    // with a fully combinational crossbar, the valid->ready couplings of the
+    // target adapters and the iDMA backend compose into a structural
+    // combinational loop (flagged by Vivado DRC LUTLP-1); the AX cuts break
+    // it and relax timing at the cost of one cycle of address latency.
     localparam axi_pkg::xbar_cfg_t FabricXbarCfg = '{
       NoSlvPorts:         CoreAxiPorts,
       NoMstPorts:         FabricAxiPorts,
       MaxMstTrans:        4,
       MaxSlvTrans:        4,
       FallThrough:        1'b0,
-      LatencyMode:        axi_pkg::NO_LATENCY,
+      LatencyMode:        axi_pkg::CUT_ALL_AX,
+      PipelineStages:     32'd0,
       AxiIdWidthSlvPorts: soc_bus_pkg::AxiIdWidth,
       AxiIdUsedSlvPorts:  soc_bus_pkg::AxiIdWidth,
       UniqueIds:          1'b0,
@@ -242,6 +250,8 @@ module soc_top #(
     soc_apb_resp_t uart_apb_rsp;
     soc_reg_req_t  clint_reg_req;
     soc_reg_rsp_t  clint_reg_rsp;
+    soc_reg_req_t  dma_reg_req;
+    soc_reg_rsp_t  dma_reg_rsp;
     apb_rsp_t      apb_rsp;
     logic          uart_irq;
     logic [1:0]    clint_timer_irq;
@@ -313,7 +323,8 @@ module soc_top #(
       '{idx: 0, start_addr: RamBaseAddr,   end_addr: RamBaseAddr + RamSize},
       '{idx: 1, start_addr: UartBaseAddr,  end_addr: UartBaseAddr + UartSize},
       '{idx: 2, start_addr: DebugBaseAddr, end_addr: DebugBaseAddr + DebugSize},
-      '{idx: 3, start_addr: ClintBaseAddr, end_addr: ClintBaseAddr + ClintSize}
+      '{idx: 3, start_addr: ClintBaseAddr, end_addr: ClintBaseAddr + ClintSize},
+      '{idx: 4, start_addr: DmaBaseAddr,   end_addr: DmaBaseAddr + DmaSize}
     };
 
     if (CoreType == platform_pkg::CORE_CVA6) begin : gen_cva6_core_path
@@ -532,9 +543,22 @@ module soc_top #(
       .m_axi_rsp_i (core_axi_rsp[2])
     );
 
-    // System crossbar: the three initiators (core instruction, core data,
-    // debug SBA) decode per port and arbitrate per target. Decode misses land
-    // on the xbar's built-in error slave (no explicit default master port).
+    // iDMA system DMA: configured through the register window behind fabric
+    // target port [4]; its (burst-split, single-beat) AXI manager enters the
+    // crossbar as the fourth initiator.
+    soc_idma i_soc_idma (
+      .clk_i,
+      .rst_ni,
+      .reg_req_i   (dma_reg_req),
+      .reg_rsp_o   (dma_reg_rsp),
+      .m_axi_req_o (core_axi_req[3]),
+      .m_axi_rsp_i (core_axi_rsp[3]),
+      .busy_o      (/* status not routed yet; software polls DONE_ID */)
+    );
+
+    // System crossbar: the four initiators (core instruction, core data,
+    // debug SBA, iDMA) decode per port and arbitrate per target. Decode misses
+    // land on the xbar's built-in error slave (no explicit default master port).
     axi_xbar #(
       .Cfg           (FabricXbarCfg),
       .ATOPs         (1'b0),
@@ -685,6 +709,24 @@ module soc_top #(
       .s_axi_rsp_o (target_axi_rsp[3]),
       .m_reg_req_o (clint_reg_req),
       .m_reg_rsp_i (clint_reg_rsp)
+    );
+
+    soc_axi_to_reg #(
+      .BaseAddr      (DmaBaseAddr),
+      .axi_req_t     (soc_axi_mst_req_t),
+      .axi_resp_t    (soc_axi_mst_resp_t),
+      .axi_aw_chan_t (soc_axi_mst_aw_chan_t),
+      .axi_w_chan_t  (soc_axi_mst_w_chan_t),
+      .axi_ar_chan_t (soc_axi_mst_ar_chan_t),
+      .axi_b_chan_t  (soc_axi_mst_b_chan_t),
+      .axi_r_chan_t  (soc_axi_mst_r_chan_t)
+    ) i_axi_to_dma_reg (
+      .clk_i,
+      .rst_ni,
+      .s_axi_req_i (target_axi_req[4]),
+      .s_axi_rsp_o (target_axi_rsp[4]),
+      .m_reg_req_o (dma_reg_req),
+      .m_reg_rsp_i (dma_reg_rsp)
     );
 
     soc_mem_ss #(

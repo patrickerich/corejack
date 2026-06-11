@@ -7,6 +7,13 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
+- **Refresh the SoC diagrams for the iDMA initiator.** The SoC Top-Level,
+  AXI Fabric, and Memory Map tabs of
+  [`media/corejack_soc.drawio`](media/corejack_soc.drawio) still draw three
+  initiators and four targets; the integrated iDMA (fourth initiator, DMA
+  config window at `0x01000000`) is missing. Update the drawio source and
+  re-export with `make drawio-svg`. Deferred as a manual diagram edit, same
+  as the crossbar refresh before it.
 - **`soc_mem_ss` init ports assume single-outstanding clients.** Each bank
   arbitrates independently and holds one response register, but nothing stops
   one init port from having two requests outstanding to two *different* banks;

@@ -32,3 +32,10 @@ Synth 8-7080
 # Core-dependent optimization: OBI-to-AXI write-side state is removed for
 # read-only instruction-side instances.
 Synth 8-3332
+
+# The reset-synchronizer false-path constraint's */CLR-//PRE wildcard exceeds
+# Vivado's 10000-object limit at synthesis since the iDMA grew the design, so
+# synthesis excludes it. Benign: implementation (where recovery/removal
+# signoff happens) applies the constraint without hitting the limit, and the
+# routed timing summary confirms all constraints are met.
+Constraints 18-929

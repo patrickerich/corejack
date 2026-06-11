@@ -327,7 +327,7 @@ deps-update: $(BENDER_BIN)
 deps-base: $(BENDER_BIN)
 	@"$(BENDER)" checkout
 	@mkdir -p deps
-	@for dep in axi apb apb_uart clint obi obi_peripherals register_interface riscv-dbg common_cells tech_cells_generic common_verification; do \
+	@for dep in axi apb apb_uart clint obi obi_peripherals register_interface riscv-dbg common_cells tech_cells_generic common_verification idma axi_stream; do \
 		path="$$("$(BENDER)" path "$$dep" 2>/dev/null || true)"; \
 		if [ -n "$$path" ]; then ln -sfn "$$path" "deps/$$dep"; fi; \
 	done
