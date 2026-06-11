@@ -17,7 +17,7 @@ prints over the platform APB UART.
   (Ibex, CV32E40P/S/X, CVA6, CVW/Wally, SERV, PicoRV32), and the platform
   is built to keep growing - `make new-core` scaffolds the next one.
 - **ASIC-aware, not FPGA-first.** Production PULP-Platform IP (AXI4,
-  APB, OBI, `riscv-dbg`, CLINT, `apb_uart`), real reset domains, and
+  APB, OBI, `riscv-dbg`, CLINT, `apb_uart`, `iDMA`), real reset domains, and
   thin board wrappers, so the same SoC structure is meaningful beyond
   prototyping.
 - **SystemVerilog throughout.** 100% hand-written SV for everything
@@ -46,6 +46,8 @@ Validated baseline:
 - RAM: banked SRAM at `0x80000000`; UART: APB UART at `0x10000000`,
   `115200` baud
 - CLINT machine timer at `0x02000000`; Zephyr timer frequency `12.5 MHz`
+- iDMA system DMA: config window at `0x01000000`, driven from C via
+  `sw/c/common/dma.h` (`dma_smoke` is the validation app)
 - debug transport: external JTAG through `riscv-dbg` (`dmi_jtag` + `dm_top`)
 - Zephyr: `initial_supported` on the Zephyr-capable cores (a per-core
   capability; see the support matrix)

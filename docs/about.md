@@ -131,7 +131,8 @@ Being honest about scope avoids future surprises:
   and broader regression coverage are explicit follow-up work — see
   [`zephyr_bringup.md`](zephyr_bringup.md).
 - **You want a large peripheral library.** CoreJack ships exactly what
-  the platform needs (APB UART, CLINT, banked SRAM, debug). LiteX is
+  the platform needs (APB UART, CLINT, banked SRAM, debug, and the iDMA
+  system DMA). LiteX is
   much better suited if peripheral variety is the point.
 - **You want generator-driven RTL.** CoreJack favours explicit,
   human-authored SystemVerilog over generators. Chipyard wins on that
