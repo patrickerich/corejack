@@ -1,9 +1,45 @@
-# Tigard JTAG Wiring — AXKU5 ⇄ Arty A7-100T
+# External JTAG Wiring — AXKU5 (Tigard) / Arty A7-100T (Olimex)
 
-External-JTAG (Tigard) lead assignments for the `riscv-dbg` soft TAP, per board.
-Use this when moving the Tigard between boards. The OpenOCD config
-(`rtl/platform/fpga/scripts/openocd.cfg`, Tigard + `riscv-dbg`, IDCODE `0x1`) is
-shared; only the physical pins and `BOARD=` differ.
+External-JTAG lead assignments for the `riscv-dbg` soft TAP, per board. Each
+board selects its JTAG adapter through `debug.openocd_cfg` in
+`cfg/boards/<board>.yaml`:
+
+- **AXKU5**: Tigard v1 — `rtl/platform/fpga/scripts/openocd-tigard.cfg`
+- **Arty A7-100T**: Olimex ARM-USB-TINY (15ba:0004) —
+  `rtl/platform/fpga/scripts/openocd-olimex-arm-usb-tiny.cfg`
+
+Both wrappers share the same riscv-dbg target setup
+(`openocd-riscv-target.cfg`, IDCODE `0x1`), so both boards can stay connected
+simultaneously; OpenOCD picks the right probe by adapter type, and Vivado
+programming picks the right board by FPGA part. The FPGA-side pin tables below
+apply regardless of which probe is soldered to the header.
+
+## Using A Different Or Custom JTAG Adapter
+
+The adapter choice is just a name resolving to
+`rtl/platform/fpga/scripts/openocd-<name>.cfg`:
+
+- **Per board (persistent)**: set `debug.jtag_adapter: <name>` in
+  `cfg/boards/<board>.yaml`. This is the project default for that board and
+  is validated by `make board-check`.
+- **Per invocation (your bench differs)**: pass `JTAG_ADAPTER=<name>` to any
+  make target that talks to OpenOCD (`make openocd`, `make fpga-accept`, the
+  acceptance script honours the same variable), without editing tracked
+  files. A fully custom config file can also be passed directly with
+  `OPENOCD_CFG=<path>`.
+- **Adding a new adapter**: create a three-line wrapper next to the existing
+  ones. For example, for an Olimex ARM-USB-TINY-H (`15ba:002a`):
+
+  ```tcl
+  # rtl/platform/fpga/scripts/openocd-olimex-arm-usb-tiny-h.cfg
+  source [find interface/ftdi/olimex-arm-usb-tiny-h.cfg]
+  transport select jtag
+  source [file join [file dirname [info script]] openocd-riscv-target.cfg]
+  ```
+
+  Any probe with an upstream OpenOCD `interface/` config works the same way;
+  the shared `openocd-riscv-target.cfg` provides the riscv-dbg TAP setup and
+  must not be duplicated into adapter wrappers.
 
 | Signal (port) | AXKU5 FPGA pin | AXKU5 `J8` pin | Arty FPGA pin | Arty `JD` (Pmod) pin |
 | --- | --- | --- | --- | --- |

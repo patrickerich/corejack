@@ -85,6 +85,7 @@ filesets:
       - rtl/bus/soc_axi_to_mem.sv
       - rtl/bus/soc_axi_to_reg.sv
       - rtl/platform/soc_uart_sram_loader.sv
+      - rtl/platform/soc_idma.sv
       - rtl/top/soc_top.sv
     file_type: systemVerilogSource
 
@@ -154,6 +155,9 @@ targets:
         # axi_xbar dependencies (rr_arb_tree, lzc) raise these benign lints.
         - -Wno-UNSIGNED
         - -Wno-SPLITVAR
+        # iDMA dependencies (axi_burst_splitter_gran, id_queue) raise these.
+        - -Wno-IMPLICIT
+        - -Wno-PINMISSING
     filesets_append:
       - tb_sv
       - tb_cocotb
@@ -184,6 +188,7 @@ targets:
         - -Wno-MODDUP
         - -Wno-REDEFMACRO
         - -Wno-IMPLICIT
+        - -Wno-PINMISSING
         - core_cv32e40p ? (-Wno-CASEINCOMPLETE)
         - core_cv32e40x ? (-Wno-CASEINCOMPLETE)
         - core_cv32e40s ? (-Wno-CASEINCOMPLETE)
@@ -245,6 +250,7 @@ targets:
         - -Wno-MODDUP
         - -Wno-REDEFMACRO
         - -Wno-IMPLICIT
+        - -Wno-PINMISSING
         - -Wno-LATCH
         - -Wno-MULTIDRIVEN
         - -Wno-UNOPTFLAT
@@ -279,6 +285,7 @@ targets:
         - -Wno-MODDUP
         - -Wno-REDEFMACRO
         - -Wno-IMPLICIT
+        - -Wno-PINMISSING
         - -Wno-LATCH
         - -Wno-UNOPTFLAT
         - -Wno-WIDTHEXPAND

@@ -16,6 +16,8 @@ filesets:
       - deps/register_interface/include/register_interface/assign.svh  : {file_type : user, copyto : register_interface/assign.svh}
       - deps/common_cells/include/common_cells/assertions.svh : {file_type : user, copyto : common_cells/assertions.svh}
       - deps/common_cells/include/common_cells/registers.svh  : {file_type : user, copyto : common_cells/registers.svh}
+      - deps/idma/src/include/idma/typedef.svh : {file_type : user, copyto : idma/typedef.svh}
+      - deps/idma/src/include/idma/guard.svh   : {file_type : user, copyto : idma/guard.svh}
 
   pulp_pkg_deps:
     files:
@@ -24,6 +26,7 @@ filesets:
       - deps/axi/src/axi_pkg.sv
       - deps/obi/src/obi_pkg.sv
       - deps/riscv-dbg/src/dm_pkg.sv
+      - deps/idma/src/idma_pkg.sv
     file_type: systemVerilogSource
 
   platform_common_rtl:
@@ -96,9 +99,50 @@ filesets:
       - deps/axi/src/axi_id_prepend.sv
       - deps/axi/src/axi_atop_filter.sv
       - deps/axi/src/axi_err_slv.sv
+      # axi >= 0.39 splits the demux into a wrapper plus axi_demux_simple.
+      - deps/axi/src/axi_demux_simple.sv
       - deps/axi/src/axi_demux.sv
       - deps/axi/src/axi_mux.sv
+      # axi >= 0.39 splits the crossbar into an unmuxed core plus a wrapper.
+      - deps/axi/src/axi_xbar_unmuxed.sv
       - deps/axi/src/axi_xbar.sv
+    file_type: systemVerilogSource
+
+  # PULP iDMA (register frontend + ND midend + AXI4 backend) and its
+  # transitive dependencies, used by rtl/platform/soc_idma.sv. Ordered
+  # leaf-first; relies on idma_pkg/axi_pkg and the common_cells files from
+  # the filesets above.
+  platform_idma_rtl:
+    files:
+      - deps/common_cells/src/onehot_to_bin.sv
+      - deps/common_cells/src/popcount.sv
+      - deps/common_cells/src/fall_through_register.sv
+      - deps/common_cells/src/passthrough_stream_fifo.sv
+      - deps/common_cells/src/stream_fifo.sv
+      - deps/common_cells/src/stream_fifo_optimal_wrap.sv
+      - deps/common_cells/src/stream_fork.sv
+      - deps/common_cells/src/id_queue.sv
+      - deps/register_interface/vendor/lowrisc_opentitan/src/prim_subreg_ext.sv
+      - deps/axi/src/axi_cut.sv
+      - deps/axi/src/axi_multicut.sv
+      - deps/axi/src/axi_rw_join.sv
+      - deps/axi/src/axi_burst_splitter_gran.sv
+      - deps/axi/src/axi_burst_splitter.sv
+      - deps/idma/src/backend/idma_axi_read.sv
+      - deps/idma/src/backend/idma_axi_write.sv
+      - deps/idma/src/backend/idma_channel_coupler.sv
+      - deps/idma/src/backend/idma_dataflow_element.sv
+      - deps/idma/src/backend/idma_error_handler.sv
+      - deps/idma/src/backend/idma_legalizer_page_splitter.sv
+      - deps/idma/src/backend/idma_legalizer_pow2_splitter.sv
+      - deps/idma/target/rtl/idma_legalizer_rw_axi.sv
+      - deps/idma/target/rtl/idma_transport_layer_rw_axi.sv
+      - deps/idma/target/rtl/idma_backend_rw_axi.sv
+      - deps/idma/src/midend/idma_nd_midend.sv
+      - deps/idma/src/frontend/idma_transfer_id_gen.sv
+      - deps/idma/target/rtl/idma_reg32_3d_reg_pkg.sv
+      - deps/idma/target/rtl/idma_reg32_3d_reg_top.sv
+      - deps/idma/target/rtl/idma_reg32_3d_top.sv
     file_type: systemVerilogSource
 
 targets:
@@ -111,3 +155,4 @@ targets:
       - platform_debug_rtl
       - common_addr_decode_rtl
       - platform_fabric_rtl
+      - platform_idma_rtl

@@ -517,7 +517,8 @@ start_openocd() {
   openocd_log="$log_dir/openocd_${board}_${core}.log"
   : > "$openocd_log"
 
-  make openocd CORE="$core" BOARD="$board" > "$openocd_log" 2>&1 &
+  make openocd CORE="$core" BOARD="$board" \
+    ${JTAG_ADAPTER:+JTAG_ADAPTER="$JTAG_ADAPTER"} > "$openocd_log" 2>&1 &
   openocd_pid="$!"
 
   for _ in $(seq 1 100); do
@@ -606,7 +607,7 @@ for core in $cores; do
 
   if [ "$skip_sim" -eq 0 ]; then
     if [ "$firmware" = "baremetal" ]; then
-      make sim-run-sw CORE="$core" BOARD="$board" SW_APP="$app" SIM_TIMEOUT_CYCLES=1000000
+      make sim-run-sw CORE="$core" BOARD="$board" SW_APP="$app" SIM_TIMEOUT_CYCLES="${SIM_TIMEOUT_CYCLES:-1000000}"
     else
       echo "Skipping sim-run-sw for firmware=zephyr; this acceptance flow checks FPGA/OpenOCD/GDB."
     fi

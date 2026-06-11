@@ -82,7 +82,11 @@ UART_LOADER_CHUNK_SIZE ?= 4096
 UART_LOADER_TIMEOUT ?= 2
 UART_LOADER_EXPECT ?=
 FPGA_ACCEPT_CORES ?=
-OPENOCD_CFG    ?= rtl/platform/fpga/scripts/openocd.cfg
+# External JTAG adapter for OpenOCD. The board descriptor provides the
+# default (debug.jtag_adapter); set JTAG_ADAPTER=<name> on the command line
+# to use a different probe, where rtl/platform/fpga/scripts/openocd-<name>.cfg
+# must exist. OPENOCD_CFG remains overridable directly for fully custom files.
+JTAG_ADAPTER   ?=
 SIM_TIMEOUT_CYCLES ?= 1000000
 SIM_FUSESOC_WORK_ROOT ?= $(CURDIR)/build/sim/fusesoc/$(CORE)/$(SIM_FUSESOC_TARGET)
 SIM_WAVES      ?= 0
@@ -105,6 +109,7 @@ endif
 
 TARGET_CONFIG := $(shell $(PYTHON) bin/validate_target.py --core "$(CORE)" --board "$(BOARD)" --make --allow-planned 2>/dev/null)
 $(eval $(TARGET_CONFIG))
+OPENOCD_CFG ?= rtl/platform/fpga/scripts/openocd-$(JTAG_ADAPTER).cfg
 FUSESOC_CORE_FLAGS ?= $(FUSESOC_CORE_FLAG)
 FUSESOC_FLAGS ?= $(FUSESOC_CORE_FLAGS) $(FUSESOC_BOARD_FLAG)
 FUSESOC_FLAG_ARGS := $(foreach flag,$(FUSESOC_FLAGS),--flag $(flag))
@@ -327,7 +332,7 @@ deps-update: $(BENDER_BIN)
 deps-base: $(BENDER_BIN)
 	@"$(BENDER)" checkout
 	@mkdir -p deps
-	@for dep in axi apb apb_uart clint obi obi_peripherals register_interface riscv-dbg common_cells tech_cells_generic common_verification; do \
+	@for dep in axi apb apb_uart clint obi obi_peripherals register_interface riscv-dbg common_cells tech_cells_generic common_verification idma axi_stream; do \
 		path="$$("$(BENDER)" path "$$dep" 2>/dev/null || true)"; \
 		if [ -n "$$path" ]; then ln -sfn "$$path" "deps/$$dep"; fi; \
 	done

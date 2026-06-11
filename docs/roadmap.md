@@ -7,13 +7,11 @@ promote a core, see [`core_acceptance_checklist.md`](core_acceptance_checklist.m
 
 ## Current Baseline
 
-The first FPGA board target `axku5` is hardware-validated across the
-supported core set (last full pass on the pre-crossbar fabric; re-validation
-with the `axi_xbar` fabric is tracked in [`open_items.md`](open_items.md)).
-A second board, `arty_a7_100t` (Arty A7-100T, Artix-7),
-is hardware-validated across the supported core set with the crossbar fabric: a full
-`make fpga-accept` regression builds a bitstream, programs the board, and runs
-bare-metal `hello_world` for all seven cores - OpenOCD/GDB load/run for the
+Both FPGA board targets - `axku5` (ALINX AXKU5, Kintex UltraScale+) and
+`arty_a7_100t` (Arty A7-100T, Artix-7) - are hardware-validated across the
+supported core set with the crossbar fabric: a full `make fpga-accept`
+regression builds a bitstream, programs the board, and runs bare-metal
+`hello_world` for all seven cores - OpenOCD/GDB load/run for the
 debug-capable cores (ibex, cv32e40p, cv32e40s, cva6) and the UART SRAM loader
 for the rest (serv, picorv32, cvw). Zephyr console/timer smoke on Arty is
 validated with Ibex.
@@ -29,9 +27,9 @@ Platform pieces:
   arbitration and exposes a separate init port that the AXI fabric, the
   simulation preloader, and the optional UART SRAM loader share.
 - `riscv-dbg` (`dmi_jtag` + `dm_top`) and CLINT are integrated in `soc_top`.
-- Bitstreams close timing at the conservative `25 MHz` default (AXKU5 last
-  built on the pre-crossbar fabric; the Arty A7-100T closes timing with the
-  `axi_xbar` crossbar at `+6.5 ns` WNS on ibex).
+- Bitstreams close timing at the conservative `25 MHz` default with the
+  `axi_xbar` crossbar on both boards (ibex WNS: `+12.6 ns` on the AXKU5,
+  `+6.5 ns` on the Arty A7-100T).
 - OpenOCD enumerates and examines the RISC-V target over external JTAG;
   GDB loads an ELF into SRAM through the debug module SBA path.
 - `hello_world` runs from SRAM and prints through the platform APB UART at
@@ -130,9 +128,9 @@ Software and validation flow:
   target with multiple outstanding requests, instead of serializing upstream of
   the banked memory. This paid off with the *existing* initiator set - it was
   not blocked on AXI-native burst initiators arriving. Validated by the full
-  `make axi-smoke` simulation set and by a full `make fpga-accept` regression on
-  the Arty A7-100T across all seven supported cores; the crossbar closes timing
-  at the 25 MHz default (ibex WNS +6.5 ns). See
+  `make axi-smoke` simulation set and by full `make fpga-accept` regressions on
+  both boards (AXKU5 and Arty A7-100T) across all seven supported cores; the
+  crossbar closes timing at the 25 MHz default on both. See
   [`axi4_fabric.md`](axi4_fabric.md).
 - Adopt a layered interconnect as the platform endpoint, structured as
   three named subsystems: a **memory subsystem** (`soc_mem_ss`, per-bank
@@ -188,22 +186,33 @@ CoreJack sketches an accelerator socket interface
 the current baseline, this interface is a **declared contract, not a
 validated one**: it exists in source but has no consumer in the
 platform yet. The "jack in an IP" pitch in [`about.md`](about.md)
-describes the intent, and the planned uDMA integration below will be
-the first real user of the socket - that integration will validate the
-power/reset, AXI memory, APB CSR, and IRQ pieces of the contract end
-to end, and will likely shape its final form.
+describes the intent. The iDMA integration below lands as a direct
+single-port initiator first (the cheap integration the dual-port
+pattern recommends); migrating it onto the socket - validating the
+power/reset, AXI memory, CSR, and IRQ pieces of the contract end to
+end - is the natural follow-up that will shape the socket's final
+form.
 
 The direction is to grow the set of integrated system IP that plugs
 into the shared AXI fabric the same way cores do, so hobbyists and IP
 developers can validate new blocks against a real CPU on real hardware
 without rebuilding the integration layer.
 
+The first system IP has landed:
+
+- **DMA engine - integrated**: PULP `iDMA` (`rtl/platform/soc_idma.sv`) -
+  the `idma_reg32_3d` register frontend, ND midend, and `idma_backend_rw_axi`
+  behind a burst splitter, entering the crossbar as the fourth initiator with
+  a register window at `DmaBaseAddr`. Cheshire integrates the same engine in
+  the same shape. Software drives it through `sw/c/common/dma.{c,h}` and the
+  `dma_smoke` app, validated in simulation and on AXKU5 hardware. (The
+  earlier candidate, the CORE-V MCU uDMA, was dropped: it is a peripheral
+  DMA subsystem whose UART/I2C/QSPI/SDIO peripherals are integral to it,
+  its memory side is not AXI, and its upstream `udma_core` repository is
+  archived.)
+
 Candidate near-term additions (planned, not yet started):
 
-- **DMA engine**: the leading candidate is the OpenHW Group CORE-V MCU
-  uDMA. A DMA is a natural first accelerator-class block because it
-  exercises the multi-initiator AXI fabric and gives bare-metal and
-  Zephyr applications a non-CPU initiator to drive from C.
 - **More APB peripherals**: SPI, I2C, GPIO, and additional timers behind
   the existing APB peripheral path so applications have more to talk to.
 - **User accelerators**: small fixed-function blocks driven from C
@@ -265,10 +274,9 @@ mistakes.
 
 ### Memory subsystem follow-up
 
-Once a second concurrent initiator lands (uDMA being the leading
-candidate) and the AXI fabric is widened to exploit today's three
-initiators in parallel, the bank count revisit becomes concrete. The
-infrastructure is already in place:
+With the fabric widened and the iDMA landed as a true second concurrent
+initiator, the bank count revisit is now concrete. The infrastructure is
+already in place:
 
 - `soc_mem_ss` is generic over `NumBanks` and `NumInitPorts`.
 - `soc_top.MemNumBanks` is a parameter (default 4); overriding it at
@@ -278,7 +286,7 @@ infrastructure is already in place:
 
 `MemNumBanks` and `NumInitPorts` are **coupled** tuning levers: as
 `NumInitPorts` grows toward the end-state ~6 (CPU instr direct + CPU data
-direct + xbar fallback + UART loader + uDMA + accelerator),
+direct + xbar fallback + UART loader + iDMA + accelerator),
 `MemNumBanks` should grow with it. The textbook `B ≈ 2·N` heuristic
 assumes pathologically random independent address streams (DRAM-style or
 NoC-style worst-case), which is not what CoreJack carries: CPU

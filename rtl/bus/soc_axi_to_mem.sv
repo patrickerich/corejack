@@ -33,7 +33,6 @@ module soc_axi_to_mem
 );
   typedef enum logic [2:0] {
     StateIdle,
-    StateWriteCollect,
     StateWriteMem,
     StateWriteWait,
     StateWriteResp,
@@ -48,8 +47,6 @@ module soc_axi_to_mem
   axi_ar_chan_t ar_q;
   axi_r_chan_t  r_q;
   axi_b_chan_t  b_q;
-  logic                          have_aw_q;
-  logic                          have_w_q;
   // Round-robin tie-break between a pending read and a pending write so neither
   // starves. 1 => a read wins a simultaneous read/write tie.
   logic                          rr_prefer_read_q;
@@ -57,8 +54,13 @@ module soc_axi_to_mem
   logic                          wr_req;
   logic                          arb_read;
 
+  // A write only competes once both AW and W are valid. Committing to a
+  // write on a lone AW (and blocking reads while waiting for W) deadlocks
+  // against a read-to-write coupled initiator such as the iDMA doing a
+  // memcpy within RAM: its W data is produced from its own R data, so the
+  // pending read must be served first.
   assign rd_req   = s_axi_req_i.ar_valid;
-  assign wr_req   = s_axi_req_i.aw_valid || s_axi_req_i.w_valid;
+  assign wr_req   = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
   assign arb_read = rd_req && (!wr_req || rr_prefer_read_q);
 
   always_comb begin
@@ -81,14 +83,9 @@ module soc_axi_to_mem
         if (arb_read) begin
           s_axi_rsp_o.ar_ready = 1'b1;
         end else begin
-          s_axi_rsp_o.aw_ready = s_axi_req_i.aw_valid;
-          s_axi_rsp_o.w_ready  = s_axi_req_i.w_valid;
+          s_axi_rsp_o.aw_ready = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
+          s_axi_rsp_o.w_ready  = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
         end
-      end
-
-      StateWriteCollect: begin
-        s_axi_rsp_o.aw_ready = !have_aw_q;
-        s_axi_rsp_o.w_ready  = !have_w_q;
       end
 
       StateWriteMem: begin
@@ -138,50 +135,19 @@ module soc_axi_to_mem
       ar_q      <= '0;
       r_q       <= '0;
       b_q       <= '0;
-      have_aw_q <= 1'b0;
-      have_w_q  <= 1'b0;
       rr_prefer_read_q <= 1'b1;
     end else begin
       unique case (state_q)
         StateIdle: begin
-          have_aw_q <= 1'b0;
-          have_w_q  <= 1'b0;
-
           if (s_axi_rsp_o.ar_ready && s_axi_req_i.ar_valid) begin
             ar_q    <= s_axi_req_i.ar;
             rr_prefer_read_q <= 1'b0;  // just served a read; favor a write next
             state_q <= StateReadMem;
-          end else if ((s_axi_rsp_o.aw_ready && s_axi_req_i.aw_valid) ||
-                       (s_axi_rsp_o.w_ready  && s_axi_req_i.w_valid)) begin
+          end else if (s_axi_rsp_o.aw_ready && s_axi_req_i.aw_valid &&
+                       s_axi_rsp_o.w_ready && s_axi_req_i.w_valid) begin
+            aw_q    <= s_axi_req_i.aw;
+            w_q     <= s_axi_req_i.w;
             rr_prefer_read_q <= 1'b1;  // serving a write; favor a read next
-            if (s_axi_rsp_o.aw_ready && s_axi_req_i.aw_valid) begin
-              aw_q      <= s_axi_req_i.aw;
-              have_aw_q <= 1'b1;
-            end
-            if (s_axi_rsp_o.w_ready && s_axi_req_i.w_valid) begin
-              w_q      <= s_axi_req_i.w;
-              have_w_q <= 1'b1;
-            end
-            if ((s_axi_rsp_o.aw_ready && s_axi_req_i.aw_valid) &&
-                (s_axi_rsp_o.w_ready  && s_axi_req_i.w_valid)) begin
-              state_q <= StateWriteMem;
-            end else begin
-              state_q <= StateWriteCollect;
-            end
-          end
-        end
-
-        StateWriteCollect: begin
-          if (s_axi_rsp_o.aw_ready && s_axi_req_i.aw_valid) begin
-            aw_q      <= s_axi_req_i.aw;
-            have_aw_q <= 1'b1;
-          end
-          if (s_axi_rsp_o.w_ready && s_axi_req_i.w_valid) begin
-            w_q      <= s_axi_req_i.w;
-            have_w_q <= 1'b1;
-          end
-          if ((have_aw_q || (s_axi_rsp_o.aw_ready && s_axi_req_i.aw_valid)) &&
-              (have_w_q  || (s_axi_rsp_o.w_ready  && s_axi_req_i.w_valid))) begin
             state_q <= StateWriteMem;
           end
         end

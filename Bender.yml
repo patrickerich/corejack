@@ -9,7 +9,13 @@ dependencies:
     version: 0.2.4
   axi:
     git: https://github.com/pulp-platform/axi.git
-    version: 0.38.0
+    version: 0.39.1
+  common_cells:
+    git: https://github.com/pulp-platform/common_cells.git
+    version: 1.39.0
+  idma:
+    git: https://github.com/pulp-platform/iDMA.git
+    version: 0.6.5
   clint:
     git: https://github.com/pulp-platform/clint.git
     rev: d5390a805c20f9226758a152ba1645f61da73349
@@ -73,6 +79,7 @@ sources:
     - rtl/bus/soc_axi_to_mem.sv
     - rtl/bus/soc_axi_to_reg.sv
     - rtl/platform/soc_uart_sram_loader.sv
+    - rtl/platform/soc_idma.sv
     - deps/register_interface/vendor/lowrisc_opentitan/src/prim_subreg_arb.sv
     - deps/register_interface/vendor/lowrisc_opentitan/src/prim_subreg.sv
     - deps/clint/src/clint_reg_pkg.sv
