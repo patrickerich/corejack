@@ -35,8 +35,9 @@ flow would expect, not FPGA-only shortcuts.
   through a small test app, and exercise it both in simulation and on
   hardware. The same FPGA flow then doubles as a stage for turning
   that IP into a working application, not just a unit test. The
-  accelerator socket itself is currently a sketched contract awaiting
-  its first real consumer - see
+  accelerator socket is a validated contract: the iDMA system DMA is
+  its first tenant (AXI memory, APB CSR, and PLIC-routed interrupt legs
+  exercised in simulation and on hardware) - see
   [`roadmap.md`](roadmap.md#system-ip-and-accelerator-expansion).
 - Researchers and educators who want a SystemVerilog-only platform that
   is small enough to read end-to-end in an afternoon.

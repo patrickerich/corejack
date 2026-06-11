@@ -46,7 +46,9 @@ Validated baseline:
 - RAM: banked SRAM at `0x80000000`; UART: APB UART at `0x10000000`,
   `115200` baud
 - CLINT machine timer at `0x02000000`; Zephyr timer frequency `12.5 MHz`
-- iDMA system DMA: config window at `0x01000000`, driven from C via
+- iDMA system DMA: first tenant of the accelerator socket
+  (`accel_socket_if`); config window at `0x01000000` (APB CSR leg),
+  completion interrupt on PLIC source 2, driven from C via
   `sw/c/common/dma.h` (`dma_smoke` is the validation app)
 - PLIC at `0x0C000000` (standard RISC-V PLIC layout, `soc_plic`): platform
   interrupts reach every core's machine external interrupt line; driven from

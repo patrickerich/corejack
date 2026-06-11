@@ -67,16 +67,16 @@
                 <mxCell id="axi_xbar" value="axi_xbar&#xa;(4 slv : 6 mst)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="980" y="50" width="290" height="420" as="geometry"/>
                 </mxCell>
-                <mxCell id="soc_idma" value="soc_idma&#xa;(iDMA, burst-split)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
+                <mxCell id="soc_idma" value="iDMA accel socket&#xa;(soc_idma, irq -&gt; PLIC 2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="720" y="400" width="140" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="axi2reg_dma" value="soc_axi_to_reg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
+                <mxCell id="axi2reg_dma" value="soc_axi_to_apb" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="1380" y="350" width="180" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="axi2reg_plic" value="soc_axi_to_reg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="1380" y="550" width="180" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="soc_plic" value="soc_plic&#xa;(PLIC, M-mode ctx)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
+                <mxCell id="soc_plic" value="soc_plic&#xa;(PLIC: 1=UART, 2=iDMA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="1640" y="550" width="200" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="e_plic_tgt" value="0x0C000000" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.95;entryX=0;entryY=0.5" parent="soctop" source="axi_xbar" target="axi2reg_plic" edge="1">
@@ -106,7 +106,7 @@
                 <mxCell id="e_dma_tgt" value="0x01000000" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.998;exitY=0.785;entryX=0;entryY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" parent="soctop" source="axi_xbar" target="axi2reg_dma" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_dma_cfg" value="cfg reg if" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="soctop" source="axi2reg_dma" target="soc_idma" edge="1">
+                <mxCell id="e_dma_cfg" value="cfg APB" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.5;exitY=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="soctop" source="axi2reg_dma" target="soc_idma" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="1470" y="490"/>
@@ -348,10 +348,10 @@
                 <mxCell id="i_dma" value="soc_idma AXI manager&#xa;(burst-split, single-beat)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="320" y="620" width="180" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="t_dma" value="soc_axi_to_reg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
+                <mxCell id="t_dma" value="soc_axi_to_apb" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="1200" y="630" width="180" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="ep_dma" value="soc_idma config&#xa;(idma_reg32_3d regs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
+                <mxCell id="ep_dma" value="iDMA socket CSR&#xa;(APB -&gt; reg, irq W1C)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="1460" y="630" width="180" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="e_dma_in" value="AXI[3]" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;" parent="1" source="i_dma" edge="1">
@@ -362,7 +362,7 @@
                 <mxCell id="e_dma_out" value="port[4]" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.996;exitY=0.906;entryX=0;entryY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="xbar" target="t_dma" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_dma_ep" value="reg if" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5" parent="1" source="t_dma" target="ep_dma" edge="1">
+                <mxCell id="e_dma_ep" value="APB" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5" parent="1" source="t_dma" target="ep_dma" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="t_plic" value="soc_axi_to_reg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
@@ -919,7 +919,7 @@
                 <mxCell id="lbl_dma_bot" value="0x01000000" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;fontSize=10" parent="1" vertex="1">
                     <mxGeometry x="40" y="930" width="80" height="20" as="geometry"/>
                 </mxCell>
-                <mxCell id="c_dma" value="iDMA config (DmaBaseAddr=0x01000000, DmaSize=0x1000 = 4 KiB)&#xa;idma_reg32_3d registers; reachable via axi_xbar port[4] -&gt; soc_axi_to_reg. Program SRC/DST/LENGTH, read NEXT_ID_0 to launch; see sw/c/common/dma.h." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=11;align=left;spacingLeft=8;spacingTop=4" parent="1" vertex="1">
+                <mxCell id="c_dma" value="iDMA config (DmaBaseAddr=0x01000000, DmaSize=0x1000 = 4 KiB)&#xa;idma_reg32_3d registers behind the accel socket (axi_xbar port[4] -&gt; soc_axi_to_apb); CoreJack irq W1C at +0xF00. Program SRC/DST/LENGTH, read NEXT_ID_0 to launch; see sw/c/common/dma.h." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=11;align=left;spacingLeft=8;spacingTop=4" parent="1" vertex="1">
                     <mxGeometry x="240" y="890" width="540" height="70" as="geometry"/>
                 </mxCell>
                 <mxCell id="lbl_clint_top" value="0x02010000" style="text;html=1;align=right;verticalAlign=middle;fontSize=11" parent="1" vertex="1">

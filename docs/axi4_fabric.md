@@ -27,9 +27,10 @@ the fabric targets:
 - UART through `soc_axi_to_apb`
 - debug module register/ROM window through `soc_axi_to_dm`
 - CLINT through `soc_axi_to_reg`
-- the iDMA configuration window through a second `soc_axi_to_reg` into the
-  `idma_reg32_3d` register frontend
-- the PLIC (`rtl/platform/soc_plic.sv`) through a third `soc_axi_to_reg`;
+- the iDMA configuration window through a second `soc_axi_to_apb` into the
+  accelerator socket's APB CSR leg (`corejack_idma_socket_adapter` converts
+  to the `idma_reg32_3d` register interface internally)
+- the PLIC (`rtl/platform/soc_plic.sv`) through a second `soc_axi_to_reg`;
   it aggregates the platform interrupt sources (UART today, the iDMA
   completion interrupt when it lands) onto each core's machine external
   interrupt line, with the standard RISC-V PLIC register layout (see
@@ -105,7 +106,7 @@ become PLIC sources instead of per-core wiring decisions:
 | Source ID | Interrupt |
 | ---: | --- |
 | 1 | UART (16550 `INT`, enabled through the UART `IER`) |
-| 2 | reserved for the iDMA completion interrupt (tied off today) |
+| 2 | iDMA transfer completion (sticky flag in the socket adapter; acknowledge with a W1C write to DMA window offset `0xF00` before completing at the PLIC) |
 
 Software drives it through `sw/c/common/plic.h`; `plic_smoke` validates
 poll-mode claim/complete, threshold masking, and interrupt-driven delivery

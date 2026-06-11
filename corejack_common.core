@@ -49,6 +49,7 @@ filesets:
       - deps/register_interface/vendor/lowrisc_opentitan/src/prim_subreg.sv
       - deps/register_interface/src/reg_intf.sv
       - deps/register_interface/src/reg_to_apb.sv
+      - deps/register_interface/src/apb_to_reg_v2.sv
       - deps/clint/src/clint_reg_pkg.sv
       - deps/clint/src/clint_reg_top.sv
       - deps/clint/src/clint.sv

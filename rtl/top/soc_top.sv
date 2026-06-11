@@ -258,8 +258,8 @@ module soc_top #(
     soc_apb_resp_t uart_apb_rsp;
     soc_reg_req_t  clint_reg_req;
     soc_reg_rsp_t  clint_reg_rsp;
-    soc_reg_req_t  dma_reg_req;
-    soc_reg_rsp_t  dma_reg_rsp;
+    soc_apb_req_t  dma_apb_req;
+    soc_apb_resp_t dma_apb_rsp;
     soc_reg_req_t  plic_reg_req;
     soc_reg_rsp_t  plic_reg_rsp;
     apb_rsp_t      apb_rsp;
@@ -556,17 +556,32 @@ module soc_top #(
       .m_axi_rsp_i (core_axi_rsp[2])
     );
 
-    // iDMA system DMA: configured through the register window behind fabric
-    // target port [4]; its (burst-split, single-beat) AXI manager enters the
-    // crossbar as the fourth initiator.
-    soc_idma i_soc_idma (
-      .clk_i,
-      .rst_ni,
-      .reg_req_i   (dma_reg_req),
-      .reg_rsp_o   (dma_reg_rsp),
-      .m_axi_req_o (core_axi_req[3]),
-      .m_axi_rsp_i (core_axi_rsp[3]),
-      .busy_o      (/* status not routed yet; software polls DONE_ID */)
+    // iDMA system DMA, plugged in through the accelerator socket: the CSR
+    // leg arrives as APB from fabric target port [4], the (burst-split,
+    // single-beat) AXI manager enters the crossbar as the fourth initiator,
+    // and the completion interrupt lands on PLIC source 2. No platform power
+    // controller exists yet, so the power-intent pins sit in the static
+    // active state (asserted inside the adapter).
+    accel_socket_if #(
+      .mem_axi_req_t (soc_axi_req_t),
+      .mem_axi_rsp_t (soc_axi_resp_t),
+      .csr_apb_req_t (soc_apb_req_t),
+      .csr_apb_rsp_t (soc_apb_resp_t)
+    ) i_dma_socket ();
+
+    assign i_dma_socket.clk      = clk_i;
+    assign i_dma_socket.rst_n    = rst_ni;
+    assign i_dma_socket.power_en = 1'b1;
+    assign i_dma_socket.isolate  = 1'b0;
+    assign i_dma_socket.retain   = 1'b0;
+    assign i_dma_socket.clk_en   = 1'b1;
+    assign i_dma_socket.csr_req  = dma_apb_req;
+    assign dma_apb_rsp           = i_dma_socket.csr_rsp;
+    assign core_axi_req[3]       = i_dma_socket.mem_req;
+    assign i_dma_socket.mem_rsp  = core_axi_rsp[3];
+
+    corejack_idma_socket_adapter i_idma_socket_adapter (
+      .sock (i_dma_socket.accel)
     );
 
     // System crossbar: the four initiators (core instruction, core data,
@@ -724,7 +739,10 @@ module soc_top #(
       .m_reg_rsp_i (clint_reg_rsp)
     );
 
-    soc_axi_to_reg #(
+    // The DMA window is served over APB: the socket's CSR leg speaks the
+    // peripheral-subsystem protocol, and the engine-side conversion to the
+    // iDMA's register interface happens inside the socket adapter.
+    soc_axi_to_apb #(
       .BaseAddr      (DmaBaseAddr),
       .axi_req_t     (soc_axi_mst_req_t),
       .axi_resp_t    (soc_axi_mst_resp_t),
@@ -733,13 +751,13 @@ module soc_top #(
       .axi_ar_chan_t (soc_axi_mst_ar_chan_t),
       .axi_b_chan_t  (soc_axi_mst_b_chan_t),
       .axi_r_chan_t  (soc_axi_mst_r_chan_t)
-    ) i_axi_to_dma_reg (
+    ) i_axi_to_dma_apb (
       .clk_i,
       .rst_ni,
       .s_axi_req_i (target_axi_req[4]),
       .s_axi_rsp_o (target_axi_rsp[4]),
-      .m_reg_req_o (dma_reg_req),
-      .m_reg_rsp_i (dma_reg_rsp)
+      .m_apb_req_o (dma_apb_req),
+      .m_apb_rsp_i (dma_apb_rsp)
     );
 
     soc_axi_to_reg #(
@@ -762,9 +780,9 @@ module soc_top #(
 
     // Platform interrupt controller: aggregates peripheral interrupts onto
     // the one external-interrupt line every core contract provides (MEIP).
-    // Source IDs: 1 = UART, 2 = reserved for the iDMA (tied off until the
-    // DMA exposes a completion interrupt through the accelerator socket).
-    assign plic_irq_sources = {1'b0, uart_irq};
+    // Source IDs: 1 = UART, 2 = iDMA transfer completion (sticky flag in the
+    // socket adapter, W1C at DMA window offset 0xF00).
+    assign plic_irq_sources = {i_dma_socket.irq_o, uart_irq};
 
     soc_plic #(
       .NumSources (PlicNumSources)

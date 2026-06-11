@@ -60,6 +60,15 @@ else()
   set(COREJACK_HAS_JTAG_DEBUG 1)
 endif()
 
+# SERV and PicoRV32 have no machine-external-interrupt input in their socket
+# adapters, so PLIC-routed interrupts cannot reach them; apps gate their
+# interrupt-driven test cases on this.
+if(COREJACK_CORE STREQUAL "serv" OR COREJACK_CORE STREQUAL "picorv32")
+  set(COREJACK_HAS_EXT_IRQ 0)
+else()
+  set(COREJACK_HAS_EXT_IRQ 1)
+endif()
+
 add_subdirectory(common)
 
 file(GLOB app_main_files CONFIGURE_DEPENDS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "*/main.c")
@@ -86,5 +95,6 @@ foreach(app_main ${app_main_files})
     COREJACK_CORE_CLK_HZ=${COREJACK_CORE_CLK_HZ}u
     COREJACK_UART_BAUD=${COREJACK_UART_BAUD}u
     COREJACK_HAS_JTAG_DEBUG=${COREJACK_HAS_JTAG_DEBUG}
+    COREJACK_HAS_EXT_IRQ=${COREJACK_HAS_EXT_IRQ}
   )
 endforeach()
