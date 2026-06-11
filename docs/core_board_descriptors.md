@@ -249,7 +249,12 @@ uart:
 
 debug:
   transport: jtag
-  openocd_cfg: rtl/platform/fpga/scripts/openocd-tigard.cfg
+  # External JTAG probe for OpenOCD. The name selects
+  # rtl/platform/fpga/scripts/openocd-<name>.cfg (a thin adapter wrapper
+  # around the shared riscv-dbg target file). Override per invocation with
+  # make ... JTAG_ADAPTER=<name>; see docs/jtag_wiring.md for adding a new
+  # adapter wrapper.
+  jtag_adapter: tigard
 
 constraints:
   xdc: rtl/platform/fpga/boards/axku5/axku5.xdc

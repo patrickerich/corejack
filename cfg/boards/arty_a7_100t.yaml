@@ -39,7 +39,7 @@ uart:
 
 debug:
   transport: jtag
-  openocd_cfg: rtl/platform/fpga/scripts/openocd-olimex-arm-usb-tiny.cfg
+  jtag_adapter: olimex-arm-usb-tiny
 
 constraints:
   xdc: rtl/platform/fpga/boards/arty_a7_100t/arty_a7_100t.xdc

@@ -183,7 +183,8 @@ def target_config(core: str, board: str, core_text: str, board_text: str) -> dic
     fpga_target = fpga_target_template.format(core=core, board=board)
     board_flag = fusesoc_board_flag(board_text)
     work_root = require_scalar(board_text, ("fpga", "work_root"), f"BOARD '{board}'")
-    openocd_cfg = require_scalar(board_text, ("debug", "openocd_cfg"), f"BOARD '{board}'")
+    jtag_adapter = require_scalar(board_text, ("debug", "jtag_adapter"), f"BOARD '{board}'")
+    openocd_cfg = f"rtl/platform/fpga/scripts/openocd-{jtag_adapter}.cfg"
     soc_clk_hz = require_scalar(board_text, ("clock", "soc_hz"), f"BOARD '{board}'")
     uart_baud = require_scalar(board_text, ("uart", "baud"), f"BOARD '{board}'")
     # Optional per-board SRAM size. Unset preserves the soc_top default of
@@ -217,7 +218,7 @@ def target_config(core: str, board: str, core_text: str, board_text: str) -> dic
         "FPGA_WORK_ROOT": str(
             (REPO_ROOT / work_root.format(core=core, board=board)).resolve()
         ),
-        "OPENOCD_CFG": openocd_cfg,
+        "JTAG_ADAPTER": jtag_adapter,
         "MARCH": march,
         "MABI": mabi,
         "TOOLCHAIN": toolchain,
@@ -317,7 +318,7 @@ def validate(
         "FUSESOC_CORE_FLAGS",
         "FUSESOC_BOARD_FLAG",
         "FUSESOC_FLAGS",
-        "OPENOCD_CFG",
+        "JTAG_ADAPTER",
         "MARCH",
         "MABI",
         "TOOLCHAIN",
@@ -686,7 +687,8 @@ def board_check(board: str, verbose: bool = True) -> None:
     uart_tx = require_scalar(board_text, ("uart", "tx_port"), f"BOARD '{board}'")
     uart_rx = require_scalar(board_text, ("uart", "rx_port"), f"BOARD '{board}'")
     debug_transport = require_scalar(board_text, ("debug", "transport"), f"BOARD '{board}'")
-    openocd_cfg = require_scalar(board_text, ("debug", "openocd_cfg"), f"BOARD '{board}'")
+    jtag_adapter = require_scalar(board_text, ("debug", "jtag_adapter"), f"BOARD '{board}'")
+    openocd_cfg = f"rtl/platform/fpga/scripts/openocd-{jtag_adapter}.cfg"
     xdc = require_scalar(board_text, ("constraints", "xdc"), f"BOARD '{board}'")
     programming_flow = require_scalar(board_text, ("programming", "flow"), f"BOARD '{board}'")
     bitstream_target = require_scalar(
@@ -734,7 +736,7 @@ def board_check(board: str, verbose: bool = True) -> None:
         )
 
     check_repo_file(xdc, "constraints.xdc")
-    check_repo_file(openocd_cfg, "debug.openocd_cfg")
+    check_repo_file(openocd_cfg, "debug.jtag_adapter (derived OpenOCD config)")
 
     target_fields = {field for _, field, _, _ in Formatter().parse(fpga_target_template) if field}
     unsupported_target_fields = target_fields - {"core", "board"}
@@ -794,6 +796,7 @@ def board_check(board: str, verbose: bool = True) -> None:
         print(f"FPGA_TOP={top_module}")
         print(f"FPGA_WRAPPER={wrapper_path.relative_to(REPO_ROOT)}")
         print(f"XDC={xdc}")
+        print(f"JTAG_ADAPTER={jtag_adapter}")
         print(f"OPENOCD_CFG={openocd_cfg}")
         print(f"CLOCK_INPUT_HZ={input_hz}")
         print(f"SOC_CLK_HZ={soc_hz}")

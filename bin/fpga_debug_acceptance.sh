@@ -517,7 +517,8 @@ start_openocd() {
   openocd_log="$log_dir/openocd_${board}_${core}.log"
   : > "$openocd_log"
 
-  make openocd CORE="$core" BOARD="$board" > "$openocd_log" 2>&1 &
+  make openocd CORE="$core" BOARD="$board" \
+    ${JTAG_ADAPTER:+JTAG_ADAPTER="$JTAG_ADAPTER"} > "$openocd_log" 2>&1 &
   openocd_pid="$!"
 
   for _ in $(seq 1 100); do
