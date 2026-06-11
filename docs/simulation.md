@@ -121,7 +121,9 @@ All trace artifacts stay under `build/` and are covered by `.gitignore`
 
 - `SIM_TIMEOUT_CYCLES` (default `1000000`) bounds a software simulation; it is
   passed through to the testbench as the `COREJACK_TIMEOUT_CYCLES` cocotb
-  environment variable.
+  environment variable. Print-heavy apps need more than the default -
+  `dma_smoke` runs with `SIM_TIMEOUT_CYCLES=2000000` (the FPGA acceptance
+  script accepts the same variable).
 - `SW_APP` selects the bare-metal application for `sim-run-sw`; `make list-apps`
   lists the available apps under `sw/c/`.
 - `CORE` / `BOARD` select the descriptor-driven target; `AXI_SMOKE_CORES`

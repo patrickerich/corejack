@@ -20,9 +20,12 @@ Platform pieces:
 
 - The generic `soc_top` smoke simulation passes.
 - The generic cocotb software simulation passes with compiled C tests.
-- The central AXI4 fabric routes core instruction, core data, and debug SBA
-  traffic into the shared SRAM, APB UART, debug module, and CLINT targets.
-  See [`axi4_fabric.md`](axi4_fabric.md).
+- The central AXI4 fabric routes core instruction, core data, debug SBA,
+  and iDMA traffic into the shared SRAM, APB UART, debug module, CLINT,
+  and DMA-configuration targets. See [`axi4_fabric.md`](axi4_fabric.md).
+- The iDMA system DMA moves memory-to-memory data as the platform's first
+  non-CPU initiator; `dma_smoke` validates it in simulation and on both
+  boards' hardware.
 - The banked 64-bit SRAM (`soc_mem_ss`) uses per-bank round-robin
   arbitration and exposes a separate init port that the AXI fabric, the
   simulation preloader, and the optional UART SRAM loader share.
@@ -123,8 +126,9 @@ Software and validation flow:
   count when a workload warrants it.
 - Widen the AXI fabric. **Done (sim- and hardware-validated):** the
   single-outstanding `soc_axi_arbiter` + `soc_axi_demux` pair has been replaced
-  by a PULP `axi_xbar` system crossbar, so today's three initiators (core
-  instruction, core data, debug SBA) decode per initiator and arbitrate per
+  by a PULP `axi_xbar` system crossbar, so the then-three initiators (core
+  instruction, core data, debug SBA - since joined by the iDMA as a
+  fourth) decode per initiator and arbitrate per
   target with multiple outstanding requests, instead of serializing upstream of
   the banked memory. This paid off with the *existing* initiator set - it was
   not blocked on AXI-native burst initiators arriving. Validated by the full

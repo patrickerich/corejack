@@ -184,6 +184,15 @@ state/checksum:
 make sim-run-sw SW_APP=bench_smoke
 ```
 
+For the iDMA system DMA there is `dma_smoke`, which drives aligned, unaligned,
+and 1 KiB memory-to-memory copies through `sw/c/common/dma.h` and verifies the
+destination buffers. Its UART output makes it slower than the default
+simulation budget, so give it more cycles:
+
+```bash
+make sim-run-sw SW_APP=dma_smoke SIM_TIMEOUT_CYCLES=2000000
+```
+
 ## Run On FPGA
 
 Start OpenOCD:
