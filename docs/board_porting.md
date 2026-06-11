@@ -27,7 +27,7 @@ rtl/platform/fpga/boards/<board>/<board>.xdc
 Add or reuse an OpenOCD configuration:
 
 ```text
-rtl/platform/fpga/scripts/openocd.cfg
+rtl/platform/fpga/scripts/openocd-<adapter>.cfg
 ```
 
 Add a board-local FuseSoC core at the repository root:
@@ -85,7 +85,7 @@ uart:
 
 debug:
   transport: jtag
-  openocd_cfg: rtl/platform/fpga/scripts/openocd.cfg
+  openocd_cfg: rtl/platform/fpga/scripts/openocd-tigard.cfg
 
 constraints:
   xdc: rtl/platform/fpga/boards/myboard/myboard.xdc

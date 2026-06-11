@@ -31,7 +31,7 @@ specific area, follow the linked documentation.
 - `rtl/platform/fpga/boards/<board>/` - per-board wrapper and XDC.
   Currently: `axku5/` and `arty_a7_100t/` (one wrapper module plus one
   constraints file each).
-- `rtl/platform/fpga/scripts/` - OpenOCD config, GDB load/run helpers, and
+- `rtl/platform/fpga/scripts/` - per-adapter OpenOCD configs (Tigard, Olimex) with a shared riscv-dbg target file, GDB load/run helpers, and
   Vivado utility scripts. See
   [`fpga_debug_stepping.md`](fpga_debug_stepping.md).
 

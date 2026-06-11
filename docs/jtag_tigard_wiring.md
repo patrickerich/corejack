@@ -1,9 +1,18 @@
-# Tigard JTAG Wiring — AXKU5 ⇄ Arty A7-100T
+# External JTAG Wiring — AXKU5 (Tigard) / Arty A7-100T (Olimex)
 
-External-JTAG (Tigard) lead assignments for the `riscv-dbg` soft TAP, per board.
-Use this when moving the Tigard between boards. The OpenOCD config
-(`rtl/platform/fpga/scripts/openocd.cfg`, Tigard + `riscv-dbg`, IDCODE `0x1`) is
-shared; only the physical pins and `BOARD=` differ.
+External-JTAG lead assignments for the `riscv-dbg` soft TAP, per board. Each
+board selects its JTAG adapter through `debug.openocd_cfg` in
+`cfg/boards/<board>.yaml`:
+
+- **AXKU5**: Tigard v1 — `rtl/platform/fpga/scripts/openocd-tigard.cfg`
+- **Arty A7-100T**: Olimex ARM-USB-TINY (15ba:0004) —
+  `rtl/platform/fpga/scripts/openocd-olimex-arm-usb-tiny.cfg`
+
+Both wrappers share the same riscv-dbg target setup
+(`openocd-riscv-target.cfg`, IDCODE `0x1`), so both boards can stay connected
+simultaneously; OpenOCD picks the right probe by adapter type, and Vivado
+programming picks the right board by FPGA part. The FPGA-side pin tables below
+apply regardless of which probe is soldered to the header.
 
 | Signal (port) | AXKU5 FPGA pin | AXKU5 `J8` pin | Arty FPGA pin | Arty `JD` (Pmod) pin |
 | --- | --- | --- | --- | --- |

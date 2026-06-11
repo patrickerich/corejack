@@ -61,7 +61,7 @@ uart:
 
 debug:
   transport: jtag
-  openocd_cfg: rtl/platform/fpga/scripts/openocd.cfg
+  openocd_cfg: rtl/platform/fpga/scripts/openocd-tigard.cfg
 
 constraints:
   xdc: rtl/platform/fpga/boards/{args.board}/{args.board}.xdc
