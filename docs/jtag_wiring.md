@@ -1,7 +1,7 @@
 # External JTAG Wiring — AXKU5 (Tigard) / Arty A7-100T (Olimex)
 
 External-JTAG lead assignments for the `riscv-dbg` soft TAP, per board. Each
-board selects its JTAG adapter through `debug.openocd_cfg` in
+board selects its JTAG adapter through `debug.jtag_adapter` in
 `cfg/boards/<board>.yaml`:
 
 - **AXKU5**: Tigard v1 — `rtl/platform/fpga/scripts/openocd-tigard.cfg`
