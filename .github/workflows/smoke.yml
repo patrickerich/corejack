@@ -39,9 +39,7 @@ jobs:
           make axi-addr-map-check
 
       - name: Setup Verilator
-        uses: veryl-lang/setup-verilator@v1
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        uses: veryl-lang/setup-verilator@v2
         with:
           version: '5.048'
 
