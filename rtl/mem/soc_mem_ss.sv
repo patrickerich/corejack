@@ -37,6 +37,10 @@ module soc_mem_ss
   localparam int unsigned BankSelWidth = (NumBanks > 1) ? $clog2(NumBanks) : 1;
   localparam int unsigned PortSelWidth = (NumInitPorts > 1) ? $clog2(NumInitPorts) : 1;
   localparam bit ExtraRspLatency = (MemImpl == MemImplXilinx);
+  // Total addressable words across all banks. Init-port accesses outside
+  // [BaseAddr, BaseAddr + NumWordsTotal words) are rejected (see addr_in_range)
+  // so a misroute errors cleanly instead of aliasing into RAM.
+  localparam int unsigned NumWordsTotal = NumBanks * NumWordsPerBank;
 
   logic [NumBanks-1:0]                  bank_req;
   logic [NumBanks-1:0]                  bank_we;
@@ -57,6 +61,12 @@ module soc_mem_ss
   logic [NumBanks-1:0][PortSelWidth-1:0] bank_grant_port;
   logic [NumBanks-1:0][PortSelWidth-1:0] bank_rr_start_q;
   logic [NumBanks-1:0][PortSelWidth-1:0] bank_rr_start_d;
+  // Per-port error responses for out-of-range init accesses. Each init port is
+  // single-outstanding, so one error slot per port is sufficient.
+  logic [NumInitPorts-1:0]                    err_rsp_valid_q;
+  logic [NumInitPorts-1:0][InitTagWidth-1:0]  err_rsp_tag_q;
+  logic [NumInitPorts-1:0]                    err_grant;
+  logic [NumInitPorts-1:0]                    err_rsp_ready;
 
   function automatic logic [BankSelWidth-1:0] calc_bank_sel(
     input logic [AddrWidth-1:0] addr
@@ -80,6 +90,20 @@ module soc_mem_ss
     end
   endfunction
 
+  // Returns 1 when addr lies within the addressable RAM range
+  // [BaseAddr, BaseAddr + NumWordsTotal words). Out-of-range init accesses are
+  // turned into clean error responses instead of aliasing into a bank.
+  function automatic logic addr_in_range(input logic [AddrWidth-1:0] addr);
+    logic [AddrWidth-1:0] word_addr;
+    begin
+      if (addr < BaseAddr) begin
+        return 1'b0;
+      end
+      word_addr = (addr - BaseAddr) >> AddressShift;
+      return word_addr < AddrWidth'(NumWordsTotal);
+    end
+  endfunction
+
   always_comb begin
     init_gnt_o    = '0;
     init_rvalid_o = '0;
@@ -96,6 +120,8 @@ module soc_mem_ss
     bank_grant_valid = '0;
     bank_grant_port  = '0;
     bank_rr_start_d  = bank_rr_start_q;
+    err_grant        = '0;
+    err_rsp_ready    = '0;
 
     for (int unsigned bank = 0; bank < NumBanks; bank++) begin
       bank_rsp_ready[bank] = !bank_rsp_valid_q[bank] ||
@@ -109,6 +135,7 @@ module soc_mem_ss
           port -= NumInitPorts;
         end
         if (bank_accept_ready[bank] && !bank_grant_valid[bank] && init_req_i[port] &&
+            addr_in_range(init_addr_i[port]) &&
             (calc_bank_sel(init_addr_i[port]) == bank)) begin
           bank_grant_valid[bank] = 1'b1;
           bank_grant_port[bank]  = port[PortSelWidth-1:0];
@@ -127,6 +154,17 @@ module soc_mem_ss
       end
     end
 
+    // Out-of-range init accesses never reach a bank: grant them immediately and
+    // schedule a one-cycle error response so a misroute fails cleanly.
+    for (int unsigned port = 0; port < NumInitPorts; port++) begin
+      err_rsp_ready[port] = !err_rsp_valid_q[port] || init_rready_i[port];
+      if (err_rsp_ready[port] && init_req_i[port] &&
+          !addr_in_range(init_addr_i[port])) begin
+        err_grant[port]  = 1'b1;
+        init_gnt_o[port] = 1'b1;
+      end
+    end
+
     for (int unsigned port = 0; port < NumInitPorts; port++) begin
       for (int unsigned bank = 0; bank < NumBanks; bank++) begin
         if (bank_rsp_valid_q[bank] && (bank_rsp_port_q[bank] == port)) begin
@@ -135,6 +173,12 @@ module soc_mem_ss
           init_err_o[port]    = bank_rsp_err_q[bank];
           init_rtag_o[port]   = bank_rsp_tag_q[bank];
         end
+      end
+      if (err_rsp_valid_q[port]) begin
+        init_rvalid_o[port] = 1'b1;
+        init_rdata_o[port]  = '0;
+        init_err_o[port]    = 1'b1;
+        init_rtag_o[port]   = err_rsp_tag_q[port];
       end
     end
   end
@@ -190,6 +234,8 @@ module soc_mem_ss
       bank_pending_port_q  <= '0;
       bank_pending_tag_q   <= '0;
       bank_rr_start_q  <= '0;
+      err_rsp_valid_q  <= '0;
+      err_rsp_tag_q    <= '0;
     end else begin
       bank_rr_start_q  <= bank_rr_start_d;
       for (int unsigned bank = 0; bank < NumBanks; bank++) begin
@@ -218,6 +264,14 @@ module soc_mem_ss
         end else if (bank_rsp_ready[bank] && bank_grant_valid[bank]) begin
           bank_rsp_port_q[bank] <= bank_grant_port[bank];
           bank_rsp_tag_q[bank]  <= init_tag_i[bank_grant_port[bank]];
+        end
+      end
+      for (int unsigned port = 0; port < NumInitPorts; port++) begin
+        if (err_rsp_ready[port]) begin
+          err_rsp_valid_q[port] <= err_grant[port];
+          if (err_grant[port]) begin
+            err_rsp_tag_q[port] <= init_tag_i[port];
+          end
         end
       end
     end
