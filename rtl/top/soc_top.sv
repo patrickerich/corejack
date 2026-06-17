@@ -115,8 +115,8 @@ module soc_top #(
     // +0x200000), hence 4 MiB.
     localparam logic [31:0] PlicSize = 32'h0040_0000;
     // PLIC source IDs are 1-based; bit i of the source vector is ID i+1.
-    // ID 1: UART. ID 2: reserved for the iDMA completion interrupt (tied off
-    // until the DMA exposes one through the accelerator socket).
+    // ID 1: UART. ID 2: iDMA completion interrupt, driven from the accelerator
+    // socket (i_dma_socket.irq_o; see plic_irq_sources below).
     localparam int unsigned PlicNumSources = 2;
     localparam int unsigned CoreAxiPorts = 4;
     localparam int unsigned FabricAxiPorts = 6;

@@ -1,6 +1,6 @@
 # Digilent Arty A7-100T constraints for the CoreJack FPGA wrapper.
 # Pin assignments follow the Digilent Arty-A7-100 master XDC. The external
-# JTAG (Tigard) signals are routed to Pmod JD; see docs/board_porting.md.
+# JTAG signals are routed to Pmod JD; see docs/jtag_wiring.md.
 
 # Artix-7 bitstream configuration bank voltage (required to clear config DRCs).
 set_property CFGBVS VCCO [current_design]
@@ -45,10 +45,11 @@ set_property PACKAGE_PIN A9 [get_ports uart_rx]
 set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
 set_property IOSTANDARD LVCMOS33 [get_ports uart_rx]
 
-# External JTAG (Tigard) on Pmod JD:
+# External JTAG on Pmod JD (Arty uses Olimex ARM-USB-TINY; see docs/jtag_wiring.md):
 #   JD1=D4 -> jtag_tck   JD2=D3 -> jtag_tms
 #   JD3=F4 -> jtag_tdo   JD4=F3 -> jtag_tdi   JD7=E2 -> jtag_trst_n
-# Connect Tigard GND to a Pmod JD GND pin (5/11) and Tigard VTGT to 3V3 (6/12).
+# Connect the probe GND to a Pmod JD GND pin (5/11) and the probe reference
+# voltage to 3V3 (6/12).
 set_property PACKAGE_PIN D4 [get_ports jtag_tck]
 set_property PACKAGE_PIN D3 [get_ports jtag_tms]
 set_property PACKAGE_PIN F4 [get_ports jtag_tdo]

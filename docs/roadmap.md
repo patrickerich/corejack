@@ -32,8 +32,9 @@ Platform pieces:
   `plic_smoke` validates poll, threshold-masked, and interrupt-driven
   delivery end to end. See [`axi4_fabric.md`](axi4_fabric.md).
 - The banked 64-bit SRAM (`soc_mem_ss`) uses per-bank round-robin
-  arbitration and exposes a separate init port that the AXI fabric, the
-  simulation preloader, and the optional UART SRAM loader share.
+  arbitration and exposes dedicated init ports that the AXI fabric and
+  the optional UART SRAM loader use; the simulation preloader instead
+  initializes the banks directly via `$readmemh`.
 - `riscv-dbg` (`dmi_jtag` + `dm_top`) and CLINT are integrated in `soc_top`.
 - Bitstreams close timing at the conservative `25 MHz` default with the
   `axi_xbar` crossbar on both boards (ibex WNS: `+12.6 ns` on the AXKU5,
