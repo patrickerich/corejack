@@ -41,6 +41,12 @@ BENDER_DIR := $(TOOLS_DIR)/bender-v$(BENDER_VERSION)
 BENDER_BIN := $(BENDER_DIR)/bender
 BENDER     := $(TOOLS_DIR)/bender
 VENV_PY    := $(CURDIR)/.venv/bin/python
+# Interpreter for the stdlib-only project scripts under bin/: prefer the venv's
+# python by absolute path when present (activation-independent, no PATH
+# substitution surprises), else fall back to the bootstrap interpreter so a
+# bare clone can still run diagnostics like `make check-tools`. Package-driven
+# flows (pytest, fusesoc, cocotb, west) bind to $(VENV_PY)/PATH directly.
+PY         := $(if $(wildcard $(VENV_PY)),$(VENV_PY),$(PYTHON))
 FPGA_BUILD_DIR := $(CURDIR)/build/fpga
 CORE           ?= ibex
 BOARD          ?= axku5
@@ -107,7 +113,7 @@ else
 VALIDATE_PLANNED_ARG :=
 endif
 
-TARGET_CONFIG := $(shell $(PYTHON) bin/validate_target.py --core "$(CORE)" --board "$(BOARD)" --make --allow-planned 2>/dev/null)
+TARGET_CONFIG := $(shell $(PY) bin/validate_target.py --core "$(CORE)" --board "$(BOARD)" --make --allow-planned 2>/dev/null)
 $(eval $(TARGET_CONFIG))
 OPENOCD_CFG ?= rtl/platform/fpga/scripts/openocd-$(JTAG_ADAPTER).cfg
 FUSESOC_CORE_FLAGS ?= $(FUSESOC_CORE_FLAG)
@@ -322,7 +328,7 @@ zephyr-build: zephyr-check validate-target
 		-DDTS_EXTRA_CPPFLAGS="-DCOREJACK_RAM_BYTES=$(SOC_RAM_BYTES)"
 
 check-tools:
-	@$(PYTHON) bin/check_tools.py --core "$(CORE)" --board "$(BOARD)" --flow "$(FLOW)"
+	@$(PY) bin/check_tools.py --core "$(CORE)" --board "$(BOARD)" --flow "$(FLOW)"
 
 deps: deps-base deps-core
 
@@ -342,7 +348,7 @@ deps-core: deps-base
 	@if [ "$(CORE)" = "cva6" ]; then \
 		$(MAKE) deps-cva6; \
 	else \
-		$(PYTHON) bin/deps_core.py --core "$(CORE)"; \
+		$(PY) bin/deps_core.py --core "$(CORE)"; \
 	fi
 
 deps-all: deps-base
@@ -365,22 +371,22 @@ deps-all: deps-base
 deps-vendor: deps-all
 
 deps-serv: deps-base
-	@$(PYTHON) bin/deps_core.py --core serv
+	@$(PY) bin/deps_core.py --core serv
 
 deps-picorv32: deps-base
-	@$(PYTHON) bin/deps_core.py --core picorv32
+	@$(PY) bin/deps_core.py --core picorv32
 
 deps-cvw: deps-base
-	@$(PYTHON) bin/deps_core.py --core cvw
+	@$(PY) bin/deps_core.py --core cvw
 
 deps-cv32e40p: deps-base
-	@$(PYTHON) bin/deps_core.py --core cv32e40p
+	@$(PY) bin/deps_core.py --core cv32e40p
 
 deps-cv32e40x: deps-base
-	@$(PYTHON) bin/deps_core.py --core cv32e40x
+	@$(PY) bin/deps_core.py --core cv32e40x
 
 deps-cv32e40s: deps-base
-	@$(PYTHON) bin/deps_core.py --core cv32e40s
+	@$(PY) bin/deps_core.py --core cv32e40s
 
 deps-cva6: deps-base
 	@if [ ! -d "$(CURDIR)/.bender/vendor/cva6/.git" ]; then \
@@ -400,7 +406,7 @@ new-board:
 	@test -n "$(FPGA_PART)" || { echo "Error: FPGA_PART is required, e.g. make new-board BOARD=myboard FPGA_PART=xc..."; exit 1; }
 	@display_args=(); \
 	if [ -n "$(BOARD_DISPLAY_NAME)" ]; then display_args+=(--display-name "$(BOARD_DISPLAY_NAME)"); fi; \
-	$(PYTHON) bin/create_board.py \
+	$(PY) bin/create_board.py \
 		--board "$(NEW_BOARD)" \
 		--part "$(FPGA_PART)" \
 		"$${display_args[@]}"
@@ -408,7 +414,7 @@ new-board:
 new-core:
 	@display_args=(); \
 	if [ -n "$(CORE_DISPLAY_NAME)" ]; then display_args+=(--display-name "$(CORE_DISPLAY_NAME)"); fi; \
-	$(PYTHON) bin/create_core.py \
+	$(PY) bin/create_core.py \
 		--core "$(NEW_CORE)" \
 		--board "$(BOARD)" \
 		--xlen "$(CORE_XLEN)" \
@@ -417,17 +423,17 @@ new-core:
 		"$${display_args[@]}"
 
 support-matrix:
-	@$(PYTHON) bin/render_support_matrix.py
+	@$(PY) bin/render_support_matrix.py
 
 support-matrix-check:
-	@$(PYTHON) bin/render_support_matrix.py --check
+	@$(PY) bin/render_support_matrix.py --check
 
 version-check:
-	@$(PYTHON) bin/bump_version.py --check
+	@$(PY) bin/bump_version.py --check
 
 bump-version:
 	@test -n "$(VERSION)" || { echo "Error: VERSION required, e.g. make bump-version VERSION=0.2.0"; exit 1; }
-	@$(PYTHON) bin/bump_version.py --to "$(VERSION)"
+	@$(PY) bin/bump_version.py --to "$(VERSION)"
 
 drawio-svg:
 	@command -v $(DRAWIO) >/dev/null 2>&1 || { echo "Error: $(DRAWIO) not found in PATH (install drawio-desktop)"; exit 1; }
@@ -453,11 +459,12 @@ drawio-svg:
 			--svg-links-target auto \
 			-o "$$out" \
 			"$(DRAWIO_SRC)" 2>&1 | awk '!/vaInitialize|vaapi_wrapper|libva/'; \
-		$(PYTHON) bin/postprocess_drawio_svg.py "$$out"; \
+		$(PY) bin/postprocess_drawio_svg.py "$$out"; \
 	done
 
 python-tests:
-	@$(PYTHON) -m pytest bin/tests
+	@test -x "$(VENV_PY)" || { echo "Error: venv not found. Run: source ./sourceme.sh"; exit 1; }
+	@"$(VENV_PY)" -m pytest bin/tests
 
 flist: deps-base
 	@mkdir -p build
@@ -465,29 +472,29 @@ flist: deps-base
 	@echo "Generated build/flist.f"
 
 validate-target:
-	@$(PYTHON) bin/validate_target.py --core "$(CORE)" --board "$(BOARD)" --quiet $(VALIDATE_PLANNED_ARG)
+	@$(PY) bin/validate_target.py --core "$(CORE)" --board "$(BOARD)" --quiet $(VALIDATE_PLANNED_ARG)
 
 list-targets:
-	@$(PYTHON) bin/validate_target.py --list
+	@$(PY) bin/validate_target.py --list
 
 target-config:
-	@$(PYTHON) bin/validate_target.py --core "$(CORE)" --board "$(BOARD)" --allow-planned
+	@$(PY) bin/validate_target.py --core "$(CORE)" --board "$(BOARD)" --allow-planned
 
 board-check:
-	@$(PYTHON) bin/validate_target.py --board "$(BOARD)" --board-check
+	@$(PY) bin/validate_target.py --board "$(BOARD)" --board-check
 
 core-check:
-	@$(PYTHON) bin/validate_target.py --core "$(CORE)" --core-check
+	@$(PY) bin/validate_target.py --core "$(CORE)" --core-check
 
 target-check:
-	@$(PYTHON) bin/validate_target.py --board "$(BOARD)" --target-check
+	@$(PY) bin/validate_target.py --board "$(BOARD)" --target-check
 
 fpga-flist: validate-target deps-core
 	@mkdir -p "$(FPGA_BUILD_DIR)"
 	@PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
 		fusesoc --cores-root . run --clean --target "$(FPGA_TARGET)" --work-root "$(FPGA_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) --setup corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(UART_LOADER)" --RamWords="$(RAM_WORDS)"
 	@$(FPGA_PATCH_PROJECT_TCL) "$(FPGA_PROJECT_TCL)"
-	@$(PYTHON) bin/vivado_tcl_to_flist.py --tcl "$(FPGA_PROJECT_TCL)" --work-root "$(FPGA_WORK_ROOT)" --out "$(FPGA_BUILD_DIR)/$(FPGA_TOP).f"
+	@$(PY) bin/vivado_tcl_to_flist.py --tcl "$(FPGA_PROJECT_TCL)" --work-root "$(FPGA_WORK_ROOT)" --out "$(FPGA_BUILD_DIR)/$(FPGA_TOP).f"
 	@printf '%s\n' "-incdir $(CURDIR)/deps/apb/include -incdir $(CURDIR)/deps/axi/include -incdir $(CURDIR)/deps/obi/include -incdir $(CURDIR)/deps/register_interface/include -incdir $(CURDIR)/rtl/cores/vendored/corejack_ibex/include" > "$(FPGA_BUILD_DIR)/$(FPGA_TOP)_incdirs.txt"
 	@echo "Generated $(FPGA_BUILD_DIR)/$(FPGA_TOP).f"
 
@@ -518,7 +525,7 @@ fpga-report:
 	@echo "Vivado reports: $(FPGA_REPORT_DIR)"
 
 fpga-warning-check:
-	@$(PYTHON) bin/check_vivado_warnings.py --allowlist "$(VIVADO_WARNING_ALLOWLIST)" $(VIVADO_WARNING_LOGS)
+	@$(PY) bin/check_vivado_warnings.py --allowlist "$(VIVADO_WARNING_ALLOWLIST)" $(VIVADO_WARNING_LOGS)
 
 fpga-pgm: validate-target
 	@mkdir -p "$(VIVADO_HOME)"
@@ -603,7 +610,7 @@ plic-sim: deps-base
 		fusesoc --cores-root . run --clean --target plic-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
 
 axi-addr-map-check:
-	@$(PYTHON) bin/check_axi_addr_map.py
+	@$(PY) bin/check_axi_addr_map.py
 
 axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim debug-sim
 	@for core in $(AXI_SMOKE_CORES); do \
@@ -628,7 +635,7 @@ fpga-uart-load-sw: validate-target
 	@$(MAKE) sw-build TARGET="$(TARGET)" CORE="$(CORE)" BOARD="$(BOARD)" SW_APP="$(SW_APP)"
 	@extra_args=(); \
 	if [ -n "$(UART_LOADER_EXPECT)" ]; then extra_args+=(--expect "$(UART_LOADER_EXPECT)"); fi; \
-	$(PYTHON) bin/uart_sram_load.py \
+	$(PY) bin/uart_sram_load.py \
 		--uart "$(UART_DEV)" \
 		--baud "$(UART_BAUD)" \
 		--bin "$(FW_BIN)" \
@@ -654,7 +661,7 @@ fpga-uart-load-zephyr: validate-target zephyr-build
 	@test -f "$(ZEPHYR_BIN)" || { echo "Error: Zephyr binary not found: $(ZEPHYR_BIN)"; exit 1; }
 	@extra_args=(); \
 	if [ -n "$(UART_LOADER_EXPECT)" ]; then extra_args+=(--expect "$(UART_LOADER_EXPECT)"); fi; \
-	$(PYTHON) bin/uart_sram_load.py \
+	$(PY) bin/uart_sram_load.py \
 		--uart "$(UART_DEV)" \
 		--baud "$(UART_BAUD)" \
 		--bin "$(ZEPHYR_BIN)" \
