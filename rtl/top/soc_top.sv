@@ -109,7 +109,10 @@ module soc_top #(
     localparam logic [31:0] DmHaltAddr = DebugBaseAddr + 32'h0000_0800;
     localparam logic [31:0] DmExceptionAddr = DebugBaseAddr + 32'h0000_0810;
     localparam logic [31:0] DmRomBaseSelect = 32'h0000_1000;
-    localparam int unsigned MemInitPorts = 2;
+    // soc_mem_ss init ports: 0 = RAM read engine, 1 = RAM write engine
+    // (independent ports so a read and a write can hit different banks in the
+    // same cycle), 2 = optional UART SRAM loader.
+    localparam int unsigned MemInitPorts = 3;
     localparam logic [31:0] DmaSize = 32'h0000_1000;
     // The PLIC window spans the full standard layout (context block at
     // +0x200000), hence 4 MiB.
@@ -632,16 +635,27 @@ module soc_top #(
       .rst_ni,
       .s_axi_req_i  (target_axi_req[0]),
       .s_axi_rsp_o  (target_axi_rsp[0]),
-      .mem_req_o    (mem_init_req[0]),
-      .mem_we_o     (mem_init_we[0]),
-      .mem_addr_o   (mem_init_addr[0]),
-      .mem_wdata_o  (mem_init_wdata[0]),
-      .mem_be_o     (mem_init_be[0]),
-      .mem_gnt_i    (mem_init_gnt[0]),
-      .mem_rvalid_i (mem_init_rvalid[0]),
-      .mem_rready_o (mem_axi_rready[0]),
-      .mem_rdata_i  (mem_init_rdata[0]),
-      .mem_err_i    (mem_init_err[0])
+      // Read engine -> init port 0, write engine -> init port 1, so a read and
+      // a write to different banks proceed concurrently in soc_mem_ss.
+      .mem_rd_req_o    (mem_init_req[0]),
+      .mem_rd_we_o     (mem_init_we[0]),
+      .mem_rd_addr_o   (mem_init_addr[0]),
+      .mem_rd_wdata_o  (mem_init_wdata[0]),
+      .mem_rd_be_o     (mem_init_be[0]),
+      .mem_rd_gnt_i    (mem_init_gnt[0]),
+      .mem_rd_rvalid_i (mem_init_rvalid[0]),
+      .mem_rd_rready_o (mem_axi_rready[0]),
+      .mem_rd_rdata_i  (mem_init_rdata[0]),
+      .mem_rd_err_i    (mem_init_err[0]),
+      .mem_wr_req_o    (mem_init_req[1]),
+      .mem_wr_we_o     (mem_init_we[1]),
+      .mem_wr_addr_o   (mem_init_addr[1]),
+      .mem_wr_wdata_o  (mem_init_wdata[1]),
+      .mem_wr_be_o     (mem_init_be[1]),
+      .mem_wr_gnt_i    (mem_init_gnt[1]),
+      .mem_wr_rvalid_i (mem_init_rvalid[1]),
+      .mem_wr_rready_o (mem_axi_rready[1]),
+      .mem_wr_err_i    (mem_init_err[1])
     );
 
     if (EnableUartLoader) begin : gen_uart_sram_loader
@@ -660,25 +674,25 @@ module soc_top #(
         .uart_tx_o     (uart_loader_tx),
         .active_o      (uart_loader_active),
         .done_o        (uart_loader_done),
-        .mem_req_o     (mem_init_req[1]),
-        .mem_we_o      (mem_init_we[1]),
-        .mem_addr_o    (mem_init_addr[1]),
-        .mem_wdata_o   (mem_init_wdata[1]),
-        .mem_be_o      (mem_init_be[1]),
-        .mem_gnt_i     (mem_init_gnt[1]),
-        .mem_rvalid_i  (mem_init_rvalid[1]),
-        .mem_rready_o  (mem_axi_rready[1]),
-        .mem_err_i     (mem_init_err[1])
+        .mem_req_o     (mem_init_req[2]),
+        .mem_we_o      (mem_init_we[2]),
+        .mem_addr_o    (mem_init_addr[2]),
+        .mem_wdata_o   (mem_init_wdata[2]),
+        .mem_be_o      (mem_init_be[2]),
+        .mem_gnt_i     (mem_init_gnt[2]),
+        .mem_rvalid_i  (mem_init_rvalid[2]),
+        .mem_rready_o  (mem_axi_rready[2]),
+        .mem_err_i     (mem_init_err[2])
       );
     end else begin : gen_no_uart_sram_loader
       assign uart_loader_active = 1'b0;
       assign uart_loader_tx     = 1'b1;
-      assign mem_init_req[1]    = 1'b0;
-      assign mem_init_we[1]     = 1'b0;
-      assign mem_init_addr[1]   = '0;
-      assign mem_init_wdata[1]  = '0;
-      assign mem_init_be[1]     = '0;
-      assign mem_axi_rready[1]  = 1'b1;
+      assign mem_init_req[2]    = 1'b0;
+      assign mem_init_we[2]     = 1'b0;
+      assign mem_init_addr[2]   = '0;
+      assign mem_init_wdata[2]  = '0;
+      assign mem_init_be[2]     = '0;
+      assign mem_axi_rready[2]  = 1'b1;
     end
 
     soc_axi_to_apb #(

@@ -203,6 +203,19 @@ module axi_adapter_dut
     .default_mst_port_i    ('0)
   );
 
+  // The dual-engine soc_axi_to_mem drives two independent init ports (read +
+  // write). This unit harness exercises one direction at a time, so the two
+  // ports are merged onto the single external mem_* stimulus port; concurrent
+  // two-port behaviour is covered by the full SoC sim, not here.
+  logic        mem_rd_req, mem_rd_we, mem_rd_rready;
+  logic [31:0] mem_rd_addr;
+  logic [63:0] mem_rd_wdata;
+  logic [7:0]  mem_rd_be;
+  logic        mem_wr_req, mem_wr_we, mem_wr_rready;
+  logic [31:0] mem_wr_addr;
+  logic [63:0] mem_wr_wdata;
+  logic [7:0]  mem_wr_be;
+
   soc_axi_to_mem #(
     .axi_req_t     (soc_axi_mst_req_t),
     .axi_resp_t    (soc_axi_mst_resp_t),
@@ -216,17 +229,33 @@ module axi_adapter_dut
     .rst_ni,
     .s_axi_req_i  (target_axi_req[0]),
     .s_axi_rsp_o  (target_axi_rsp[0]),
-    .mem_req_o,
-    .mem_we_o,
-    .mem_addr_o,
-    .mem_wdata_o,
-    .mem_be_o,
-    .mem_gnt_i,
-    .mem_rvalid_i,
-    .mem_rready_o,
-    .mem_rdata_i,
-    .mem_err_i
+    .mem_rd_req_o    (mem_rd_req),
+    .mem_rd_we_o     (mem_rd_we),
+    .mem_rd_addr_o   (mem_rd_addr),
+    .mem_rd_wdata_o  (mem_rd_wdata),
+    .mem_rd_be_o     (mem_rd_be),
+    .mem_rd_gnt_i    (mem_gnt_i),
+    .mem_rd_rvalid_i (mem_rvalid_i),
+    .mem_rd_rready_o (mem_rd_rready),
+    .mem_rd_rdata_i  (mem_rdata_i),
+    .mem_rd_err_i    (mem_err_i),
+    .mem_wr_req_o    (mem_wr_req),
+    .mem_wr_we_o     (mem_wr_we),
+    .mem_wr_addr_o   (mem_wr_addr),
+    .mem_wr_wdata_o  (mem_wr_wdata),
+    .mem_wr_be_o     (mem_wr_be),
+    .mem_wr_gnt_i    (mem_gnt_i),
+    .mem_wr_rvalid_i (mem_rvalid_i),
+    .mem_wr_rready_o (mem_wr_rready),
+    .mem_wr_err_i    (mem_err_i)
   );
+
+  assign mem_req_o    = mem_rd_req | mem_wr_req;
+  assign mem_we_o     = mem_wr_req;
+  assign mem_addr_o   = mem_wr_req ? mem_wr_addr : mem_rd_addr;
+  assign mem_wdata_o  = mem_wr_wdata;
+  assign mem_be_o     = mem_wr_req ? mem_wr_be : mem_rd_be;
+  assign mem_rready_o = mem_rd_rready | mem_wr_rready;
 
   soc_axi_to_apb #(
     .BaseAddr      (UartBaseAddr),
