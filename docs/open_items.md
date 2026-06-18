@@ -42,3 +42,18 @@ Add an entry when you choose not to fix something now; remove it once resolved.
   direct-per-initiator ports for N-initiator concurrency.) Revisit when a
   measured CPU+DMA (or multi-core) workload shows RAM bandwidth is the
   bottleneck. Full analysis: `logs/fabric_bandwidth_and_fpga_provisions.md`.
+- **Sim UART printf is baud-throttled, inflating simulation cycle counts.** The
+  cocotb harness captures printf passively by tapping the APB write to the UART
+  THR (`tb/uart_apb_tx_monitor.sv`), so capture does not decode the serial pin.
+  But the real `apb_uart` is still instantiated and `uart_putc`
+  (`sw/c/common/uart.c`) busy-waits on its LSR THR-empty bit before every byte,
+  so the CPU self-throttles to the programmed baud: divisor ~14 -> 16*14*~10
+  ~= 2240 cycles per character. A few lines of output cost hundreds of thousands
+  of cycles (this is why `dma_smoke` needs ~1.27M cycles, over the 1M
+  `SIM_TIMEOUT_CYCLES` default). Functionally correct, just slow. When it starts
+  to bite, the cleanest provision is a sim-only build knob that programs a tiny
+  UART divisor (very high baud) so the real UART drains ~16 cycles/byte; the
+  monitor captures from the APB write regardless of baud, so output is
+  unchanged. Alternatives: a sim-only skip-the-LSR-poll fast path (adds
+  sim/FPGA driver divergence), trimming printf volume, or just raising
+  `SIM_TIMEOUT_CYCLES` for verbose apps.
