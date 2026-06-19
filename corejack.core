@@ -146,6 +146,20 @@ filesets:
     files:
       - tb/test_plic.py : {file_type : user, copyto : .}
 
+  tb_mem_ss_bench_sv:
+    files:
+      - rtl/pkg/mem_ss_pkg.sv
+      - rtl/mem/soc_sram_slice_model.sv
+      - rtl/mem/soc_sram_slice_xilinx.sv
+      - rtl/mem/soc_sram_slice_wrapper.sv
+      - rtl/mem/soc_mem_ss.sv
+      - tb/mem_ss_bench_dut.sv
+    file_type: systemVerilogSource
+
+  tb_mem_ss_bench_cocotb:
+    files:
+      - tb/test_mem_ss_bench.py : {file_type : user, copyto : .}
+
 targets:
   default: &default
     filesets:
@@ -354,6 +368,25 @@ targets:
       - tb_plic_sv
       - tb_plic_cocotb
     toplevel: plic_dut
+
+  mem-ss-bench:
+    flow: sim
+    flow_options:
+      tool: verilator
+      cocotb_module: test_mem_ss_bench
+      timescale: 1ns/1ps
+      verilator_options:
+        - trace_fst ? (--trace-fst)
+        - trace_vcd ? (--trace)
+        - -Wno-WIDTHEXPAND
+        - -Wno-WIDTHTRUNC
+        - -Wno-UNOPTFLAT
+        - -Wno-UNSIGNED
+        - -Wno-SPLITVAR
+    filesets:
+      - tb_mem_ss_bench_sv
+      - tb_mem_ss_bench_cocotb
+    toplevel: mem_ss_bench_dut
 
   fpga:
     <<: *default
