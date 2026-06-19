@@ -39,9 +39,18 @@ Add an entry when you choose not to fix something now; remove it once resolved.
   responses (TCDM style) or per-port response ordering - the same gap as the
   single-outstanding entry above. (The iDMA memcpy's own read+write concurrency
   is already covered by the read/write-engine split; the remaining work is the
-  direct-per-initiator ports for N-initiator concurrency.) Revisit when a
-  measured CPU+DMA (or multi-core) workload shows RAM bandwidth is the
-  bottleneck. Full analysis: `logs/fabric_bandwidth_and_fpga_provisions.md`.
+  direct-per-initiator ports for N-initiator concurrency.) Full analysis:
+  `logs/fabric_bandwidth_and_fpga_provisions.md`.
+  Measured (`make mem-ss-bench`, 2026-06-20): multiple single-outstanding init
+  ports scale near-linearly (4-port disjoint = 3.97 words/cycle, random = 2.67),
+  so the fixed-latency / multi-outstanding port contract is **not** needed for
+  the bandwidth target; the conflict-limited random case is addressed by raising
+  `MemNumBanks`. First dedicated port landed: the iDMA's data path now drives its
+  own `soc_mem_ss` read/write init ports (off the xbar), so iDMA RAM traffic runs
+  concurrently with the CPU instead of sharing the xbar's single RAM master port.
+  Remaining candidates: CPU instruction and data direct ports (need an egress
+  decoder for the data port's MMIO accesses), and raising `MemNumBanks` toward
+  the active-port count.
 - **Sim UART printf is baud-throttled, inflating simulation cycle counts.** The
   cocotb harness captures printf passively by tapping the APB write to the UART
   THR (`tb/uart_apb_tx_monitor.sv`), so capture does not decode the serial pin.

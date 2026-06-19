@@ -109,10 +109,12 @@ module soc_top #(
     localparam logic [31:0] DmHaltAddr = DebugBaseAddr + 32'h0000_0800;
     localparam logic [31:0] DmExceptionAddr = DebugBaseAddr + 32'h0000_0810;
     localparam logic [31:0] DmRomBaseSelect = 32'h0000_1000;
-    // soc_mem_ss init ports: 0 = RAM read engine, 1 = RAM write engine
-    // (independent ports so a read and a write can hit different banks in the
-    // same cycle), 2 = optional UART SRAM loader.
-    localparam int unsigned MemInitPorts = 3;
+    // soc_mem_ss init ports: 0 = xbar RAM read engine, 1 = xbar RAM write
+    // engine (independent ports so a read and a write hit different banks the
+    // same cycle), 2 = optional UART SRAM loader, 3/4 = iDMA dedicated read/
+    // write engines so iDMA RAM traffic runs concurrently with the CPU's
+    // instead of sharing the xbar's single RAM master port.
+    localparam int unsigned MemInitPorts = 5;
     localparam logic [31:0] DmaSize = 32'h0000_1000;
     // The PLIC window spans the full standard layout (context block at
     // +0x200000), hence 4 MiB.
@@ -121,7 +123,10 @@ module soc_top #(
     // ID 1: UART. ID 2: iDMA completion interrupt, driven from the accelerator
     // socket (i_dma_socket.irq_o; see plic_irq_sources below).
     localparam int unsigned PlicNumSources = 2;
-    localparam int unsigned CoreAxiPorts = 4;
+    // Three xbar initiators: core instruction, core data, debug SBA. The iDMA
+    // is no longer an xbar initiator - its data path has dedicated soc_mem_ss
+    // ports (see i_dma_axi_to_mem); only its CSR leg uses the fabric (APB).
+    localparam int unsigned CoreAxiPorts = 3;
     localparam int unsigned FabricAxiPorts = 6;
     // System crossbar configuration. Replaces the former single-outstanding
     // soc_axi_arbiter + soc_axi_demux pair: per-target arbitration with up to
@@ -560,11 +565,13 @@ module soc_top #(
     );
 
     // iDMA system DMA, plugged in through the accelerator socket: the CSR
-    // leg arrives as APB from fabric target port [4], the (burst-split,
-    // single-beat) AXI manager enters the crossbar as the fourth initiator,
-    // and the completion interrupt lands on PLIC source 2. No platform power
-    // controller exists yet, so the power-intent pins sit in the static
-    // active state (asserted inside the adapter).
+    // leg arrives as APB from fabric target port [4], the completion interrupt
+    // lands on PLIC source 2, and the (burst-split, single-beat) AXI memory
+    // manager drives a dedicated soc_axi_to_mem into soc_mem_ss (init ports
+    // 3/4) - it is NOT an xbar initiator, so its RAM traffic runs concurrently
+    // with the CPU's instead of sharing the xbar's single RAM master port. No
+    // platform power controller exists yet, so the power-intent pins sit in the
+    // static active state (asserted inside the adapter).
     accel_socket_if #(
       .mem_axi_req_t (soc_axi_req_t),
       .mem_axi_rsp_t (soc_axi_resp_t),
@@ -580,16 +587,51 @@ module soc_top #(
     assign i_dma_socket.clk_en   = 1'b1;
     assign i_dma_socket.csr_req  = dma_apb_req;
     assign dma_apb_rsp           = i_dma_socket.csr_rsp;
-    assign core_axi_req[3]       = i_dma_socket.mem_req;
-    assign i_dma_socket.mem_rsp  = core_axi_rsp[3];
 
     corejack_idma_socket_adapter i_idma_socket_adapter (
       .sock (i_dma_socket.accel)
     );
 
-    // System crossbar: the four initiators (core instruction, core data,
-    // debug SBA, iDMA) decode per port and arbitrate per target. Decode misses
-    // land on the xbar's built-in error slave (no explicit default master port).
+    // Dedicated iDMA RAM path: its single-beat AXI memory manager drives its
+    // own soc_mem_ss read/write init ports (3/4), bypassing the xbar so iDMA
+    // RAM traffic does not contend with the CPU on the xbar's single RAM master
+    // port. iDMA data is RAM-to-RAM; an out-of-RAM target errors cleanly via
+    // soc_mem_ss's range check. (DMA to a non-RAM peripheral would need an
+    // egress decode back onto the xbar; not provided - the iDMA is a memory
+    // mover here.)
+    soc_axi_to_mem #(
+      .AddrWidth (32),
+      .DataWidth (MemDataWidth)
+    ) i_dma_axi_to_mem (
+      .clk_i,
+      .rst_ni,
+      .s_axi_req_i     (i_dma_socket.mem_req),
+      .s_axi_rsp_o     (i_dma_socket.mem_rsp),
+      .mem_rd_req_o    (mem_init_req[3]),
+      .mem_rd_we_o     (mem_init_we[3]),
+      .mem_rd_addr_o   (mem_init_addr[3]),
+      .mem_rd_wdata_o  (mem_init_wdata[3]),
+      .mem_rd_be_o     (mem_init_be[3]),
+      .mem_rd_gnt_i    (mem_init_gnt[3]),
+      .mem_rd_rvalid_i (mem_init_rvalid[3]),
+      .mem_rd_rready_o (mem_axi_rready[3]),
+      .mem_rd_rdata_i  (mem_init_rdata[3]),
+      .mem_rd_err_i    (mem_init_err[3]),
+      .mem_wr_req_o    (mem_init_req[4]),
+      .mem_wr_we_o     (mem_init_we[4]),
+      .mem_wr_addr_o   (mem_init_addr[4]),
+      .mem_wr_wdata_o  (mem_init_wdata[4]),
+      .mem_wr_be_o     (mem_init_be[4]),
+      .mem_wr_gnt_i    (mem_init_gnt[4]),
+      .mem_wr_rvalid_i (mem_init_rvalid[4]),
+      .mem_wr_rready_o (mem_axi_rready[4]),
+      .mem_wr_err_i    (mem_init_err[4])
+    );
+
+    // System crossbar: the three initiators (core instruction, core data,
+    // debug SBA) decode per port and arbitrate per target. Decode misses land
+    // on the xbar's built-in error slave (no explicit default master port).
+    // The iDMA is not here - its data path has dedicated soc_mem_ss ports.
     axi_xbar #(
       .Cfg           (FabricXbarCfg),
       .ATOPs         (1'b0),
