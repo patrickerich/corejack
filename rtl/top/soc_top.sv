@@ -113,12 +113,13 @@ module soc_top #(
     // engine (independent ports so a read and a write hit different banks the
     // same cycle), 2 = optional UART SRAM loader, 3/4 = iDMA dedicated read/
     // write engines so iDMA RAM traffic runs concurrently with the CPU's
-    // instead of sharing the xbar's single RAM master port, 5 = RV32 core data
-    // direct RAM port (routed off the data OBI) so CPU data accesses
-    // and CPU instruction fetch hit different soc_mem_ss ports concurrently
-    // instead of serializing through the xbar's single RAM master port. Only
-    // the RV32 core path drives port 5; the CVA6 path leaves the data OBI idle.
-    localparam int unsigned MemInitPorts = 6;
+    // instead of sharing the xbar's single RAM master port, 5/6 = RV32 core
+    // data / instruction direct RAM ports (routed off the data and instruction
+    // OBI) so CPU data, CPU instruction fetch, and the iDMA all land on
+    // different soc_mem_ss ports and run concurrently instead of serializing
+    // through the xbar's single RAM master port. Only the RV32 core path drives
+    // ports 5/6; the CVA6 path leaves the core OBI idle.
+    localparam int unsigned MemInitPorts = 7;
     localparam logic [31:0] DmaSize = 32'h0000_1000;
     // The PLIC window spans the full standard layout (context block at
     // +0x200000), hence 4 MiB.
@@ -514,6 +515,61 @@ module soc_top #(
       );
     end
 
+    // ------------------------------------------------------------------------
+    // Instruction request router. Mirrors the data router: RAM-window fetches
+    // take a dedicated soc_mem_ss init port (port 6), bypassing the xbar (and
+    // its CUT_ALL_AX + soc_obi_to_axi + soc_axi_to_mem chain), so instruction
+    // fetch runs concurrently with - and at lower latency than - the old xbar
+    // path. Non-RAM fetches go through the xbar via core_axi_req[0]: in
+    // practice the only non-RAM instruction fetches are from the debug-module
+    // ROM at DebugBaseAddr (0x0) while the core is halted. The router is
+    // read-only and single-outstanding across the two paths. CVA6 leaves the
+    // instruction OBI idle (instr_req = 0), so both paths stay quiescent.
+    // ------------------------------------------------------------------------
+    logic        instr_is_ram;
+    logic        instr_rt_busy_q;
+    logic        instr_rt_sel_ram_q;
+    logic        instr_rt_accept;
+    logic        instr_to_ram;
+    logic        instr_to_axi;
+    logic        instr_sel_gnt;
+    logic        instr_axi_gnt;
+    logic        instr_axi_rvalid;
+    logic        instr_axi_err;
+    logic [31:0] instr_axi_rdata;
+    logic        instr_mem_gnt;
+    logic        instr_mem_rvalid;
+    logic        instr_mem_err;
+    logic [31:0] instr_mem_rdata;
+
+    assign instr_is_ram    = (instr_addr >= RamBaseAddr) &&
+                             (instr_addr < (RamBaseAddr + RamSize));
+    assign instr_rt_accept = instr_req & ~instr_rt_busy_q;
+    assign instr_to_ram    = instr_rt_accept & instr_is_ram;
+    assign instr_to_axi    = instr_rt_accept & ~instr_is_ram;
+    assign instr_sel_gnt   = instr_is_ram ? instr_mem_gnt : instr_axi_gnt;
+
+    assign instr_gnt    = instr_rt_accept & instr_sel_gnt;
+    assign instr_rvalid = instr_rt_busy_q &
+                          (instr_rt_sel_ram_q ? instr_mem_rvalid : instr_axi_rvalid);
+    assign instr_rdata  = instr_rt_sel_ram_q ? instr_mem_rdata : instr_axi_rdata;
+    assign instr_err    = instr_rt_busy_q &
+                          (instr_rt_sel_ram_q ? instr_mem_err : instr_axi_err);
+
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+      if (!rst_ni) begin
+        instr_rt_busy_q    <= 1'b0;
+        instr_rt_sel_ram_q <= 1'b0;
+      end else if (!instr_rt_busy_q) begin
+        if (instr_rt_accept && instr_sel_gnt) begin
+          instr_rt_busy_q    <= 1'b1;
+          instr_rt_sel_ram_q <= instr_is_ram;
+        end
+      end else if (instr_rvalid && instr_rready) begin
+        instr_rt_busy_q <= 1'b0;
+      end
+    end
+
     soc_obi_to_axi i_instr_obi_to_axi (
       .clk_i,
       .rst_ni,
@@ -521,14 +577,44 @@ module soc_top #(
       .s_wdata_i   ('0),
       .s_be_i      (4'hF),
       .s_we_i      (1'b0),
-      .s_req_i     (instr_req),
-      .s_gnt_o     (instr_gnt),
-      .s_rvalid_o  (instr_rvalid),
+      .s_req_i     (instr_to_axi),
+      .s_gnt_o     (instr_axi_gnt),
+      .s_rvalid_o  (instr_axi_rvalid),
       .s_rready_i  (instr_rready),
-      .s_rdata_o   (instr_rdata),
-      .s_err_o     (instr_err),
+      .s_rdata_o   (instr_axi_rdata),
+      .s_err_o     (instr_axi_err),
       .m_axi_req_o (instr_axi_req),
       .m_axi_rsp_i (instr_axi_rsp)
+    );
+
+    soc_obi_to_mem #(
+      .ObiAddrWidth (32),
+      .ObiDataWidth (32),
+      .MemAddrWidth (32),
+      .MemDataWidth (MemDataWidth)
+    ) i_instr_obi_to_mem (
+      .clk_i,
+      .rst_ni,
+      .s_req_i      (instr_to_ram),
+      .s_gnt_o      (instr_mem_gnt),
+      .s_we_i       (1'b0),
+      .s_addr_i     (instr_addr),
+      .s_wdata_i    ('0),
+      .s_be_i       (4'hF),
+      .s_rvalid_o   (instr_mem_rvalid),
+      .s_rready_i   (instr_rready),
+      .s_rdata_o    (instr_mem_rdata),
+      .s_err_o      (instr_mem_err),
+      .mem_req_o    (mem_init_req[6]),
+      .mem_we_o     (mem_init_we[6]),
+      .mem_addr_o   (mem_init_addr[6]),
+      .mem_wdata_o  (mem_init_wdata[6]),
+      .mem_be_o     (mem_init_be[6]),
+      .mem_gnt_i    (mem_init_gnt[6]),
+      .mem_rvalid_i (mem_init_rvalid[6]),
+      .mem_rready_o (mem_axi_rready[6]),
+      .mem_rdata_i  (mem_init_rdata[6]),
+      .mem_err_i    (mem_init_err[6])
     );
 
     // ------------------------------------------------------------------------
