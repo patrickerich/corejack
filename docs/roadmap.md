@@ -280,13 +280,17 @@ the layers of the interconnect itself.)
 
 - **Dual-port**: the initiator has both a fabric port (CSR/control,
   lands on the xbar) and a dedicated `soc_mem_ss` init port (data,
-  bypasses the xbar). A small egress decoder at the initiator side
-  picks which port to use per transaction, based on the target
-  address. Worth doing only when the initiator's data bandwidth
-  would saturate the xbar's RAM-fallback path: CPU instruction and
-  data direct ports, DMA streams, and accelerator data flows are the
-  candidates. `accel_socket_if` already anticipates this shape with
-  split `mem_axi_*` and `csr_apb_*` ports.
+  bypasses the xbar). A small **request router** at the initiator side -
+  an address decode on the initiator's outbound request - picks which
+  port to use per transaction, based on the target address. (We avoid
+  calling this *egress*: in memory-subsystem usage ingress/egress are
+  framed from the memory's side - ingress entering the memory subsystem,
+  egress leaving it - which is the opposite end from this initiator-side
+  decode.) Worth doing only when the initiator's data bandwidth would
+  saturate the xbar's RAM-fallback path: CPU instruction and data direct
+  ports, DMA streams, and accelerator data flows are the candidates.
+  `accel_socket_if` already anticipates this shape with split
+  `mem_axi_*` and `csr_apb_*` ports.
 
 The dual-port pattern is an **optimization**, not a requirement. The
 default is single-port; you only upgrade an initiator to dual-port
@@ -300,7 +304,7 @@ against its `BaseAddr` / `RamSize`, so an accidentally misrouted
 non-RAM access on a direct mem port errors cleanly rather than
 corrupting state. The xbar's address map is exclusive, so any AXI
 transaction with an address outside any declared slave window also
-errors cleanly. The dual-port egress decoder doesn't have to be
+errors cleanly. The dual-port request router doesn't have to be
 perfect - it has to be *mostly* right, and the boundaries catch
 mistakes.
 

@@ -31,7 +31,7 @@ Add an entry when you choose not to fix something now; remove it once resolved.
   *Multi-Initiator Architecture (planned)* tab of
   [`media/corejack_soc.drawio`](media/corejack_soc.drawio): memory-heavy
   initiators (CPU instr/data, iDMA, accelerators) get dedicated `soc_mem_ss` init
-  ports behind a per-initiator egress decoder (RAM vs CSR/peripheral), banks
+  ports behind a per-initiator request router (RAM vs CSR/peripheral), banks
   scaled to ~init-port count, so N initiators sustain ~1 access per slice per
   cycle. The topology is documented; what is **not** specified is the
   throughput-enabling memory-port contract: to keep one port's accesses to
@@ -48,9 +48,14 @@ Add an entry when you choose not to fix something now; remove it once resolved.
   `MemNumBanks`. First dedicated port landed: the iDMA's data path now drives its
   own `soc_mem_ss` read/write init ports (off the xbar), so iDMA RAM traffic runs
   concurrently with the CPU instead of sharing the xbar's single RAM master port.
-  Remaining candidates: CPU instruction and data direct ports (need an egress
-  decoder for the data port's MMIO accesses), and raising `MemNumBanks` toward
-  the active-port count.
+  Second dedicated port landed (2026-06-21): the RV32 core data port routes
+  RAM-window accesses to its own `soc_mem_ss` init port (via `soc_obi_to_mem`)
+  behind an initiator-side request router; non-RAM data stays on the xbar
+  (`mem_bw_smoke` is the system-level instrument). The measured gain on a tight
+  in-order loop is small (~3%): instruction fetch, not data, dominates the
+  access mix and still traverses the xbar with no I-cache. Remaining candidates:
+  the CPU instruction direct port (needs a RAM-vs-debug-ROM request router), and
+  raising `MemNumBanks` toward the active-port count.
 - **Sim UART printf is baud-throttled, inflating simulation cycle counts.** The
   cocotb harness captures printf passively by tapping the APB write to the UART
   THR (`tb/uart_apb_tx_monitor.sv`), so capture does not decode the serial pin.

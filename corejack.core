@@ -79,6 +79,7 @@ filesets:
       - rtl/mem/soc_obi_mem_buffer.sv
       - rtl/mem/soc_mem_ss.sv
       - rtl/bus/soc_obi_to_axi.sv
+      - rtl/bus/soc_obi_to_mem.sv
       - rtl/bus/soc_axi_protocol_checker.sv
       - rtl/bus/soc_axi_to_apb.sv
       - rtl/bus/soc_axi_to_dm.sv
