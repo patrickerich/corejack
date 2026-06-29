@@ -49,8 +49,8 @@ Add an entry when you choose not to fix something now; remove it once resolved.
   own `soc_mem_ss` read/write init ports (off the xbar), so iDMA RAM traffic runs
   concurrently with the CPU instead of sharing the xbar's single RAM master port.
   Second dedicated port landed (2026-06-21): the RV32 core data port routes
-  RAM-window accesses to its own `soc_mem_ss` init port (via `soc_obi_to_mem`)
-  behind an initiator-side request router; non-RAM data stays on the xbar
+  RAM-window accesses to its own `soc_mem_ss` init port (then via an OBI->mem
+  bridge) behind an initiator-side request router; non-RAM data stays on the xbar
   (`mem_bw_smoke` is the system-level instrument). The measured gain on a tight
   in-order loop is small (~3%): instruction fetch, not data, dominates the
   access mix and still traverses the xbar with no I-cache. Remaining candidates:

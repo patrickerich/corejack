@@ -1,10 +1,10 @@
 // Throughput benchmark harness for soc_mem_ss.
 //
-// Instantiates soc_mem_ss with a configurable number of init ports and banks,
-// and drives each port with a pipelined, single-outstanding traffic generator.
-// cocotb selects the access pattern and which ports are active, runs a fixed
-// per-port access budget, and reads back the cycle count and the number of
-// completed accesses to compute aggregate words/cycle.
+// Instantiates soc_mem_ss with a configurable number of 64-bit init ports and
+// banks, and drives each port with a pipelined, multi-outstanding traffic
+// generator. cocotb selects the access pattern and which ports are active, runs
+// a fixed per-port access budget, and reads back the cycle count and the number
+// of completed accesses to compute aggregate words/cycle.
 //
 // Patterns (pattern_i):
 //   0 - disjoint banks: port p only ever touches bank p%NumBanks (best case,
@@ -13,12 +13,14 @@
 //       serialization at one slice.
 //   2 - random:         per-port LFSR addresses across the whole RAM window.
 //
-// Each generator is single-outstanding but tightly pipelined: it issues the
-// next request in the same cycle it accepts the current response, so a
-// conflict-free port can sustain one access per cycle. That is deliberately the
-// current soc_mem_ss contract (one outstanding request per init port), so the
-// numbers reflect what the platform can do today without a new memory-port
-// contract.
+// Each generator holds its request asserted until its budget has been issued and
+// lets the port's req/gnt handshake throttle it, so a port runs as many
+// outstanding requests as the subsystem will accept (bounded by the per-port
+// egress reorder-buffer depth). This measures the redesigned subsystem's actual
+// throughput ceiling, which - unlike the old single-cycle design - is bounded by
+// the per-port outstanding depth and the per-bank slice-pipeline rate (see
+// docs/mem_ss_redesign.md section 5). All traffic is 64-bit; the subsystem's
+// 32-bit port group is unused here (NumPorts32 = 0).
 module mem_ss_bench_dut
   import mem_ss_pkg::*;
 #(
@@ -48,23 +50,20 @@ module mem_ss_bench_dut
   output logic [63:0] accesses_o,
   output logic [31:0] err_count_o
 );
-  localparam int unsigned InitTagWidth  = 1;
   localparam int unsigned AddressShift  = $clog2(DataWidth / 8);
   localparam int unsigned NumWordsTotal = NumBanks * NumWordsPerBank;
 
-  // soc_mem_ss interface.
+  // soc_mem_ss 64-bit port interface.
   logic [NumInitPorts-1:0]                   init_req;
   logic [NumInitPorts-1:0]                   init_we;
   logic [NumInitPorts-1:0][AddrWidth-1:0]    init_addr;
   logic [NumInitPorts-1:0][DataWidth-1:0]    init_wdata;
   logic [NumInitPorts-1:0][DataWidth/8-1:0]  init_be;
-  logic [NumInitPorts-1:0][InitTagWidth-1:0] init_tag;
   logic [NumInitPorts-1:0]                   init_gnt;
   logic [NumInitPorts-1:0]                   init_rvalid;
   logic [NumInitPorts-1:0]                   init_rready;
   logic [NumInitPorts-1:0][DataWidth-1:0]    init_rdata;
   logic [NumInitPorts-1:0]                   init_err;
-  logic [NumInitPorts-1:0][InitTagWidth-1:0] init_rtag;
 
   // Per-port generator state.
   logic        run_q;
@@ -104,25 +103,21 @@ module mem_ss_bench_dut
     init_addr    = '0;
     init_wdata   = '0;
     init_be      = '0;
-    init_tag     = '0;
     init_rready  = '0;
     port_done    = '0;
 
     for (int unsigned p = 0; p < NumInitPorts; p++) begin
-      logic outstanding;
-      outstanding  = (issued_cnt[p] != done_cnt[p]);
       port_done[p] = !active_mask_i[p] || (done_cnt[p] >= budget_i);
 
       init_rready[p] = 1'b1;  // always accept responses
-      // Single-outstanding, but issue the next request in the same cycle the
-      // current response arrives so a conflict-free port sustains 1/cycle.
-      init_req[p] = run_q && active_mask_i[p] && (issued_cnt[p] < budget_i) &&
-                    (!outstanding || init_rvalid[p]);
+      // Multi-outstanding: hold the request asserted until the budget has been
+      // issued and let the port's req/gnt handshake throttle how many run in
+      // flight (bounded by the per-port egress reorder-buffer depth).
+      init_req[p]   = run_q && active_mask_i[p] && (issued_cnt[p] < budget_i);
       init_we[p]    = we_i;
       init_addr[p]  = gen_addr(p, issued_cnt[p], lfsr_q[p], pattern_i);
       init_wdata[p] = {(DataWidth/32){issued_cnt[p]}};
       init_be[p]    = '1;
-      init_tag[p]   = '0;
     end
 
     all_done = (port_done == '1);
@@ -176,7 +171,7 @@ module mem_ss_bench_dut
           issued_cnt[p] <= issued_cnt[p] + 1;
           lfsr_q[p]     <= next_lfsr(lfsr_q[p]);
         end
-        if (init_rvalid[p]) begin
+        if (init_rvalid[p] && init_rready[p]) begin
           done_cnt[p] <= done_cnt[p] + 1;
         end
       end
@@ -192,29 +187,24 @@ module mem_ss_bench_dut
   end
 
   soc_mem_ss #(
-    .AddrWidth(AddrWidth),
-    .DataWidth(DataWidth),
-    .NumInitPorts(NumInitPorts),
-    .InitTagWidth(InitTagWidth),
+    .NumPorts32(0),
+    .NumPorts64(NumInitPorts),
     .NumBanks(NumBanks),
-    .NumWordsPerBank(NumWordsPerBank),
+    .MemDataWidth(DataWidth),
+    .AddrWidth(AddrWidth),
+    .WordsPerBank(NumWordsPerBank),
     .BaseAddr(BaseAddr),
-    .AddressShift(AddressShift),
     .MemImpl(mem_ss_pkg::MemImplModel)
   ) i_mem_ss (
     .clk_i,
     .rst_ni,
-    .init_req_i(init_req),
-    .init_we_i(init_we),
-    .init_addr_i(init_addr),
-    .init_wdata_i(init_wdata),
-    .init_be_i(init_be),
-    .init_tag_i(init_tag),
-    .init_gnt_o(init_gnt),
-    .init_rvalid_o(init_rvalid),
-    .init_rready_i(init_rready),
-    .init_rdata_o(init_rdata),
-    .init_err_o(init_err),
-    .init_rtag_o(init_rtag)
+    // 32-bit port group unused in this benchmark.
+    .req32_i('0), .gnt32_o(), .we32_i('0), .addr32_i('0), .wdata32_i('0),
+    .be32_i('0), .rvalid32_o(), .rready32_i('0), .rdata32_o(), .err32_o(),
+    // 64-bit port group: the benchmark's init ports.
+    .req64_i(init_req), .gnt64_o(init_gnt), .we64_i(init_we),
+    .addr64_i(init_addr), .wdata64_i(init_wdata), .be64_i(init_be),
+    .rvalid64_o(init_rvalid), .rready64_i(init_rready),
+    .rdata64_o(init_rdata), .err64_o(init_err)
   );
 endmodule

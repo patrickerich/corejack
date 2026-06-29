@@ -77,9 +77,10 @@ filesets:
       - rtl/mem/soc_sram_slice_xilinx.sv
       - rtl/mem/soc_sram_slice_wrapper.sv
       - rtl/mem/soc_obi_mem_buffer.sv
+      - rtl/mem/soc_mem_bank.sv
+      - rtl/mem/soc_mem_port.sv
       - rtl/mem/soc_mem_ss.sv
       - rtl/bus/soc_obi_to_axi.sv
-      - rtl/bus/soc_obi_to_mem.sv
       - rtl/bus/soc_axi_protocol_checker.sv
       - rtl/bus/soc_axi_to_apb.sv
       - rtl/bus/soc_axi_to_dm.sv
@@ -153,6 +154,8 @@ filesets:
       - rtl/mem/soc_sram_slice_model.sv
       - rtl/mem/soc_sram_slice_xilinx.sv
       - rtl/mem/soc_sram_slice_wrapper.sv
+      - rtl/mem/soc_mem_bank.sv
+      - rtl/mem/soc_mem_port.sv
       - rtl/mem/soc_mem_ss.sv
       - tb/mem_ss_bench_dut.sv
     file_type: systemVerilogSource
@@ -381,10 +384,12 @@ targets:
         - trace_vcd ? (--trace)
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
+        - -Wno-PINMISSING
         - -Wno-UNOPTFLAT
         - -Wno-UNSIGNED
         - -Wno-SPLITVAR
     filesets:
+      - common_deps
       - tb_mem_ss_bench_sv
       - tb_mem_ss_bench_cocotb
     toplevel: mem_ss_bench_dut
