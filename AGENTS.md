@@ -120,11 +120,13 @@ silently bump them. Build toolchains from prebuilt packages, not from source.
   `rtl/bus/soc_axi_protocol_checker.sv`; the iDMA backend sits behind a burst
   splitter. Keep new initiators/targets single-beat unless the fabric is
   reworked.
-- **`soc_mem_ss` init ports assume single-outstanding clients** (one request in
-  flight per init port). This is a known constraint — see
-  [`docs/open_items.md`](docs/open_items.md). Do not add a multi-outstanding
-  init-port client (e.g. direct CPU mem ports, DMA streams) without first adding
-  per-port response ordering or documenting the contract.
+- **`soc_mem_ss` is port-owned and multi-outstanding.** Each port — two native
+  32-bit CPU ports (data, instruction) plus five 64-bit ports (xbar RAM
+  read/write engines, UART SRAM loader, iDMA read/write) — gets loss-free,
+  in-order, multi-outstanding access with per-bank fair round-robin. The live
+  constraint is now the **bank count**: `soc_top` runs `MemNumBanks = 4` under
+  seven ports, so raise it toward the port count for heavy concurrent RAM
+  traffic. See [`docs/open_items.md`](docs/open_items.md).
 - **CV32E40X is intentionally excluded** from default regressions — see
   [`docs/cv32e40x_boot_issue.md`](docs/cv32e40x_boot_issue.md). Do not re-enable
   it in regression sets without resolving that.
