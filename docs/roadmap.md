@@ -18,8 +18,8 @@ validated with Ibex.
 
 Platform pieces:
 
-- The generic `soc_top` smoke simulation passes.
-- The generic cocotb software simulation passes with compiled C tests.
+- The generic `soc_top` has a smoke-simulation target and a cocotb
+  software-simulation flow that runs compiled C tests.
 - The central AXI4 fabric routes core instruction, core data, debug SBA,
   and iDMA traffic into the shared SRAM, APB UART, debug module, CLINT,
   and DMA-configuration targets. See [`axi4_fabric.md`](axi4_fabric.md).
@@ -31,14 +31,16 @@ Platform pieces:
   machine external interrupt line; `plic-sim` is its focused regression and
   `plic_smoke` validates poll, threshold-masked, and interrupt-driven
   delivery end to end. See [`axi4_fabric.md`](axi4_fabric.md).
-- The banked 64-bit SRAM (`soc_mem_ss`) uses per-bank round-robin
-  arbitration and exposes dedicated init ports that the AXI fabric and
-  the optional UART SRAM loader use; the simulation preloader instead
-  initializes the banks directly via `$readmemh`.
+- The banked, interleaved 64-bit SRAM (`soc_mem_ss`) uses per-bank fair
+  round-robin arbitration and is port-owned: two native 32-bit CPU ports
+  (data, instruction) plus five 64-bit ports (xbar RAM read/write engines,
+  UART SRAM loader, iDMA read/write), each with loss-free, in-order,
+  multi-outstanding access. The simulation preload loads each bank's
+  interleaved hex image via `$readmemh` inside `soc_mem_bank`.
 - `riscv-dbg` (`dmi_jtag` + `dm_top`) and CLINT are integrated in `soc_top`.
 - Bitstreams close timing at the conservative `25 MHz` default with the
-  `axi_xbar` crossbar on both boards (ibex WNS: `+12.6 ns` on the AXKU5,
-  `+6.5 ns` on the Arty A7-100T).
+  `axi_xbar` crossbar on both boards (ibex WNS: `+13.3 ns` on the AXKU5,
+  `+8.8 ns` on the Arty A7-100T).
 - OpenOCD enumerates and examines the RISC-V target over external JTAG;
   GDB loads an ELF into SRAM through the debug module SBA path.
 - `hello_world` runs from SRAM and prints through the platform APB UART at
@@ -126,8 +128,8 @@ Software and validation flow:
   the core adapter boundary but must reach RAM, UART, CLINT, debug, and
   other shared peripherals through the shared AXI fabric.
 - Keep the memory subsystem modular and multi-initiator aware. The
-  `soc_mem_ss` per-bank round-robin arbiter is already generic in
-  `NumBanks` and `NumInitPorts`, and `soc_top.MemNumBanks` is a
+  `soc_mem_ss` per-bank fair round-robin arbiter is already generic in
+  `NumBanks`, `NumPorts32`, and `NumPorts64`, and `soc_top.MemNumBanks` is a
   parameter (default 4) - so the platform is set up to grow the bank
   count when a workload warrants it.
 - Widen the AXI fabric. **Done (sim- and hardware-validated):** the
@@ -150,10 +152,11 @@ Software and validation flow:
   **peripheral subsystem** (a single APB peripheral bus behind one `soc_axi_to_apb`
   bridge, carrying UART today and CLINT-wrap / DM-regs-wrap / accel CSR /
   future SPI/I2C/GPIO/timers in the end state). Memory-heavy initiators
-  (CPU instr and data via planned direct mem ports, DMA, accelerators,
-  and any future caches) get **two ports**: a system AXI master for
-  CSR/control that lands on the xbar, and a dedicated `soc_mem_ss`
-  init port for the data path that bypasses the xbar entirely. This is
+  (the CPU instruction and data paths via their native `soc_mem_ss` ports,
+  the iDMA via dedicated ports, plus future accelerators and caches) get
+  **two ports**: a system AXI master for CSR/control that lands on the xbar,
+  and a dedicated `soc_mem_ss` port for the data path that bypasses the xbar
+  entirely. This is
   the canonical pattern at CoreJack's scale - Cheshire, Carfield, and
   similar PULP-based platforms use the same shape, and it is what
   `accel_socket_if`'s split `mem_axi_*` / `csr_apb_*` ports already
@@ -279,16 +282,17 @@ the layers of the interconnect itself.)
   too. The integration cost is just one AXI master port on the xbar.
 
 - **Dual-port**: the initiator has both a fabric port (CSR/control,
-  lands on the xbar) and a dedicated `soc_mem_ss` init port (data,
+  lands on the xbar) and a dedicated `soc_mem_ss` port (data,
   bypasses the xbar). A small **request router** at the initiator side -
   an address decode on the initiator's outbound request - picks which
   port to use per transaction, based on the target address. (We avoid
   calling this *egress*: in memory-subsystem usage ingress/egress are
   framed from the memory's side - ingress entering the memory subsystem,
   egress leaving it - which is the opposite end from this initiator-side
-  decode.) Worth doing only when the initiator's data bandwidth would
-  saturate the xbar's RAM-fallback path: CPU instruction and data direct
-  ports, DMA streams, and accelerator data flows are the candidates.
+  decode.) Worth doing when the initiator's data bandwidth would
+  saturate the xbar's RAM-fallback path: the CPU instruction and data paths
+  already use this pattern (native 32-bit ports), the iDMA uses dedicated
+  64-bit ports, and accelerator data flows are the next candidates.
   `accel_socket_if` already anticipates this shape with split
   `mem_axi_*` and `csr_apb_*` ports.
 
@@ -299,9 +303,9 @@ This is what gives the platform a clean ramp: the cheap integration
 already buys full reachability, and the data-path optimization is
 local and incremental when an initiator earns it.
 
-Two safety nets keep this honest. `soc_mem_ss` checks each init port
-against its `BaseAddr` / `RamSize`, so an accidentally misrouted
-non-RAM access on a direct mem port errors cleanly rather than
+Two safety nets keep this honest. Each `soc_mem_port` checks its access
+against the subsystem's `BaseAddr` and size, so an accidentally misrouted
+non-RAM access on a direct mem port gets a clean error response rather than
 corrupting state. The xbar's address map is exclusive, so any AXI
 transaction with an address outside any declared slave window also
 errors cleanly. The dual-port request router doesn't have to be
@@ -310,27 +314,27 @@ mistakes.
 
 ### Memory subsystem follow-up
 
-With the fabric widened and the iDMA landed as a true second concurrent
-initiator, the bank count revisit is now concrete. The infrastructure is
-already in place:
+With the fabric widened, the memory subsystem redesigned to be port-owned,
+and seven ports now driving it, the bank count revisit is now concrete. The
+infrastructure is already in place:
 
-- `soc_mem_ss` is generic over `NumBanks` and `NumInitPorts`.
+- `soc_mem_ss` is generic over `NumBanks`, `NumPorts32`, and `NumPorts64`.
 - `soc_top.MemNumBanks` is a parameter (default 4); overriding it at
   instantiation is enough to experiment with 8 or 16 banks.
 - `sw/Makefile` exposes a matching `NUM_BANKS` knob so hex preload
   files line up with whatever the RTL chose.
 
-`MemNumBanks` and `NumInitPorts` are **coupled** tuning levers: as
-`NumInitPorts` grows toward the end-state ~6 (CPU instr direct + CPU data
-direct + xbar fallback + UART loader + iDMA + accelerator),
-`MemNumBanks` should grow with it. The textbook `B ≈ 2·N` heuristic
-assumes pathologically random independent address streams (DRAM-style or
-NoC-style worst-case), which is not what CoreJack carries: CPU
-instruction fetch, CPU data, DMA, and most accelerators have highly
-structured sequential or strided access patterns. Under round-robin
+`MemNumBanks` and the **port count** are coupled tuning levers: as the port
+count grows (today seven: CPU instruction + CPU data native 32-bit ports, the
+xbar RAM read + write engines, the UART loader, and the iDMA read + write),
+and as future accelerators add more, `MemNumBanks` should grow with it. The
+textbook `B ≈ 2·N` heuristic assumes pathologically random independent address
+streams (DRAM-style or NoC-style worst-case), which is not what CoreJack
+carries: CPU instruction fetch, CPU data, DMA, and most accelerators have
+highly structured sequential or strided access patterns. Under round-robin
 arbitration, sequential streams self-align within a handful of cycles
-even at `B = N`, so the realistic target is **`MemNumBanks ≈ NumInitPorts`**
-(for example, 8 banks alongside the end-state ~6 init ports). Total SRAM
+even at `B = N`, so the realistic target is **`MemNumBanks ≈ port count`**
+(for example, 8 banks alongside the current seven ports). Total SRAM
 bit count stays constant; only per-bank capacity changes. Bumping beyond
 that (12 or 16 banks) is a future option to revisit only if a measured
 workload — a worst-case all-accelerators-streaming benchmark, for
@@ -367,7 +371,7 @@ benchmark configuration opts into 8).
   instruction cache; CV32E40P/S/X, SERV, PicoRV32, and CVW do not bring
   any). Adding caches at the CoreJack *platform* layer - for example,
   small shared L1 instruction and/or data caches sitting in front of the
-  CPU's planned direct `soc_mem_ss` mem ports - could reduce CPU
+  CPU's native `soc_mem_ss` 32-bit mem ports - could reduce CPU
   memory pressure for cores that don't bring their own and would give
   the platform meaningful cache-aware behavior for workloads that benefit.
   Open questions, all currently TBD: (1) **where** the caches would sit

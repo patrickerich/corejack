@@ -4,10 +4,10 @@ Living specification for the `soc_mem_ss` redesign. Requirements are owned by
 the project maintainer; this document records them as stated and tracks the
 design decisions that follow. Update it as the design evolves.
 
-Status: **implemented, verified standalone, integrated into `soc_top` (option A),
-and promoted to the canonical `soc_mem_ss` name (the original bank-owned design
-replaced in place - no `_v2` in the tree). The throughput benchmark is retargeted
-to the new subsystem; full `axi-smoke` regression green.**
+Status: **implemented and integrated into `soc_top` (option A, native 32-bit CPU
+ports); promoted to the canonical `soc_mem_ss` name, replacing the original
+bank-owned design in place. Verified standalone and in the SoC simulation
+regressions; the `mem-ss-bench` throughput benchmark targets the new subsystem.**
 
 ## 1. Requirements (as specified)
 
@@ -242,11 +242,10 @@ for out-of-range addresses.
   (top: per-bank `rr_arb_tree` + request/response crossbars; the response crossbar
   arbitrates per port so two banks finishing for one port in a cycle backpressure
   rather than collide).
-- **Standalone verification PASSES** (`tb/tb_mem_ss_v2.sv`, self-checking, Verilator
-  `--binary`): 4 concurrent ports (2x32-bit + 2x64-bit), ~16k accesses/seed, random
-  per-port backpressure, out-of-range errors, FIFO scoreboards. Verifies never-drop +
-  correctness, in-order delivery, two-way backpressure, error responses, and
-  no-starvation (all scoreboards drain, no timeout). Passes on 3 seeds.
+- Standalone self-checking testbench (`tb/tb_mem_ss.sv`, Verilator): 4 concurrent
+  ports (2x32-bit + 2x64-bit) with random per-port backpressure, out-of-range
+  errors, and per-port FIFO scoreboards, exercising never-drop + correctness,
+  in-order delivery, two-way backpressure, error responses, and no-starvation.
 - Integration findings (soc_top): the old `soc_mem_ss` has 7x 64-bit init ports with a
   `tag`/`rtag` that is **tied to 0** (unused) - so dropping the tag is safe. It also
   takes a `MemInitPath` simulation preload (loads the slices via the slice models);
@@ -264,12 +263,9 @@ for out-of-range addresses.
   the model's 1 cycle; `soc_mem_bank` now delays valid+metadata by a
   `MemImpl`-derived `ReadLat` so the response carries the right request. Verified
   on both paths standalone (16k accesses each).
-- **SoC regression PASSES with the new subsystem:** `hello_world` on ibex (Xilinx
-  SRAM), cv32e40p, cv32e40s, serv, picorv32; `self_check`; `dma_smoke` (iDMA 64-bit
-  ports); `debug-sim` (SBA/debug, 2/2). No drops, overflows, or assertion failures.
-- **Full `make axi-smoke` regression green** (exit 0): all groups pass, incl.
-  `test_uart_sram_loader` (loader 64-bit port), `mem_ss_bench`, `debug_integration`
-  (2/2), PLIC (5/5), and every `run_soc_software`.
+- Verified in the SoC simulation regressions (`hello_world` across the supported
+  cores, `self_check`, `dma_smoke`, `debug-sim`, the UART SRAM loader, and the
+  retargeted `mem-ss-bench`) via `make axi-smoke`.
 - **Cleanup pass (canonical name, no `_v2`):** renamed `soc_mem_ss_v2` ->
   `soc_mem_ss`, replacing the original bank-owned module in place (TB ->
   `tb/tb_mem_ss.sv`); removed the dead `rtl/bus/soc_obi_to_mem.sv`; retargeted
@@ -279,31 +275,16 @@ for out-of-range addresses.
   linearly to ~1.33 at 4 ports, same-bank pinned at ~0.33 (the scaling-*ratio*
   assertions are unchanged). Added a zero-sized-port-group width floor
   (`Np32`/`Np64` + tie-offs) so an all-one-width config elaborates without a
-  `[-1:0]` range. Re-verified: standalone `tb_mem_ss` PASSES on both slice models
-  (16096 acc. each), `mem-ss-bench` PASSES (1/1), and `make axi-smoke` is green
-  again (exit 0, all 12 groups).
+  `[-1:0]` range. Re-verified standalone on both slice models and via
+  `mem-ss-bench` and `make axi-smoke`.
 
 ## 9. Follow-ups
 
-Done in the cleanup pass (no version-suffixed files left in the tree):
-
-- Renamed `soc_mem_ss_v2` -> `soc_mem_ss`, replacing the original bank-owned
-  module in place; TB renamed `tb/tb_mem_ss.sv`. Manifests (`corejack.core`,
-  `Bender.yml`) updated; `soc_top` instantiates the canonical name.
-- Removed the now-unused `rtl/bus/soc_obi_to_mem.sv` (option A's native 32-bit
-  ports made the OBI->mem bridge dead) from the tree and both manifests.
-- Retargeted `mem-ss-bench` to the new subsystem: the bench DUT drives the
-  64-bit port group, multi-outstanding (request held until the budget is issued,
-  throttled by req/gnt), with `NumPorts32 = 0`. Added the `common_deps` fileset
-  and `-Wno-PINMISSING` to the fusesoc target (the new subsystem pulls in
-  common_cells). Recalibrated the cocotb throughput floors to the new design's
-  profile (the scaling-ratio assertions are unchanged; only the absolute floors
-  moved, since per-bank rate is ~0.33 not ~1.0 access/cycle).
-- Hardened `soc_mem_ss` for a zero-sized port group: a `Np32`/`Np64` width floor
-  plus tie-offs so `NumPorts32 == 0` (or `NumPorts64 == 0`) elaborates without a
-  `[-1:0]` reversed range.
-
 Still open:
 
-- Throughput/latency lever (deferred, see Section 5): raise per-port outstanding
-  depth + core IFU outstanding-fetch options.
+- **Throughput/latency lever** (deferred, see Section 5): raise the per-port
+  outstanding depth toward the pipeline latency, paired with the core IFU
+  outstanding-fetch options, to reclaim ~1 access/cycle per port.
+- **Bank count vs port count:** `soc_top` runs `MemNumBanks=4` under seven ports;
+  raising the bank count toward the port count is tracked in
+  [`open_items.md`](open_items.md) and [`roadmap.md`](roadmap.md).

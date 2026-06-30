@@ -16,7 +16,7 @@ a temporary boot-time transport:
 
 - keep the core held in reset while loading
 - keep the SoC clock, SRAM, and UART transport alive
-- write SRAM through a side memory-init port
+- write SRAM through a dedicated `soc_mem_ss` port
 - release the core after the host sends a run command
 - hand the UART pins back to the normal SoC UART after release
 
@@ -51,7 +51,7 @@ UART_LOADER ?= 0
 With `UART_LOADER=0`:
 
 - the loader RTL is not instantiated in `soc_top`
-- the extra SRAM init port is tied off
+- the extra `soc_mem_ss` port is tied off
 - core reset is controlled only by normal reset/debug logic
 - the board UART pins are routed to the APB UART
 - OpenOCD/GDB behavior is unchanged
@@ -61,7 +61,7 @@ With `UART_LOADER=1`:
 - the loader RTL is instantiated
 - the selected core is held in reset while the loader is active
 - the board UART pins are routed to the loader while active
-- the loader writes SRAM through an additional `soc_mem_ss` init port
+- the loader writes SRAM through an additional `soc_mem_ss` port
 - the loader releases the core and returns the UART pins to the APB UART after
   the host sends the run command
 
@@ -84,7 +84,7 @@ loader active:
   uart_rx -> UART SRAM loader
   uart_tx <- UART SRAM loader
   core reset is held asserted
-  loader writes SRAM through soc_mem_ss init port
+  loader writes SRAM through soc_mem_ss port
 
 loader released:
   uart_rx -> normal APB UART
@@ -113,8 +113,11 @@ APB UART in the middle of the release response.
 
 ## SRAM Write Path
 
-The loader connects to `soc_mem_ss` through a second init/access port. The
-normal AXI-to-memory path remains on init port 0. The loader uses init port 1.
+The loader connects to `soc_mem_ss` through a generic 64-bit port, identical to
+every other port. In `soc_top` the five 64-bit ports are the xbar RAM read
+engine (0) and write engine (1), the UART SRAM loader (2), and the iDMA read (3)
+and write (4) engines; the two native 32-bit ports carry the CPU data and
+instruction RAM accesses.
 
 The loader accepts absolute SoC addresses. For the current memory map, the SRAM
 base is:
@@ -245,7 +248,7 @@ The current implementation includes:
 - RTL-side UART loader
 - core-reset hold while loading
 - SoC UART pin muxing between loader and normal APB UART
-- SRAM writes through an additional `soc_mem_ss` init port
+- SRAM writes through an additional `soc_mem_ss` port
 - `UART_LOADER=1` FuseSoC/Make parameter plumbing for FPGA builds
 - `make uart-loader-sim` protocol regression for ping, byte writes, and release
 - `bin/uart_sram_load.py` host loader

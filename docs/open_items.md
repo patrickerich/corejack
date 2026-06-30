@@ -7,55 +7,17 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
-- **`soc_mem_ss` init ports assume single-outstanding clients.** Each bank
-  arbitrates independently and holds one response register, but nothing stops
-  one init port from having two requests outstanding to two *different* banks;
-  the response collector would then present colliding (and possibly reordered)
-  responses for that port. Safe today because every init-port client -
-  `soc_axi_to_mem`'s read and write engines and the UART SRAM loader - issues
-  one request at a time (the
-  simulation preloader initializes the banks directly via `$readmemh`, not
-  through an init port). Revisit before adding multi-outstanding clients (the
-  planned direct CPU mem ports or DMA streams from
-  [`roadmap.md`](roadmap.md)): either add per-port response ordering/merging in
-  `soc_mem_ss` or document single-outstanding as a hard init-port contract.
-- **No concurrent multi-initiator RAM bandwidth yet (single RAM funnel).** All
-  fabric RAM traffic from every initiator is serialized onto one `axi_xbar`
-  RAM master port. `soc_axi_to_mem` now splits into independent read and write
-  engines on two `soc_mem_ss` init ports (done 2026-06-18), so a RAM read and a
-  RAM write hit different banks in the same cycle and the lone-AW deadlock
-  workaround is gone. But every initiator's reads still share that master port's
-  single AR (and writes its single AW/W), so two initiators still cannot read
-  two different banks in the same cycle, and `soc_mem_ss`'s per-bank parallelism
-  is otherwise unused. The target is the banked-scratchpad model already drawn in the
-  *Multi-Initiator Architecture (planned)* tab of
-  [`media/corejack_soc.drawio`](media/corejack_soc.drawio): memory-heavy
-  initiators (CPU instr/data, iDMA, accelerators) get dedicated `soc_mem_ss` init
-  ports behind a per-initiator request router (RAM vs CSR/peripheral), banks
-  scaled to ~init-port count, so N initiators sustain ~1 access per slice per
-  cycle. The topology is documented; what is **not** specified is the
-  throughput-enabling memory-port contract: to keep one port's accesses to
-  different banks in flight you need either fixed-latency / no-backpressure
-  responses (TCDM style) or per-port response ordering - the same gap as the
-  single-outstanding entry above. (The iDMA memcpy's own read+write concurrency
-  is already covered by the read/write-engine split; the remaining work is the
-  direct-per-initiator ports for N-initiator concurrency.) Full analysis:
-  `logs/fabric_bandwidth_and_fpga_provisions.md`.
-  Measured (`make mem-ss-bench`, 2026-06-20): multiple single-outstanding init
-  ports scale near-linearly (4-port disjoint = 3.97 words/cycle, random = 2.67),
-  so the fixed-latency / multi-outstanding port contract is **not** needed for
-  the bandwidth target; the conflict-limited random case is addressed by raising
-  `MemNumBanks`. First dedicated port landed: the iDMA's data path now drives its
-  own `soc_mem_ss` read/write init ports (off the xbar), so iDMA RAM traffic runs
-  concurrently with the CPU instead of sharing the xbar's single RAM master port.
-  Second dedicated port landed (2026-06-21): the RV32 core data port routes
-  RAM-window accesses to its own `soc_mem_ss` init port (then via an OBI->mem
-  bridge) behind an initiator-side request router; non-RAM data stays on the xbar
-  (`mem_bw_smoke` is the system-level instrument). The measured gain on a tight
-  in-order loop is small (~3%): instruction fetch, not data, dominates the
-  access mix and still traverses the xbar with no I-cache. Remaining candidates:
-  the CPU instruction direct port (needs a RAM-vs-debug-ROM request router), and
-  raising `MemNumBanks` toward the active-port count.
+- **Bank count is below the active port count.** `soc_top` instantiates
+  `soc_mem_ss` with `MemNumBanks = 4`, but seven ports now drive it: two native
+  32-bit CPU ports (data, instruction) plus five 64-bit ports (xbar RAM read and
+  write engines, UART SRAM loader, iDMA read and write). The port-owned subsystem
+  already gives each port loss-free, in-order, multi-outstanding access with
+  per-bank fair round-robin, so the remaining lever is the bank count: under
+  heavy concurrent RAM traffic the four banks can become the limiter before the
+  ports do. Raising `MemNumBanks` toward the port count is a parameter override
+  (`sw/Makefile` regenerates the matching hex preload split); making it
+  descriptor-driven is the deferred plumbing. See the *Memory subsystem
+  follow-up* in [`roadmap.md`](roadmap.md).
 - **Sim UART printf is baud-throttled, inflating simulation cycle counts.** The
   cocotb harness captures printf passively by tapping the APB write to the UART
   THR (`tb/uart_apb_tx_monitor.sv`), so capture does not decode the serial pin.
