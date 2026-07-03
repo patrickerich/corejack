@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module soc_axi_protocol_checker #(
   // AXI port types. Default to the platform initiator-side types; the platform
   // overrides these with the wider master-side types on the xbar master ports.

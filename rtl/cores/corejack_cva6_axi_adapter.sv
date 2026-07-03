@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module corejack_cva6_axi_adapter #(
   parameter logic [63:0] BootAddr = 64'h0000_0000_8000_0000,
   parameter logic [63:0] HartId = 64'h0,

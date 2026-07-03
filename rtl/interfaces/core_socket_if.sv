@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 interface core_socket_if #(
   parameter int N_IRQ = 64,
   parameter type instr_axi_req_t = logic,

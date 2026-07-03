@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module soc_sram_slice_wrapper
   import mem_ss_pkg::*;
 #(

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module corejack_ibex_socket_adapter #(
   parameter logic [31:0] BootAddr = 32'h8000_0000,
   parameter logic [31:0] HartId = 32'h0,

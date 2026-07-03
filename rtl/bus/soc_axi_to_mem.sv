@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 // AXI4 (single-beat) to banked-memory bridge for soc_mem_ss.
 //
 // The read and write directions are independent engines, each driving its OWN

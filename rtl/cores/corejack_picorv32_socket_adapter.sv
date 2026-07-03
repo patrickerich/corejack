@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module corejack_picorv32_socket_adapter #(
   parameter logic [31:0] BootAddr = 32'h8000_0080
 ) (
