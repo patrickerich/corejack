@@ -39,6 +39,10 @@ jobs:
           make axi-addr-map-check
 
       - name: Setup Verilator
+        # Local/dev builds pin Verilator v5.050 (see Makefile), but the
+        # setup-verilator action has no v5.050 prebuilt yet (fetch 404s). Keep
+        # CI on v5.048 -- its newest available prebuilt -- and bump this to
+        # '5.050' once the action publishes it. Do not build from source in CI.
         uses: veryl-lang/setup-verilator@v2
         with:
           version: '5.048'
