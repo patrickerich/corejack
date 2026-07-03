@@ -80,7 +80,7 @@ Run `make help` for the full target list.
 Versions are pinned in the `Makefile` and should match what CI uses; do not
 silently bump them. Build toolchains from prebuilt packages, not from source.
 
-- Bender `0.31.0`, Verilator `v5.048`, Verible `v0.0-4053-g89d4d98a`
+- Bender `0.31.0`, Verilator `v5.050`, Verible `v0.0-4053-g89d4d98a`
 - RISC-V GNU toolchain: prefix `riscv64-unknown-elf-`, RV32/RV64 multilib
 - Vivado `2025.2.1` (observed validation version), Zephyr `v4.4.0`
 

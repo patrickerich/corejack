@@ -41,7 +41,7 @@ jobs:
       - name: Setup Verilator
         uses: veryl-lang/setup-verilator@v2
         with:
-          version: '5.048'
+          version: '5.050'
 
       - name: Run smoke test
         shell: bash
