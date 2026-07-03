@@ -84,6 +84,11 @@ silently bump them. Build toolchains from prebuilt packages, not from source.
 - RISC-V GNU toolchain: prefix `riscv64-unknown-elf-`, RV32/RV64 multilib
 - Vivado `2025.2.1` (observed validation version), Zephyr `v4.4.0`
 
+Local/dev Verilator is pinned to `v5.050` (`make tool-verilator`), but CI's
+`setup-verilator` action serves prebuilts and has no `v5.050` yet, so the
+`smoke` workflow intentionally stays on `v5.048` (its newest available) until a
+`v5.050` prebuilt is published. Re-align CI when it is.
+
 ## Conventions for changes
 
 - **RTL is 100% hand-written SystemVerilog.** Python under `bin/` is build glue,
