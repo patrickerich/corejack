@@ -179,6 +179,7 @@ module soc_mem_port #(
         if (err_grant) begin
           rob_filled_q[alloc_ptr_q] <= 1'b1;
           rob_err_q[alloc_ptr_q]    <= 1'b1;
+          rob_data_q[alloc_ptr_q]   <= '0;
         end else begin
           rob_filled_q[alloc_ptr_q] <= 1'b0;
           rob_err_q[alloc_ptr_q]    <= 1'b0;
