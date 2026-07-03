@@ -117,7 +117,8 @@ module soc_mem_bank
   fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(RspWidth), .DEPTH(OutDepth)) i_out_fifo (
     .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
     .full_o(out_full), .empty_o(out_empty), .usage_o(),
-    .data_i({slice_rdata, rd_meta_q[ReadLat-1]}), .push_i(out_push), .data_o(out_dout), .pop_i(out_pop)
+    .data_i({slice_rdata, rd_meta_q[ReadLat-1]}), .push_i(out_push),
+    .data_o(out_dout), .pop_i(out_pop)
   );
 
   assign out_valid_o            = !out_empty;

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 `include "axi/typedef.svh"
 `include "apb/typedef.svh"
 `include "obi/typedef.svh"
@@ -40,7 +42,8 @@ package soc_bus_pkg;
   `AXI_TYPEDEF_ALL(soc_axi_mst, axi_addr_t, axi_mst_id_t, axi_data_t, axi_strb_t, axi_user_t)
 
   `OBI_TYPEDEF_MINIMAL_A_OPTIONAL(soc_obi_a_optional_t)
-  `OBI_TYPEDEF_A_CHAN_T(soc_obi_a_chan_t, AxiAddrWidth, AxiDataWidth, AxiIdWidth, soc_obi_a_optional_t)
+  `OBI_TYPEDEF_A_CHAN_T(soc_obi_a_chan_t, AxiAddrWidth, AxiDataWidth, AxiIdWidth,
+                        soc_obi_a_optional_t)
   `OBI_TYPEDEF_REQ_T(soc_obi_req_t, soc_obi_a_chan_t)
   `OBI_TYPEDEF_MINIMAL_R_OPTIONAL(soc_obi_r_optional_t)
   `OBI_TYPEDEF_R_CHAN_T(soc_obi_r_chan_t, AxiDataWidth, AxiIdWidth, soc_obi_r_optional_t)

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module soc_top #(
   parameter int N_IRQ = 64,
   parameter int unsigned CoreType = platform_pkg::CORE_IBEX,
@@ -524,7 +526,7 @@ module soc_top #(
 
     // ------------------------------------------------------------------------
     // Instruction request router. Mirrors the data router: RAM-window fetches
-    // take a dedicated soc_mem_ss init port (port 6), bypassing the xbar (and
+    // take a dedicated soc_mem_ss native 32-bit port (mem32[1]), bypassing the xbar (and
     // its CUT_ALL_AX + soc_obi_to_axi + soc_axi_to_mem chain), so instruction
     // fetch runs concurrently with - and at lower latency than - the old xbar
     // path. Non-RAM fetches go through the xbar via core_axi_req[0]: in
@@ -609,8 +611,8 @@ module soc_top #(
 
     // ------------------------------------------------------------------------
     // Data request router. An initiator-side address decode on the core data
-    // port sends RAM-window accesses to a dedicated soc_mem_ss init port
-    // (port 5), bypassing the xbar, so CPU data and CPU instruction fetch land
+    // port sends RAM-window accesses to a dedicated soc_mem_ss native 32-bit
+    // port (mem32[0]), bypassing the xbar, so CPU data and CPU instruction fetch land
     // on different memory ports and run concurrently instead of serializing
     // through the xbar's single RAM master port. Non-RAM data accesses (UART,
     // CLINT, PLIC, DMA CSR, debug ROM, decode misses) still go through the xbar

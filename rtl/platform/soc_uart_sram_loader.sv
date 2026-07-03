@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module soc_uart_sram_loader #(
   parameter int unsigned ClockHz = 25_000_000,
   parameter int unsigned Baud = 115_200,
@@ -320,7 +322,8 @@ module soc_uart_sram_loader #(
 
 `ifndef SYNTHESIS
   initial begin
-    assert (DataWidth == 64) else $fatal(1, "soc_uart_sram_loader currently expects a 64-bit memory path");
+    assert (DataWidth == 64)
+      else $fatal(1, "soc_uart_sram_loader currently expects a 64-bit memory path");
     assert (DataBytes > 1) else $fatal(1, "soc_uart_sram_loader requires byte-lane addressing");
   end
 `endif
