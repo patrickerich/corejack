@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module corejack_axku5_wrap #(
   parameter int unsigned CoreType = platform_pkg::CORE_IBEX,
   parameter bit EnableUartLoader = 1'b0,

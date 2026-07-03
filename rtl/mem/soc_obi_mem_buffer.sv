@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module soc_obi_mem_buffer #(
   parameter int unsigned AddrWidth = 32,
   parameter int unsigned DataWidth = 32,

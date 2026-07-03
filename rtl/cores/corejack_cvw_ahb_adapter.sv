@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module corejack_cvw_ahb_adapter (
   input  logic        clk_i,
   input  logic        rst_ni,

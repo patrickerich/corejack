@@ -1,3 +1,20 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// AXI4 (single-beat) to banked-memory bridge for soc_mem_ss.
+//
+// The read and write directions are independent engines, each driving its OWN
+// soc_mem_ss init port. Because soc_mem_ss is a banked memory (multiple
+// single-port slices behind a per-bank round-robin arbiter), a read and a write
+// to different banks are serviced in the same cycle; a same-bank conflict is
+// resolved by the bank arbiter (one side stalls one cycle via gnt). This
+// exploits AXI's independent read/write channels and the memory's bank
+// parallelism instead of serializing the two through one FSM/port.
+//
+// Each engine is single-outstanding on its own init port, so the existing
+// soc_mem_ss single-outstanding-per-port contract still holds. Splitting the
+// engines also removes the former lone-AW deadlock workaround: the read engine
+// never waits on the write engine, so a read-to-write coupled initiator (e.g.
+// the iDMA doing an in-RAM memcpy) cannot deadlock.
 module soc_axi_to_mem
   import axi_pkg::*;
   import soc_bus_pkg::*;
@@ -20,108 +37,66 @@ module soc_axi_to_mem
   input  axi_req_t  s_axi_req_i,
   output axi_resp_t s_axi_rsp_o,
 
-  output logic                       mem_req_o,
-  output logic                       mem_we_o,
-  output logic [AddrWidth-1:0]       mem_addr_o,
-  output logic [DataWidth-1:0]       mem_wdata_o,
-  output logic [DataWidth/8-1:0]     mem_be_o,
-  input  logic                       mem_gnt_i,
-  input  logic                       mem_rvalid_i,
-  output logic                       mem_rready_o,
-  input  logic [DataWidth-1:0]       mem_rdata_i,
-  input  logic                       mem_err_i
-);
-  typedef enum logic [2:0] {
-    StateIdle,
-    StateWriteMem,
-    StateWriteWait,
-    StateWriteResp,
-    StateReadMem,
-    StateReadWait,
-    StateReadResp
-  } state_e;
+  // Read engine init port (mem_rd_we_o is always 0).
+  output logic                   mem_rd_req_o,
+  output logic                   mem_rd_we_o,
+  output logic [AddrWidth-1:0]   mem_rd_addr_o,
+  output logic [DataWidth-1:0]   mem_rd_wdata_o,
+  output logic [DataWidth/8-1:0] mem_rd_be_o,
+  input  logic                   mem_rd_gnt_i,
+  input  logic                   mem_rd_rvalid_i,
+  output logic                   mem_rd_rready_o,
+  input  logic [DataWidth-1:0]   mem_rd_rdata_i,
+  input  logic                   mem_rd_err_i,
 
-  state_e state_q;
-  axi_aw_chan_t aw_q;
-  axi_w_chan_t  w_q;
+  // Write engine init port (mem_wr_we_o is always 1; no read data needed).
+  output logic                   mem_wr_req_o,
+  output logic                   mem_wr_we_o,
+  output logic [AddrWidth-1:0]   mem_wr_addr_o,
+  output logic [DataWidth-1:0]   mem_wr_wdata_o,
+  output logic [DataWidth/8-1:0] mem_wr_be_o,
+  input  logic                   mem_wr_gnt_i,
+  input  logic                   mem_wr_rvalid_i,
+  output logic                   mem_wr_rready_o,
+  input  logic                   mem_wr_err_i
+);
+  // ---------------------------------------------------------------------------
+  // Read engine: AR/R channels -> read init port.
+  // ---------------------------------------------------------------------------
+  typedef enum logic [1:0] {RdIdle, RdMem, RdWait, RdResp} rd_state_e;
+  rd_state_e    rd_state_q;
   axi_ar_chan_t ar_q;
   axi_r_chan_t  r_q;
-  axi_b_chan_t  b_q;
-  // Round-robin tie-break between a pending read and a pending write so neither
-  // starves. 1 => a read wins a simultaneous read/write tie.
-  logic                          rr_prefer_read_q;
-  logic                          rd_req;
-  logic                          wr_req;
-  logic                          arb_read;
 
-  // A write only competes once both AW and W are valid. Committing to a
-  // write on a lone AW (and blocking reads while waiting for W) deadlocks
-  // against a read-to-write coupled initiator such as the iDMA doing a
-  // memcpy within RAM: its W data is produced from its own R data, so the
-  // pending read must be served first.
-  assign rd_req   = s_axi_req_i.ar_valid;
-  assign wr_req   = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
-  assign arb_read = rd_req && (!wr_req || rr_prefer_read_q);
+  logic rd_ar_ready;
+  logic rd_r_valid;
 
   always_comb begin
-    s_axi_rsp_o = '0;
-    mem_req_o   = 1'b0;
-    mem_we_o    = 1'b0;
-    mem_addr_o  = '0;
-    mem_wdata_o = '0;
-    mem_be_o    = '0;
-    mem_rready_o = 1'b0;
+    rd_ar_ready     = 1'b0;
+    rd_r_valid      = 1'b0;
+    mem_rd_req_o    = 1'b0;
+    mem_rd_we_o     = 1'b0;
+    mem_rd_addr_o   = '0;
+    mem_rd_wdata_o  = '0;
+    mem_rd_be_o     = '0;
+    mem_rd_rready_o = 1'b0;
 
-    unique case (state_q)
-      StateIdle: begin
-        // Serve exactly one side, chosen by arb_read. The earlier form
-        //   aw_ready = aw_valid && !ar_valid;  ar_ready = !aw_valid && !w_valid;
-        // gated each channel on the other's valid, so a simultaneous read+write
-        // left both readies low forever - a deadlock once the system crossbar
-        // began presenting a data-write AW and an instruction-read AR to RAM in
-        // the same cycle (the former arbiter serialized initiators, hiding it).
-        if (arb_read) begin
-          s_axi_rsp_o.ar_ready = 1'b1;
-        end else begin
-          s_axi_rsp_o.aw_ready = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
-          s_axi_rsp_o.w_ready  = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
-        end
+    unique case (rd_state_q)
+      RdIdle: begin
+        rd_ar_ready = 1'b1;
       end
-
-      StateWriteMem: begin
-        mem_req_o   = 1'b1;
-        mem_we_o    = 1'b1;
-        mem_addr_o  = AddrWidth'(aw_q.addr);
-        mem_wdata_o = DataWidth'(w_q.data);
-        mem_be_o    = w_q.strb[DataWidth/8-1:0];
+      RdMem: begin
+        mem_rd_req_o    = 1'b1;
+        mem_rd_addr_o   = AddrWidth'(ar_q.addr);
+        mem_rd_be_o     = '1;
+        mem_rd_rready_o = 1'b1;
       end
-
-      StateWriteWait: begin
-        mem_rready_o = 1'b1;
+      RdWait: begin
+        mem_rd_rready_o = 1'b1;
       end
-
-      StateWriteResp: begin
-        s_axi_rsp_o.b_valid = 1'b1;
-        s_axi_rsp_o.b       = b_q;
+      RdResp: begin
+        rd_r_valid = 1'b1;
       end
-
-      StateReadMem: begin
-        mem_req_o    = 1'b1;
-        mem_we_o     = 1'b0;
-        mem_addr_o   = AddrWidth'(ar_q.addr);
-        mem_be_o     = '1;
-        mem_rready_o = 1'b1;
-      end
-
-      StateReadWait: begin
-        mem_rready_o = 1'b1;
-      end
-
-      StateReadResp: begin
-        s_axi_rsp_o.r_valid = 1'b1;
-        s_axi_rsp_o.r       = r_q;
-      end
-
       default: begin
       end
     endcase
@@ -129,95 +104,160 @@ module soc_axi_to_mem
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
-      state_q   <= StateIdle;
-      aw_q      <= '0;
-      w_q       <= '0;
-      ar_q      <= '0;
-      r_q       <= '0;
-      b_q       <= '0;
-      rr_prefer_read_q <= 1'b1;
+      rd_state_q <= RdIdle;
+      ar_q       <= '0;
+      r_q        <= '0;
     end else begin
-      unique case (state_q)
-        StateIdle: begin
-          if (s_axi_rsp_o.ar_ready && s_axi_req_i.ar_valid) begin
-            ar_q    <= s_axi_req_i.ar;
-            rr_prefer_read_q <= 1'b0;  // just served a read; favor a write next
-            state_q <= StateReadMem;
-          end else if (s_axi_rsp_o.aw_ready && s_axi_req_i.aw_valid &&
-                       s_axi_rsp_o.w_ready && s_axi_req_i.w_valid) begin
-            aw_q    <= s_axi_req_i.aw;
-            w_q     <= s_axi_req_i.w;
-            rr_prefer_read_q <= 1'b1;  // serving a write; favor a read next
-            state_q <= StateWriteMem;
+      unique case (rd_state_q)
+        RdIdle: begin
+          if (rd_ar_ready && s_axi_req_i.ar_valid) begin
+            ar_q       <= s_axi_req_i.ar;
+            rd_state_q <= RdMem;
           end
         end
-
-        StateWriteMem: begin
-          if (mem_req_o && mem_gnt_i) begin
-            state_q <= StateWriteWait;
+        RdMem: begin
+          if (mem_rd_req_o && mem_rd_gnt_i) begin
+            rd_state_q <= RdWait;
           end
         end
-
-        StateWriteWait: begin
-          if (mem_rvalid_i) begin
-            state_q  <= StateWriteResp;
-            b_q.id   <= aw_q.id;
-            b_q.resp <= mem_err_i ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
-            b_q.user <= '0;
-          end
-        end
-
-        StateWriteResp: begin
-          if (s_axi_req_i.b_ready) begin
-            state_q <= StateIdle;
-          end
-        end
-
-        StateReadMem: begin
-          if (mem_req_o && mem_gnt_i) begin
-            state_q <= StateReadWait;
-          end
-        end
-
-        StateReadWait: begin
-          if (mem_rvalid_i) begin
+        RdWait: begin
+          if (mem_rd_rvalid_i) begin
             r_q.id   <= ar_q.id;
-            r_q.data <= DataWidth'(mem_rdata_i);
-            r_q.resp <= mem_err_i ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
+            r_q.data <= DataWidth'(mem_rd_rdata_i);
+            r_q.resp <= mem_rd_err_i ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
             r_q.last <= 1'b1;
             r_q.user <= '0;
-            state_q  <= StateReadResp;
+            rd_state_q <= RdResp;
           end
         end
-
-        StateReadResp: begin
+        RdResp: begin
           if (s_axi_req_i.r_ready) begin
-            state_q <= StateIdle;
+            rd_state_q <= RdIdle;
           end
         end
-
         default: begin
-          state_q <= StateIdle;
+          rd_state_q <= RdIdle;
         end
       endcase
     end
   end
 
+  // ---------------------------------------------------------------------------
+  // Write engine: AW/W/B channels -> write init port. A write competes only
+  // once both AW and W are valid (committing on a lone AW is unnecessary and
+  // was the old deadlock source); the read engine is independent either way.
+  // ---------------------------------------------------------------------------
+  typedef enum logic [1:0] {WrIdle, WrMem, WrWait, WrResp} wr_state_e;
+  wr_state_e    wr_state_q;
+  axi_aw_chan_t aw_q;
+  axi_w_chan_t  w_q;
+  axi_b_chan_t  b_q;
+
+  logic wr_aw_ready;
+  logic wr_w_ready;
+  logic wr_b_valid;
+  logic wr_fire;
+
+  assign wr_fire = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
+
+  always_comb begin
+    wr_aw_ready     = 1'b0;
+    wr_w_ready      = 1'b0;
+    wr_b_valid      = 1'b0;
+    mem_wr_req_o    = 1'b0;
+    mem_wr_we_o     = 1'b0;
+    mem_wr_addr_o   = '0;
+    mem_wr_wdata_o  = '0;
+    mem_wr_be_o     = '0;
+    mem_wr_rready_o = 1'b0;
+
+    unique case (wr_state_q)
+      WrIdle: begin
+        wr_aw_ready = wr_fire;
+        wr_w_ready  = wr_fire;
+      end
+      WrMem: begin
+        mem_wr_req_o   = 1'b1;
+        mem_wr_we_o    = 1'b1;
+        mem_wr_addr_o  = AddrWidth'(aw_q.addr);
+        mem_wr_wdata_o = DataWidth'(w_q.data);
+        mem_wr_be_o    = w_q.strb[DataWidth/8-1:0];
+      end
+      WrWait: begin
+        mem_wr_rready_o = 1'b1;
+      end
+      WrResp: begin
+        wr_b_valid = 1'b1;
+      end
+      default: begin
+      end
+    endcase
+  end
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      wr_state_q <= WrIdle;
+      aw_q       <= '0;
+      w_q        <= '0;
+      b_q        <= '0;
+    end else begin
+      unique case (wr_state_q)
+        WrIdle: begin
+          if (wr_aw_ready && s_axi_req_i.aw_valid &&
+              wr_w_ready && s_axi_req_i.w_valid) begin
+            aw_q       <= s_axi_req_i.aw;
+            w_q        <= s_axi_req_i.w;
+            wr_state_q <= WrMem;
+          end
+        end
+        WrMem: begin
+          if (mem_wr_req_o && mem_wr_gnt_i) begin
+            wr_state_q <= WrWait;
+          end
+        end
+        WrWait: begin
+          if (mem_wr_rvalid_i) begin
+            b_q.id   <= aw_q.id;
+            b_q.resp <= mem_wr_err_i ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
+            b_q.user <= '0;
+            wr_state_q <= WrResp;
+          end
+        end
+        WrResp: begin
+          if (s_axi_req_i.b_ready) begin
+            wr_state_q <= WrIdle;
+          end
+        end
+        default: begin
+          wr_state_q <= WrIdle;
+        end
+      endcase
+    end
+  end
+
+  // ---------------------------------------------------------------------------
+  // Response channel merge: the two engines drive disjoint AXI response fields.
+  // ---------------------------------------------------------------------------
+  always_comb begin
+    s_axi_rsp_o          = '0;
+    s_axi_rsp_o.ar_ready = rd_ar_ready;
+    s_axi_rsp_o.r_valid  = rd_r_valid;
+    s_axi_rsp_o.r        = r_q;
+    s_axi_rsp_o.aw_ready = wr_aw_ready;
+    s_axi_rsp_o.w_ready  = wr_w_ready;
+    s_axi_rsp_o.b_valid  = wr_b_valid;
+    s_axi_rsp_o.b        = b_q;
+  end
+
 `ifndef SYNTHESIS
   always_ff @(posedge clk_i) begin
     if (rst_ni) begin
-      if (s_axi_rsp_o.b_valid && !s_axi_req_i.b_ready) begin
-        assert (s_axi_rsp_o.b == b_q);
+      if (rd_state_q == RdMem) begin
+        assert (ar_q.len == '0);
       end
-      if (s_axi_rsp_o.r_valid && !s_axi_req_i.r_ready) begin
-        assert (s_axi_rsp_o.r == r_q);
-      end
-      if (state_q == StateWriteMem) begin
+      if (wr_state_q == WrMem) begin
         assert (aw_q.len == '0);
         assert (w_q.last);
-      end
-      if (state_q == StateReadMem) begin
-        assert (ar_q.len == '0);
       end
     end
   end

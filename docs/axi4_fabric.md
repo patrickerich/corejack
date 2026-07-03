@@ -194,14 +194,19 @@ deadlocked under simultaneous read+write - a case the old serializing arbiter
 never produced. `axi-adapter-sim` drives this exact collision against the RAM,
 APB, and DM targets.
 
-The remaining follow-up is **revisiting the bank count** once a second
-concurrent initiator (the iDMA, now integrated) is
-actually exploiting the bank parallelism the crossbar now exposes.
-`soc_top.MemNumBanks` is a parameter, so experiments at 8 or 16 banks need only
-an override at instantiation; `sw/Makefile` already responds to a matching
-`NUM_BANKS` value when regenerating hex preload files. See
+Since this was written, the memory subsystem itself was redesigned to be
+port-owned (`soc_mem_ss` with per-port ingress/egress logic). The CPU data and
+instruction RAM accesses now use **native 32-bit `soc_mem_ss` ports** and the
+iDMA uses **dedicated 64-bit read/write ports**, all bypassing the crossbar, so
+those initiators reach the banks directly with per-port multi-outstanding,
+in-order delivery. The crossbar's RAM path (`soc_axi_to_mem`, split into read
+and write engines) now mainly carries debug SBA and any other fabric-routed RAM
+traffic. The remaining follow-up is **revisiting the bank count**:
+`soc_top.MemNumBanks` is a parameter (default 4), so experiments at 8 or 16
+banks need only an override at instantiation; `sw/Makefile` already responds to
+a matching `NUM_BANKS` value when regenerating hex preload files. See
 [`roadmap.md`](roadmap.md) for the coupling between `MemNumBanks` and the
-initiator count.
+port count.
 
 ## Acceptance
 
@@ -256,11 +261,11 @@ closure:
 - add burst support (target adapters and the single-beat protocol checker) when
   an AXI-native burst initiator is integrated; the crossbar itself already
   forwards multiple outstanding requests
-- revisit `MemNumBanks` once a second concurrent initiator exploits the bank
-  parallelism the crossbar now exposes
+- revisit `MemNumBanks` as more ports drive the memory subsystem (the bank-count
+  vs port-count coupling; see [`roadmap.md`](roadmap.md))
 
 FPGA timing closure with the crossbar on the fabric path is validated at the
-25 MHz default on both boards (ibex WNS: +12.6 ns on the AXKU5, +6.5 ns on the
+25 MHz default on both boards (ibex WNS: +13.3 ns on the AXKU5, +8.8 ns on the
 Arty A7-100T). If a future higher clock or a larger initiator set regresses
 timing, the crossbar's `LatencyMode` (e.g. `CUT_ALL_AX`) is the first knob to
 try.

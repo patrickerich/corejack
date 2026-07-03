@@ -8,17 +8,16 @@ filesets:
     files:
       - deps/cva6/core/include/rvfi_types.svh : {file_type : user, copyto : rvfi_types.svh}
       - deps/cva6/core/include/cvxif_types.svh : {file_type : user, copyto : cvxif_types.svh}
-      # lzc, rr_arb_tree, and stream_register are provided by the shared
-      # corejack:common:deps fileset (added for the axi_xbar system crossbar);
-      # listing them here too would double-define the modules and trip Vivado
-      # CRITICAL WARNING [Synth 8-9873]. Keep only the common_cells that the
-      # platform fileset does not already supply.
-      - deps/common_cells/src/onehot_to_bin.sv
+      # lzc, rr_arb_tree, stream_register, onehot_to_bin, and popcount are
+      # provided by the shared corejack:common:deps fileset (the first three for
+      # the axi_xbar system crossbar; onehot_to_bin and popcount were later added
+      # there for the iDMA integration). Listing them here too would double-define
+      # the modules and trip Vivado CRITICAL WARNING [Synth 8-9873]. Keep only the
+      # common_cells that the platform fileset does not already supply.
       - deps/common_cells/src/lfsr.sv
       - deps/common_cells/src/exp_backoff.sv
       - deps/common_cells/src/shift_reg.sv
       - rtl/cores/cva6_shift_reg_gated.sv
-      - deps/common_cells/src/popcount.sv
       - deps/common_cells/src/unread.sv
       - deps/tech_cells_generic/src/rtl/tc_sram.sv
       - deps/cva6/core/include/config_pkg.sv

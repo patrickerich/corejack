@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 package mem_ss_pkg;
   typedef enum logic [0:0] {
     MemImplModel,

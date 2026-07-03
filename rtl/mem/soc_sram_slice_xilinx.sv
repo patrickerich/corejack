@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module soc_sram_slice_xilinx #(
   parameter int unsigned NumWords = 32768,
   parameter int unsigned DataWidth = 32,

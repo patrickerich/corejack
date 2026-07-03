@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module corejack_cv32e40x_socket_adapter #(
   parameter logic [31:0] BootAddr = 32'h8000_0000,
   parameter logic [31:0] MtvecAddr = 32'h8000_0000,
@@ -286,5 +288,6 @@ module corejack_cv32e40x_socket_adapter #(
   // and debug-resumed execution do not show that offset, so keep those fetches
   // at their raw address.
   assign instr_addr_o =
-      (raw_instr_in_dm_region || raw_instr_after_debug_resume_q) ? raw_instr_addr : raw_instr_addr - 32'd4;
+      (raw_instr_in_dm_region || raw_instr_after_debug_resume_q)
+        ? raw_instr_addr : raw_instr_addr - 32'd4;
 endmodule

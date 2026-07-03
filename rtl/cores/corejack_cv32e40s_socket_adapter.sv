@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module corejack_cv32e40s_socket_adapter #(
   parameter logic [31:0] BootAddr = 32'h8000_0000,
   parameter logic [31:0] MtvecAddr = 32'h8000_0000,
@@ -52,7 +54,7 @@ module corejack_cv32e40s_socket_adapter #(
   logic [63:0] mcycle_unused;
   logic        fencei_flush_req_unused;
   logic        alert_major;
-  logic        debug_havereset;
+  logic        debug_havereset_unused;
   logic        debug_running_unused;
   logic        debug_halted_unused;
   logic        debug_pc_valid_unused;
@@ -154,7 +156,7 @@ module corejack_cv32e40s_socket_adapter #(
     .alert_minor_o        (alert_minor_o),
     .alert_major_o        (alert_major),
     .debug_req_i          (debug_req_i),
-    .debug_havereset_o    (debug_havereset),
+    .debug_havereset_o    (debug_havereset_unused),
     .debug_running_o      (debug_running_unused),
     .debug_halted_o       (debug_halted_unused),
     .debug_pc_valid_o     (debug_pc_valid_unused),
@@ -163,6 +165,6 @@ module corejack_cv32e40s_socket_adapter #(
     .core_sleep_o         (core_sleep_o)
   );
 
-  assign debug_unavailable_o = debug_havereset;
+  assign debug_unavailable_o = 1'b0;
   assign instr_addr_o = raw_instr_addr;
 endmodule

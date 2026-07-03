@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module soc_axi_to_apb #(
   parameter logic [31:0] BaseAddr = 32'h0,
   // AXI slave-port types. Default to the platform initiator-side types; the

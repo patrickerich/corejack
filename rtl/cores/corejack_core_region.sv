@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module corejack_core_region #(
   parameter int unsigned CoreType = platform_pkg::CORE_IBEX,
   parameter logic [31:0] BootAddr = 32'h8000_0000,

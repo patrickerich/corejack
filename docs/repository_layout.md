@@ -22,8 +22,10 @@ specific area, follow the linked documentation.
   `soc_axi_protocol_checker`). The system crossbar itself is the PULP
   `axi_xbar` from the Bender-managed `axi` dependency; see
   [`axi4_fabric.md`](axi4_fabric.md).
-- `rtl/mem/` - banked SRAM subsystem (`soc_mem_ss`), OBI memory buffer, and
-  SRAM slice models/wrappers for behavioral and Xilinx targets.
+- `rtl/mem/` - banked, interleaved SRAM subsystem (`soc_mem_ss`) built from
+  per-bank elastic pipes (`soc_mem_bank`) and per-port ingress/egress logic
+  (`soc_mem_port`), the OBI memory buffer (`soc_obi_mem_buffer`), and SRAM slice
+  models/wrappers for behavioral and Xilinx targets.
 - `rtl/platform/soc_uart_sram_loader.sv` - side-path UART SRAM loader.
 - `rtl/platform/soc_idma.sv` - PULP iDMA system DMA wrapper (register
   frontend, ND midend, AXI backend, burst splitter, fabric cut); enters the

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module soc_obi_to_axi
   import axi_pkg::*;
   import soc_bus_pkg::*;

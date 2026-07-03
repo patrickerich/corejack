@@ -7,14 +7,29 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
-- **`soc_mem_ss` init ports assume single-outstanding clients.** Each bank
-  arbitrates independently and holds one response register, but nothing stops
-  one init port from having two requests outstanding to two *different* banks;
-  the response collector would then present colliding (and possibly reordered)
-  responses for that port. Safe today because every init-port client -
-  `soc_axi_to_mem` and the UART SRAM loader - issues one request at a time (the
-  simulation preloader initializes the banks directly via `$readmemh`, not
-  through an init port). Revisit before adding multi-outstanding clients (the
-  planned direct CPU mem ports or DMA streams from
-  [`roadmap.md`](roadmap.md)): either add per-port response ordering/merging in
-  `soc_mem_ss` or document single-outstanding as a hard init-port contract.
+- **Bank count is below the active port count.** `soc_top` instantiates
+  `soc_mem_ss` with `MemNumBanks = 4`, but seven ports now drive it: two native
+  32-bit CPU ports (data, instruction) plus five 64-bit ports (xbar RAM read and
+  write engines, UART SRAM loader, iDMA read and write). The port-owned subsystem
+  already gives each port loss-free, in-order, multi-outstanding access with
+  per-bank fair round-robin, so the remaining lever is the bank count: under
+  heavy concurrent RAM traffic the four banks can become the limiter before the
+  ports do. Raising `MemNumBanks` toward the port count is a parameter override
+  (`sw/Makefile` regenerates the matching hex preload split); making it
+  descriptor-driven is the deferred plumbing. See the *Memory subsystem
+  follow-up* in [`roadmap.md`](roadmap.md).
+- **Sim UART printf is baud-throttled, inflating simulation cycle counts.** The
+  cocotb harness captures printf passively by tapping the APB write to the UART
+  THR (`tb/uart_apb_tx_monitor.sv`), so capture does not decode the serial pin.
+  But the real `apb_uart` is still instantiated and `uart_putc`
+  (`sw/c/common/uart.c`) busy-waits on its LSR THR-empty bit before every byte,
+  so the CPU self-throttles to the programmed baud: divisor ~14 -> 16*14*~10
+  ~= 2240 cycles per character. A few lines of output cost hundreds of thousands
+  of cycles (this is why `dma_smoke` needs ~1.27M cycles, over the 1M
+  `SIM_TIMEOUT_CYCLES` default). Functionally correct, just slow. When it starts
+  to bite, the cleanest provision is a sim-only build knob that programs a tiny
+  UART divisor (very high baud) so the real UART drains ~16 cycles/byte; the
+  monitor captures from the APB write regardless of baud, so output is
+  unchanged. Alternatives: a sim-only skip-the-LSR-poll fast path (adds
+  sim/FPGA driver divergence), trimming printf volume, or just raising
+  `SIM_TIMEOUT_CYCLES` for verbose apps.

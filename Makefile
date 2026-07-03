@@ -130,7 +130,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim plic-sim axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -192,6 +192,7 @@ help:
 	@printf '  %-18s %s\n' 'axi-adapter-sim' 'run OBI-to-AXI and AXI-to-memory adapter regressions'
 	@printf '  %-18s %s\n' 'uart-loader-sim' 'run side-path UART SRAM loader protocol regression'
 	@printf '  %-18s %s\n' 'plic-sim' 'run soc_plic claim/complete and gateway regression'
+	@printf '  %-18s %s\n' 'mem-ss-bench' 'measure soc_mem_ss words/cycle vs active ports/banks'
 	@printf '  %-18s %s\n' 'axi-addr-map-check' 'check AXI fabric address windows for overlap'
 	@printf '  %-18s %s\n' 'axi-smoke' 'run AXI fabric regressions and supported-core SW sims'
 	@printf '  %-18s %s\n' 'openocd' 'launch OpenOCD for the FPGA JTAG debug target'
@@ -609,10 +610,22 @@ plic-sim: deps-base
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
 		fusesoc --cores-root . run --clean --target plic-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
 
+mem-ss-bench: deps-base
+	@wave_file="$(SIM_WAVE_FILE)"; \
+	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/mem-ss-bench.$(SIM_WAVE_FORMAT)"; fi; \
+	extra_args=(); \
+	if [ "$(SIM_WAVES)" = "1" ]; then \
+		mkdir -p "$$(dirname "$$wave_file")"; \
+		echo "Waveform: $$wave_file"; \
+		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
+	fi; \
+	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
+		fusesoc --cores-root . run --clean --target mem-ss-bench --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
+
 axi-addr-map-check:
 	@$(PY) bin/check_axi_addr_map.py
 
-axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim debug-sim
+axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench debug-sim
 	@for core in $(AXI_SMOKE_CORES); do \
 		echo "AXI smoke: sim-run-sw CORE=$$core"; \
 		$(MAKE) sim-run-sw CORE="$$core" SW_APP=hello_world SIM_TIMEOUT_CYCLES="$(SIM_TIMEOUT_CYCLES)"; \

@@ -72,6 +72,8 @@ sources:
     - rtl/mem/soc_sram_slice_xilinx.sv
     - rtl/mem/soc_sram_slice_wrapper.sv
     - rtl/mem/soc_obi_mem_buffer.sv
+    - rtl/mem/soc_mem_bank.sv
+    - rtl/mem/soc_mem_port.sv
     - rtl/mem/soc_mem_ss.sv
     - rtl/bus/soc_obi_to_axi.sv
     - rtl/bus/soc_axi_to_apb.sv

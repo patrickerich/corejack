@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module soc_top #(
   parameter int N_IRQ = 64,
   parameter int unsigned CoreType = platform_pkg::CORE_IBEX,
@@ -109,7 +111,16 @@ module soc_top #(
     localparam logic [31:0] DmHaltAddr = DebugBaseAddr + 32'h0000_0800;
     localparam logic [31:0] DmExceptionAddr = DebugBaseAddr + 32'h0000_0810;
     localparam logic [31:0] DmRomBaseSelect = 32'h0000_1000;
-    localparam int unsigned MemInitPorts = 2;
+    // soc_mem_ss has two symmetric port groups. The five 64-bit ports are:
+    // 0 = xbar RAM read engine, 1 = xbar RAM write engine (independent so a read
+    // and a write hit different banks the same cycle), 2 = optional UART SRAM
+    // loader, 3/4 = iDMA dedicated read/write engines. The two 32-bit ports are
+    // the RV32 core's data (0) and instruction (1) direct RAM ports, routed off
+    // the data/instruction OBI and connected natively (no 32->64 bridge), so the
+    // memory subsystem performs the lane select. Only the RV32 core path drives
+    // the 32-bit ports; the CVA6 path leaves the core OBI idle.
+    localparam int unsigned MemInitPorts = 5;   // 64-bit ports only
+    localparam int unsigned MemPorts32   = 2;   // native 32-bit CPU ports
     localparam logic [31:0] DmaSize = 32'h0000_1000;
     // The PLIC window spans the full standard layout (context block at
     // +0x200000), hence 4 MiB.
@@ -118,7 +129,10 @@ module soc_top #(
     // ID 1: UART. ID 2: iDMA completion interrupt, driven from the accelerator
     // socket (i_dma_socket.irq_o; see plic_irq_sources below).
     localparam int unsigned PlicNumSources = 2;
-    localparam int unsigned CoreAxiPorts = 4;
+    // Three xbar initiators: core instruction, core data, debug SBA. The iDMA
+    // is no longer an xbar initiator - its data path has dedicated soc_mem_ss
+    // ports (see i_dma_axi_to_mem); only its CSR leg uses the fabric (APB).
+    localparam int unsigned CoreAxiPorts = 3;
     localparam int unsigned FabricAxiPorts = 6;
     // System crossbar configuration. Replaces the former single-outstanding
     // soc_axi_arbiter + soc_axi_demux pair: per-target arbitration with up to
@@ -147,7 +161,6 @@ module soc_top #(
     localparam int unsigned MemDataWidth = 64;
     localparam int unsigned MemBytesPerWord = MemDataWidth / 8;
     localparam int unsigned MemWords = RamWords / 2;
-    localparam int unsigned MemTagWidth = 1;
     localparam dm::hartinfo_t HartInfo = '{
       zero1:      '0,
       nscratch:   4'd2,
@@ -233,13 +246,23 @@ module soc_top #(
     logic [MemInitPorts-1:0][31:0]                mem_init_addr;
     logic [MemInitPorts-1:0][MemDataWidth-1:0]    mem_init_wdata;
     logic [MemInitPorts-1:0][MemBytesPerWord-1:0] mem_init_be;
-    logic [MemInitPorts-1:0][MemTagWidth-1:0]     mem_init_tag;
     logic [MemInitPorts-1:0]                      mem_init_gnt;
     logic [MemInitPorts-1:0]                      mem_init_rvalid;
     logic [MemInitPorts-1:0][MemDataWidth-1:0]    mem_init_rdata;
     logic [MemInitPorts-1:0]                      mem_init_err;
-    logic [MemInitPorts-1:0][MemTagWidth-1:0]     mem_init_rtag;
     logic [MemInitPorts-1:0]                      mem_axi_rready;
+
+    // Native 32-bit CPU memory ports: index 0 = core data, 1 = core instruction.
+    logic [MemPorts32-1:0]        mem32_req;
+    logic [MemPorts32-1:0]        mem32_gnt;
+    logic [MemPorts32-1:0]        mem32_we;
+    logic [MemPorts32-1:0][31:0]  mem32_addr;
+    logic [MemPorts32-1:0][31:0]  mem32_wdata;
+    logic [MemPorts32-1:0][3:0]   mem32_be;
+    logic [MemPorts32-1:0]        mem32_rvalid;
+    logic [MemPorts32-1:0]        mem32_rready;
+    logic [MemPorts32-1:0][31:0]  mem32_rdata;
+    logic [MemPorts32-1:0]        mem32_err;
     soc_axi_req_t [CoreAxiPorts-1:0]              core_axi_req;
     soc_axi_resp_t [CoreAxiPorts-1:0]             core_axi_rsp;
     soc_axi_req_t                                 instr_axi_req;
@@ -330,7 +353,6 @@ module soc_top #(
       end
     end
 
-    assign mem_init_tag = '0;
     assign fabric_addr_map = '{
       '{idx: 0, start_addr: RamBaseAddr,   end_addr: RamBaseAddr + RamSize},
       '{idx: 1, start_addr: UartBaseAddr,  end_addr: UartBaseAddr + UartSize},
@@ -502,6 +524,61 @@ module soc_top #(
       );
     end
 
+    // ------------------------------------------------------------------------
+    // Instruction request router. Mirrors the data router: RAM-window fetches
+    // take a dedicated soc_mem_ss native 32-bit port (mem32[1]), bypassing the xbar (and
+    // its CUT_ALL_AX + soc_obi_to_axi + soc_axi_to_mem chain), so instruction
+    // fetch runs concurrently with - and at lower latency than - the old xbar
+    // path. Non-RAM fetches go through the xbar via core_axi_req[0]: in
+    // practice the only non-RAM instruction fetches are from the debug-module
+    // ROM at DebugBaseAddr (0x0) while the core is halted. The router is
+    // read-only and single-outstanding across the two paths. CVA6 leaves the
+    // instruction OBI idle (instr_req = 0), so both paths stay quiescent.
+    // ------------------------------------------------------------------------
+    logic        instr_is_ram;
+    logic        instr_rt_busy_q;
+    logic        instr_rt_sel_ram_q;
+    logic        instr_rt_accept;
+    logic        instr_to_ram;
+    logic        instr_to_axi;
+    logic        instr_sel_gnt;
+    logic        instr_axi_gnt;
+    logic        instr_axi_rvalid;
+    logic        instr_axi_err;
+    logic [31:0] instr_axi_rdata;
+    logic        instr_mem_gnt;
+    logic        instr_mem_rvalid;
+    logic        instr_mem_err;
+    logic [31:0] instr_mem_rdata;
+
+    assign instr_is_ram    = (instr_addr >= RamBaseAddr) &&
+                             (instr_addr < (RamBaseAddr + RamSize));
+    assign instr_rt_accept = instr_req & ~instr_rt_busy_q;
+    assign instr_to_ram    = instr_rt_accept & instr_is_ram;
+    assign instr_to_axi    = instr_rt_accept & ~instr_is_ram;
+    assign instr_sel_gnt   = instr_is_ram ? instr_mem_gnt : instr_axi_gnt;
+
+    assign instr_gnt    = instr_rt_accept & instr_sel_gnt;
+    assign instr_rvalid = instr_rt_busy_q &
+                          (instr_rt_sel_ram_q ? instr_mem_rvalid : instr_axi_rvalid);
+    assign instr_rdata  = instr_rt_sel_ram_q ? instr_mem_rdata : instr_axi_rdata;
+    assign instr_err    = instr_rt_busy_q &
+                          (instr_rt_sel_ram_q ? instr_mem_err : instr_axi_err);
+
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+      if (!rst_ni) begin
+        instr_rt_busy_q    <= 1'b0;
+        instr_rt_sel_ram_q <= 1'b0;
+      end else if (!instr_rt_busy_q) begin
+        if (instr_rt_accept && instr_sel_gnt) begin
+          instr_rt_busy_q    <= 1'b1;
+          instr_rt_sel_ram_q <= instr_is_ram;
+        end
+      end else if (instr_rvalid && instr_rready) begin
+        instr_rt_busy_q <= 1'b0;
+      end
+    end
+
     soc_obi_to_axi i_instr_obi_to_axi (
       .clk_i,
       .rst_ni,
@@ -509,15 +586,85 @@ module soc_top #(
       .s_wdata_i   ('0),
       .s_be_i      (4'hF),
       .s_we_i      (1'b0),
-      .s_req_i     (instr_req),
-      .s_gnt_o     (instr_gnt),
-      .s_rvalid_o  (instr_rvalid),
+      .s_req_i     (instr_to_axi),
+      .s_gnt_o     (instr_axi_gnt),
+      .s_rvalid_o  (instr_axi_rvalid),
       .s_rready_i  (instr_rready),
-      .s_rdata_o   (instr_rdata),
-      .s_err_o     (instr_err),
+      .s_rdata_o   (instr_axi_rdata),
+      .s_err_o     (instr_axi_err),
       .m_axi_req_o (instr_axi_req),
       .m_axi_rsp_i (instr_axi_rsp)
     );
+
+    // Instruction RAM fetches drive the native 32-bit memory port 1 directly:
+    // the memory subsystem performs the 32-bit lane select on the 64-bit slice.
+    assign mem32_req[1]    = instr_to_ram;
+    assign mem32_we[1]     = 1'b0;
+    assign mem32_addr[1]   = instr_addr;
+    assign mem32_wdata[1]  = '0;
+    assign mem32_be[1]     = 4'hF;
+    assign mem32_rready[1] = instr_rready;
+    assign instr_mem_gnt    = mem32_gnt[1];
+    assign instr_mem_rvalid = mem32_rvalid[1];
+    assign instr_mem_rdata  = mem32_rdata[1];
+    assign instr_mem_err    = mem32_err[1];
+
+    // ------------------------------------------------------------------------
+    // Data request router. An initiator-side address decode on the core data
+    // port sends RAM-window accesses to a dedicated soc_mem_ss native 32-bit
+    // port (mem32[0]), bypassing the xbar, so CPU data and CPU instruction fetch land
+    // on different memory ports and run concurrently instead of serializing
+    // through the xbar's single RAM master port. Non-RAM data accesses (UART,
+    // CLINT, PLIC, DMA CSR, debug ROM, decode misses) still go through the xbar
+    // via core_axi_req[1]. The router is single-outstanding across the two
+    // paths, so OBI responses stay in order without a reorder buffer;
+    // back-to-back accesses to the same path are not blocked by the router
+    // (each sub-bridge is itself single-outstanding). CVA6 leaves the data OBI
+    // idle (data_req = 0), so both paths stay quiescent for it.
+    // ------------------------------------------------------------------------
+    logic        data_is_ram;
+    logic        data_rt_busy_q;
+    logic        data_rt_sel_ram_q;
+    logic        data_rt_accept;
+    logic        data_to_ram;
+    logic        data_to_axi;
+    logic        data_sel_gnt;
+    logic        data_axi_gnt;
+    logic        data_axi_rvalid;
+    logic        data_axi_err;
+    logic [31:0] data_axi_rdata;
+    logic        data_mem_gnt;
+    logic        data_mem_rvalid;
+    logic        data_mem_err;
+    logic [31:0] data_mem_rdata;
+
+    assign data_is_ram    = (data_addr >= RamBaseAddr) &&
+                            (data_addr < (RamBaseAddr + RamSize));
+    assign data_rt_accept = data_req & ~data_rt_busy_q;
+    assign data_to_ram    = data_rt_accept & data_is_ram;
+    assign data_to_axi    = data_rt_accept & ~data_is_ram;
+    assign data_sel_gnt   = data_is_ram ? data_mem_gnt : data_axi_gnt;
+
+    assign data_gnt    = data_rt_accept & data_sel_gnt;
+    assign data_rvalid = data_rt_busy_q &
+                         (data_rt_sel_ram_q ? data_mem_rvalid : data_axi_rvalid);
+    assign data_rdata  = data_rt_sel_ram_q ? data_mem_rdata : data_axi_rdata;
+    assign data_err    = data_rt_busy_q &
+                         (data_rt_sel_ram_q ? data_mem_err : data_axi_err);
+
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+      if (!rst_ni) begin
+        data_rt_busy_q    <= 1'b0;
+        data_rt_sel_ram_q <= 1'b0;
+      end else if (!data_rt_busy_q) begin
+        if (data_rt_accept && data_sel_gnt) begin
+          data_rt_busy_q    <= 1'b1;
+          data_rt_sel_ram_q <= data_is_ram;
+        end
+      end else if (data_rvalid && data_rready) begin
+        data_rt_busy_q <= 1'b0;
+      end
+    end
 
     soc_obi_to_axi i_data_obi_to_axi (
       .clk_i,
@@ -526,15 +673,27 @@ module soc_top #(
       .s_wdata_i   (data_wdata),
       .s_be_i      (data_be),
       .s_we_i      (data_we),
-      .s_req_i     (data_req),
-      .s_gnt_o     (data_gnt),
-      .s_rvalid_o  (data_rvalid),
+      .s_req_i     (data_to_axi),
+      .s_gnt_o     (data_axi_gnt),
+      .s_rvalid_o  (data_axi_rvalid),
       .s_rready_i  (data_rready),
-      .s_rdata_o   (data_rdata),
-      .s_err_o     (data_err),
+      .s_rdata_o   (data_axi_rdata),
+      .s_err_o     (data_axi_err),
       .m_axi_req_o (data_axi_req),
       .m_axi_rsp_i (data_axi_rsp)
     );
+
+    // Data RAM accesses drive the native 32-bit memory port 0 directly.
+    assign mem32_req[0]    = data_to_ram;
+    assign mem32_we[0]     = data_we;
+    assign mem32_addr[0]   = data_addr;
+    assign mem32_wdata[0]  = data_wdata;
+    assign mem32_be[0]     = data_be;
+    assign mem32_rready[0] = data_rready;
+    assign data_mem_gnt    = mem32_gnt[0];
+    assign data_mem_rvalid = mem32_rvalid[0];
+    assign data_mem_rdata  = mem32_rdata[0];
+    assign data_mem_err    = mem32_err[0];
 
     soc_obi_to_axi #(
       .ObiAddrWidth (64),
@@ -557,11 +716,13 @@ module soc_top #(
     );
 
     // iDMA system DMA, plugged in through the accelerator socket: the CSR
-    // leg arrives as APB from fabric target port [4], the (burst-split,
-    // single-beat) AXI manager enters the crossbar as the fourth initiator,
-    // and the completion interrupt lands on PLIC source 2. No platform power
-    // controller exists yet, so the power-intent pins sit in the static
-    // active state (asserted inside the adapter).
+    // leg arrives as APB from fabric target port [4], the completion interrupt
+    // lands on PLIC source 2, and the (burst-split, single-beat) AXI memory
+    // manager drives a dedicated soc_axi_to_mem into soc_mem_ss (init ports
+    // 3/4) - it is NOT an xbar initiator, so its RAM traffic runs concurrently
+    // with the CPU's instead of sharing the xbar's single RAM master port. No
+    // platform power controller exists yet, so the power-intent pins sit in the
+    // static active state (asserted inside the adapter).
     accel_socket_if #(
       .mem_axi_req_t (soc_axi_req_t),
       .mem_axi_rsp_t (soc_axi_resp_t),
@@ -577,16 +738,51 @@ module soc_top #(
     assign i_dma_socket.clk_en   = 1'b1;
     assign i_dma_socket.csr_req  = dma_apb_req;
     assign dma_apb_rsp           = i_dma_socket.csr_rsp;
-    assign core_axi_req[3]       = i_dma_socket.mem_req;
-    assign i_dma_socket.mem_rsp  = core_axi_rsp[3];
 
     corejack_idma_socket_adapter i_idma_socket_adapter (
       .sock (i_dma_socket.accel)
     );
 
-    // System crossbar: the four initiators (core instruction, core data,
-    // debug SBA, iDMA) decode per port and arbitrate per target. Decode misses
-    // land on the xbar's built-in error slave (no explicit default master port).
+    // Dedicated iDMA RAM path: its single-beat AXI memory manager drives its
+    // own soc_mem_ss read/write init ports (3/4), bypassing the xbar so iDMA
+    // RAM traffic does not contend with the CPU on the xbar's single RAM master
+    // port. iDMA data is RAM-to-RAM; an out-of-RAM target errors cleanly via
+    // soc_mem_ss's range check. (DMA to a non-RAM peripheral would need a
+    // request route back onto the xbar; not provided - the iDMA is a memory
+    // mover here.)
+    soc_axi_to_mem #(
+      .AddrWidth (32),
+      .DataWidth (MemDataWidth)
+    ) i_dma_axi_to_mem (
+      .clk_i,
+      .rst_ni,
+      .s_axi_req_i     (i_dma_socket.mem_req),
+      .s_axi_rsp_o     (i_dma_socket.mem_rsp),
+      .mem_rd_req_o    (mem_init_req[3]),
+      .mem_rd_we_o     (mem_init_we[3]),
+      .mem_rd_addr_o   (mem_init_addr[3]),
+      .mem_rd_wdata_o  (mem_init_wdata[3]),
+      .mem_rd_be_o     (mem_init_be[3]),
+      .mem_rd_gnt_i    (mem_init_gnt[3]),
+      .mem_rd_rvalid_i (mem_init_rvalid[3]),
+      .mem_rd_rready_o (mem_axi_rready[3]),
+      .mem_rd_rdata_i  (mem_init_rdata[3]),
+      .mem_rd_err_i    (mem_init_err[3]),
+      .mem_wr_req_o    (mem_init_req[4]),
+      .mem_wr_we_o     (mem_init_we[4]),
+      .mem_wr_addr_o   (mem_init_addr[4]),
+      .mem_wr_wdata_o  (mem_init_wdata[4]),
+      .mem_wr_be_o     (mem_init_be[4]),
+      .mem_wr_gnt_i    (mem_init_gnt[4]),
+      .mem_wr_rvalid_i (mem_init_rvalid[4]),
+      .mem_wr_rready_o (mem_axi_rready[4]),
+      .mem_wr_err_i    (mem_init_err[4])
+    );
+
+    // System crossbar: the three initiators (core instruction, core data,
+    // debug SBA) decode per port and arbitrate per target. Decode misses land
+    // on the xbar's built-in error slave (no explicit default master port).
+    // The iDMA is not here - its data path has dedicated soc_mem_ss ports.
     axi_xbar #(
       .Cfg           (FabricXbarCfg),
       .ATOPs         (1'b0),
@@ -632,16 +828,27 @@ module soc_top #(
       .rst_ni,
       .s_axi_req_i  (target_axi_req[0]),
       .s_axi_rsp_o  (target_axi_rsp[0]),
-      .mem_req_o    (mem_init_req[0]),
-      .mem_we_o     (mem_init_we[0]),
-      .mem_addr_o   (mem_init_addr[0]),
-      .mem_wdata_o  (mem_init_wdata[0]),
-      .mem_be_o     (mem_init_be[0]),
-      .mem_gnt_i    (mem_init_gnt[0]),
-      .mem_rvalid_i (mem_init_rvalid[0]),
-      .mem_rready_o (mem_axi_rready[0]),
-      .mem_rdata_i  (mem_init_rdata[0]),
-      .mem_err_i    (mem_init_err[0])
+      // Read engine -> init port 0, write engine -> init port 1, so a read and
+      // a write to different banks proceed concurrently in soc_mem_ss.
+      .mem_rd_req_o    (mem_init_req[0]),
+      .mem_rd_we_o     (mem_init_we[0]),
+      .mem_rd_addr_o   (mem_init_addr[0]),
+      .mem_rd_wdata_o  (mem_init_wdata[0]),
+      .mem_rd_be_o     (mem_init_be[0]),
+      .mem_rd_gnt_i    (mem_init_gnt[0]),
+      .mem_rd_rvalid_i (mem_init_rvalid[0]),
+      .mem_rd_rready_o (mem_axi_rready[0]),
+      .mem_rd_rdata_i  (mem_init_rdata[0]),
+      .mem_rd_err_i    (mem_init_err[0]),
+      .mem_wr_req_o    (mem_init_req[1]),
+      .mem_wr_we_o     (mem_init_we[1]),
+      .mem_wr_addr_o   (mem_init_addr[1]),
+      .mem_wr_wdata_o  (mem_init_wdata[1]),
+      .mem_wr_be_o     (mem_init_be[1]),
+      .mem_wr_gnt_i    (mem_init_gnt[1]),
+      .mem_wr_rvalid_i (mem_init_rvalid[1]),
+      .mem_wr_rready_o (mem_axi_rready[1]),
+      .mem_wr_err_i    (mem_init_err[1])
     );
 
     if (EnableUartLoader) begin : gen_uart_sram_loader
@@ -660,25 +867,25 @@ module soc_top #(
         .uart_tx_o     (uart_loader_tx),
         .active_o      (uart_loader_active),
         .done_o        (uart_loader_done),
-        .mem_req_o     (mem_init_req[1]),
-        .mem_we_o      (mem_init_we[1]),
-        .mem_addr_o    (mem_init_addr[1]),
-        .mem_wdata_o   (mem_init_wdata[1]),
-        .mem_be_o      (mem_init_be[1]),
-        .mem_gnt_i     (mem_init_gnt[1]),
-        .mem_rvalid_i  (mem_init_rvalid[1]),
-        .mem_rready_o  (mem_axi_rready[1]),
-        .mem_err_i     (mem_init_err[1])
+        .mem_req_o     (mem_init_req[2]),
+        .mem_we_o      (mem_init_we[2]),
+        .mem_addr_o    (mem_init_addr[2]),
+        .mem_wdata_o   (mem_init_wdata[2]),
+        .mem_be_o      (mem_init_be[2]),
+        .mem_gnt_i     (mem_init_gnt[2]),
+        .mem_rvalid_i  (mem_init_rvalid[2]),
+        .mem_rready_o  (mem_axi_rready[2]),
+        .mem_err_i     (mem_init_err[2])
       );
     end else begin : gen_no_uart_sram_loader
       assign uart_loader_active = 1'b0;
       assign uart_loader_tx     = 1'b1;
-      assign mem_init_req[1]    = 1'b0;
-      assign mem_init_we[1]     = 1'b0;
-      assign mem_init_addr[1]   = '0;
-      assign mem_init_wdata[1]  = '0;
-      assign mem_init_be[1]     = '0;
-      assign mem_axi_rready[1]  = 1'b1;
+      assign mem_init_req[2]    = 1'b0;
+      assign mem_init_we[2]     = 1'b0;
+      assign mem_init_addr[2]   = '0;
+      assign mem_init_wdata[2]  = '0;
+      assign mem_init_be[2]     = '0;
+      assign mem_axi_rready[2]  = 1'b1;
     end
 
     soc_axi_to_apb #(
@@ -796,31 +1003,28 @@ module soc_top #(
     );
 
     soc_mem_ss #(
-      .AddrWidth(32),
-      .DataWidth(MemDataWidth),
-      .NumInitPorts(MemInitPorts),
-      .InitTagWidth(MemTagWidth),
+      .NumPorts32(MemPorts32),
+      .NumPorts64(MemInitPorts),
       .NumBanks(MemNumBanks),
-      .NumWordsPerBank(MemWords / MemNumBanks),
+      .MemDataWidth(MemDataWidth),
+      .AddrWidth(32),
+      .WordsPerBank(MemWords / MemNumBanks),
       .BaseAddr(RamBaseAddr),
-      .AddressShift($clog2(MemBytesPerWord)),
       .MemInitPath(MemInitPath),
       .MemImpl(MemImpl)
     ) i_mem_ss (
       .clk_i(clk_i),
       .rst_ni(rst_ni),
-      .init_req_i(mem_init_req),
-      .init_we_i(mem_init_we),
-      .init_addr_i(mem_init_addr),
-      .init_wdata_i(mem_init_wdata),
-      .init_be_i(mem_init_be),
-      .init_tag_i(mem_init_tag),
-      .init_gnt_o(mem_init_gnt),
-      .init_rvalid_o(mem_init_rvalid),
-      .init_rready_i(mem_axi_rready),
-      .init_rdata_o(mem_init_rdata),
-      .init_err_o(mem_init_err),
-      .init_rtag_o(mem_init_rtag)
+      // Native 32-bit CPU ports (0 = data, 1 = instruction).
+      .req32_i(mem32_req), .gnt32_o(mem32_gnt), .we32_i(mem32_we),
+      .addr32_i(mem32_addr), .wdata32_i(mem32_wdata), .be32_i(mem32_be),
+      .rvalid32_o(mem32_rvalid), .rready32_i(mem32_rready),
+      .rdata32_o(mem32_rdata), .err32_o(mem32_err),
+      // 64-bit ports (xbar R/W, loader, iDMA R/W).
+      .req64_i(mem_init_req), .gnt64_o(mem_init_gnt), .we64_i(mem_init_we),
+      .addr64_i(mem_init_addr), .wdata64_i(mem_init_wdata), .be64_i(mem_init_be),
+      .rvalid64_o(mem_init_rvalid), .rready64_i(mem_axi_rready),
+      .rdata64_o(mem_init_rdata), .err64_o(mem_init_err)
     );
 
     dmi_jtag #(
