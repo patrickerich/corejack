@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -47,7 +48,7 @@ def copy_minimal_core_repo(tmp_path: Path) -> Path:
 def next_core_type_from_platform_pkg(path: Path) -> int:
     values: list[int] = []
     for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip().startswith("CORE_") and "=" in line:
+        if re.match(r"\s*Core[A-Za-z0-9]+\s*=", line):
             values.append(int(line.rsplit("=", 1)[1].rstrip(",").strip()))
     return max(values, default=-1) + 1
 
@@ -179,7 +180,7 @@ def test_create_core_scaffold_core_check_and_overwrite_guard(tmp_path: Path) -> 
     assert (repo / "rtl" / "cores" / "corejack_testcore_socket_adapter.sv").is_file()
     assert (repo / "corejack_core_testcore.core").is_file()
     expected_core_type = next_core_type_from_platform_pkg(REPO_ROOT / "rtl" / "pkg" / "platform_pkg.sv")
-    assert f"CORE_TESTCORE = {expected_core_type}" in (
+    assert f"CoreTestcore = {expected_core_type}" in (
         repo / "rtl" / "pkg" / "platform_pkg.sv"
     ).read_text(encoding="utf-8")
     assert "  - testcore" in (repo / "cfg" / "boards" / "axku5.yaml").read_text(encoding="utf-8")

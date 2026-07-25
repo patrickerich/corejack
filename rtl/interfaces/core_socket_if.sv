@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
+// ASPIRATIONAL - NOT YET WIRED IN. This interface sketches a future bundled
+// core socket; the implemented socket is the flat split instruction/data OBI
+// port list of corejack_core_region plus per-line IRQs. Keep in sync with (or
+// fold into) the real contract before first use.
 interface core_socket_if #(
-  parameter int N_IRQ = 64,
+  parameter int unsigned NumIrq = 64,
   parameter type instr_axi_req_t = logic,
   parameter type instr_axi_rsp_t = logic,
   parameter type data_axi_req_t = logic,
@@ -13,7 +17,7 @@ interface core_socket_if #(
   logic clk;
   logic rst_n;
 
-  logic [N_IRQ-1:0] irq;
+  logic [NumIrq-1:0] irq;
   logic debug_req;
   hartinfo_t hart_info;
 

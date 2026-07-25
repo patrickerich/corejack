@@ -445,13 +445,16 @@ def platform_core_type_values() -> dict[str, int]:
         fail("could not find platform_pkg::core_type_e")
 
     values: dict[str, int] = {}
-    for name, value in re.findall(r"\b(CORE_[A-Z0-9_]+)\s*=\s*([0-9]+)", match.group("body")):
+    for name, value in re.findall(r"\b(Core[A-Za-z0-9]+)\s*=\s*([0-9]+)", match.group("body")):
         values[name] = int(value, 10)
     return values
 
 
 def expected_core_enum_name(core: str) -> str:
-    return "CORE_" + re.sub(r"[^A-Za-z0-9]+", "_", core).upper()
+    # Enum members are UpperCamelCase per the coding style (ALL_CAPS is
+    # reserved for `define macros): ibex -> CoreIbex, cv32e40p -> CoreCv32e40p.
+    segments = re.split(r"[^A-Za-z0-9]+", core.lower())
+    return "Core" + "".join(seg.capitalize() for seg in segments if seg)
 
 
 def core_type_usage() -> dict[int, list[str]]:

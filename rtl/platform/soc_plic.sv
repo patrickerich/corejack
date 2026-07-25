@@ -50,11 +50,11 @@ module soc_plic #(
   localparam int unsigned SrcIdWidth  = $clog2(NumSources + 1);
 
   // Standard-layout block offsets (byte addresses within the 4 MiB window).
-  localparam logic [23:0] PrioBase      = 24'h00_0000;
-  localparam logic [23:0] PendingBase   = 24'h00_1000;
-  localparam logic [23:0] EnableBase    = 24'h00_2000;
-  localparam logic [23:0] ThresholdAddr = 24'h20_0000;
-  localparam logic [23:0] ClaimAddr     = 24'h20_0004;
+  localparam logic [31:0] PrioBase      = 32'h0000_0000;
+  localparam logic [31:0] PendingBase   = 32'h0000_1000;
+  localparam logic [31:0] EnableBase    = 32'h0000_2000;
+  localparam logic [31:0] ThresholdAddr = 32'h0020_0000;
+  localparam logic [31:0] ClaimAddr     = 32'h0020_0004;
 
   typedef logic [PrioWidth-1:0] prio_t;
 
@@ -65,11 +65,13 @@ module soc_plic #(
   logic  [NumSources-1:0] active_q;
   prio_t                  threshold_q;
 
-  logic [23:0] req_addr;
+  // Widened to 32 bits so the block-offset comparisons below are same-width
+  // (the offset arithmetic promotes to 32-bit int).
+  logic [31:0] req_addr;
   logic        req_read;
   logic        req_write;
 
-  assign req_addr  = 24'(reg_req_i.addr);
+  assign req_addr  = 32'(reg_req_i.addr);
   assign req_read  = reg_req_i.valid && !reg_req_i.write;
   assign req_write = reg_req_i.valid && reg_req_i.write && (reg_req_i.wstrb != '0);
 
@@ -102,7 +104,7 @@ module soc_plic #(
 
   // Per-source word/bit decode helpers for the pending and enable blocks.
   function automatic logic [31:0] src_word(input logic [NumSources-1:0] bits,
-                                           input logic [23:0] addr);
+                                           input logic [31:0] addr);
     logic [31:0] word;
     word = '0;
     for (int unsigned i = 0; i < NumSources; i++) begin

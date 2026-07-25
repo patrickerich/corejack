@@ -23,6 +23,10 @@ module corejack_picorv32_socket_adapter #(
   input  logic [31:0] data_rdata_i,
   input  logic        data_err_i,
 
+  // PicoRV32 asserts trap and freezes forever on an illegal instruction or
+  // (with the default CATCH_* settings) a misaligned access; surface it so
+  // the platform can distinguish a trapped core from a running one.
+  output logic        trap_o,
   output logic        core_sleep_o
 );
   logic        mem_valid;
@@ -35,7 +39,6 @@ module corejack_picorv32_socket_adapter #(
 
   logic        trace_valid_unused;
   logic [35:0] trace_data_unused;
-  logic        trap_unused;
 
   logic        mem_is_write;
   logic        mem_is_instr;
@@ -131,7 +134,7 @@ module corejack_picorv32_socket_adapter #(
   ) i_picorv32 (
     .clk         (clk_i),
     .resetn      (rst_ni),
-    .trap        (trap_unused),
+    .trap        (trap_o),
     .mem_valid   (mem_valid),
     .mem_instr   (mem_instr),
     .mem_ready   (mem_ready),

@@ -1,23 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module soc_dut;
   import platform_pkg::*;
   import soc_bus_pkg::*;
 
 `ifdef COREJACK_CORE_CV32E40P
-  localparam int unsigned SocCoreType = CORE_CV32E40P;
+  localparam int unsigned SocCoreType = CoreCv32e40p;
 `elsif COREJACK_CORE_CV32E40X
-  localparam int unsigned SocCoreType = CORE_CV32E40X;
+  localparam int unsigned SocCoreType = CoreCv32e40x;
 `elsif COREJACK_CORE_CV32E40S
-  localparam int unsigned SocCoreType = CORE_CV32E40S;
+  localparam int unsigned SocCoreType = CoreCv32e40s;
 `elsif COREJACK_CORE_CVA6
-  localparam int unsigned SocCoreType = CORE_CVA6;
+  localparam int unsigned SocCoreType = CoreCva6;
 `elsif COREJACK_CORE_SERV
-  localparam int unsigned SocCoreType = CORE_SERV;
+  localparam int unsigned SocCoreType = CoreServ;
 `elsif COREJACK_CORE_PICORV32
-  localparam int unsigned SocCoreType = CORE_PICORV32;
+  localparam int unsigned SocCoreType = CorePicorv32;
 `elsif COREJACK_CORE_CVW
-  localparam int unsigned SocCoreType = CORE_CVW;
+  localparam int unsigned SocCoreType = CoreCvw;
 `else
-  localparam int unsigned SocCoreType = CORE_IBEX;
+  localparam int unsigned SocCoreType = CoreIbex;
 `endif
 
 `ifdef COREJACK_SIM_XILINX_SRAM
@@ -84,10 +86,6 @@ module soc_dut;
     .CoreType(SocCoreType),
     .apb_req_t(soc_apb_req_t),
     .apb_rsp_t(soc_apb_resp_t),
-    .axi_req_t(soc_axi_req_t),
-    .axi_rsp_t(soc_axi_resp_t),
-    .obi_req_t(soc_obi_req_t),
-    .obi_rsp_t(soc_obi_rsp_t),
     .MemImpl(SocMemImpl),
     .EnablePlatform(1'b1)
   ) i_soc_top (
