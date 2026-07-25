@@ -58,7 +58,7 @@ module soc_axi_to_dm #(
     s_axi_rsp_o = '0;
     dm_req_o    = (state_q == StateAccess);
     dm_we_o     = op_write_q;
-    dm_addr_o   = 64'((op_write_q ? aw_q.addr[31:0] : ar_q.addr[31:0]) - BaseAddr);
+    dm_addr_o   = {32'h0, (op_write_q ? aw_q.addr[31:0] : ar_q.addr[31:0]) - BaseAddr};
     dm_be_o     = op_write_q ? w_q.strb : 8'hFF;
     dm_wdata_o  = w_q.data;
 

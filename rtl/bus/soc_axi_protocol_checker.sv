@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
+// Coverage boundary (deliberately narrow, despite the general name): this
+// checker asserts per-channel handshake discipline (valid held and payload
+// stable while stalled, for AW/W/AR/B/R) plus the fabric's single-beat
+// invariant (aw.len == 0, ar.len == 0, w.last). It does NOT check response
+// causality (B/R only while a matching AW/AR is outstanding), ID reflection,
+// r.last, or atomics; the PULP axi_xbar's own elaboration/assertion coverage
+// and the target bridges' local asserts cover those inside the fabric.
 module soc_axi_protocol_checker #(
   // AXI port types. Default to the platform initiator-side types; the platform
   // overrides these with the wider master-side types on the xbar master ports.

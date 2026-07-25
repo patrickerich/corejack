@@ -6,8 +6,6 @@ module soc_obi_to_axi
 #(
   parameter int unsigned ObiAddrWidth = 32,
   parameter int unsigned ObiDataWidth = 32,
-  parameter int unsigned AxiAddrWidth = soc_bus_pkg::AxiAddrWidth,
-  parameter int unsigned AxiDataWidth = soc_bus_pkg::AxiDataWidth,
   parameter soc_bus_pkg::axi_id_t AxiId = '0
 ) (
   input  logic clk_i,
@@ -27,19 +25,28 @@ module soc_obi_to_axi
   output soc_bus_pkg::soc_axi_req_t     m_axi_req_o,
   input  soc_bus_pkg::soc_axi_resp_t    m_axi_rsp_i
 );
+  // The fabric widths come from soc_bus_pkg (wildcard import above); they are
+  // deliberately not module parameters so they cannot shadow or diverge from
+  // the package-typed AXI port structs.
   localparam int unsigned ObiBytes = ObiDataWidth / 8;
-  localparam int unsigned AxiBytes = AxiDataWidth / 8;
+  localparam int unsigned AxiBytes = soc_bus_pkg::AxiDataWidth / 8;
   localparam int unsigned LaneSelWidth = (AxiBytes > ObiBytes) ? $clog2(AxiBytes / ObiBytes) : 1;
   localparam int unsigned LaneCount = (AxiBytes > ObiBytes) ? (AxiBytes / ObiBytes) : 1;
-  localparam axi_pkg::size_t AxiSize = axi_pkg::size_t'($clog2(ObiBytes));
+  localparam int unsigned ObiByteW = (ObiBytes > 1) ? $clog2(ObiBytes) : 1;
 
   typedef enum logic [2:0] {
     StateIdle,
     StateWriteReq,
     StateWriteResp,
     StateReadReq,
-    StateReadResp
+    StateReadResp,
+    StateErrResp
   } state_e;
+
+  typedef struct packed {
+    axi_pkg::size_t          size;
+    logic [ObiAddrWidth-1:0] addr;
+  } ax_enc_t;
 
   state_e state_q;
   logic [ObiAddrWidth-1:0]   addr_q;
@@ -55,11 +62,11 @@ module soc_obi_to_axi
     return addr[$clog2(ObiBytes) +: LaneSelWidth];
   endfunction
 
-  function automatic logic [AxiDataWidth-1:0] expand_wdata(
+  function automatic logic [soc_bus_pkg::AxiDataWidth-1:0] expand_wdata(
     input logic [ObiAddrWidth-1:0]   addr,
     input logic [ObiDataWidth-1:0]   wdata
   );
-    logic [AxiDataWidth-1:0] result;
+    logic [soc_bus_pkg::AxiDataWidth-1:0] result;
     result = '0;
     result[lane_sel(addr) * ObiDataWidth +: ObiDataWidth] = wdata;
     return result;
@@ -76,11 +83,68 @@ module soc_obi_to_axi
   endfunction
 
   function automatic logic [ObiDataWidth-1:0] select_rdata(
-    input logic [ObiAddrWidth-1:0] addr,
-    input logic [AxiDataWidth-1:0] rdata
+    input logic [ObiAddrWidth-1:0]                addr,
+    input logic [soc_bus_pkg::AxiDataWidth-1:0]   rdata
   );
     return rdata[lane_sel(addr) * ObiDataWidth +: ObiDataWidth];
   endfunction
+
+  // Encode the OBI byte enables as an AXI access size plus in-word byte
+  // offset. RISC-V initiators (cores, debug SBA) issue naturally aligned
+  // byte/half/word/double accesses, so `be` is a contiguous power-of-two run
+  // aligned to its own size. AXI reads carry no strobes, so without this
+  // narrow encoding every read would oblige the target to access the full bus
+  // width - destructive on read-sensitive registers (e.g. the PLIC
+  // claim/complete register behind soc_axi_to_reg). Patterns that do not
+  // match (including all-zero read strobes from cores that leave `be` idle on
+  // loads) fall back to a full-width access at the aligned address, which is
+  // the previous behavior of this bridge.
+  function automatic ax_enc_t ax_encode(
+    input logic [ObiAddrWidth-1:0] addr,
+    input logic [ObiBytes-1:0]     be
+  );
+    ax_enc_t     enc;
+    int unsigned n;
+    int unsigned off;
+    n   = 0;
+    off = 0;
+    for (int unsigned i = 0; i < ObiBytes; i++) begin
+      if (be[i]) begin
+        n += 1;
+      end
+    end
+    for (int unsigned i = ObiBytes; i > 0; i--) begin
+      if (be[i-1]) begin
+        off = i - 1;
+      end
+    end
+    enc.size = axi_pkg::size_t'(unsigned'($clog2(ObiBytes)));
+    enc.addr = {addr[ObiAddrWidth-1:ObiByteW], {ObiByteW{1'b0}}};
+    if ((n inside {32'd1, 32'd2, 32'd4, 32'd8}) && ((off & (n - 1)) == 0) &&
+        (be == ObiBytes'(((64'd1 << n) - 64'd1) << off))) begin
+      unique case (n)
+        32'd1:   enc.size = axi_pkg::size_t'(0);
+        32'd2:   enc.size = axi_pkg::size_t'(1);
+        32'd4:   enc.size = axi_pkg::size_t'(2);
+        default: enc.size = axi_pkg::size_t'(3);
+      endcase
+      enc.addr = enc.addr | ObiAddrWidth'(off);
+    end
+    return enc;
+  endfunction
+
+  ax_enc_t ax_enc;
+  assign ax_enc = ax_encode(addr_q, be_q);
+
+  // Addresses above the fabric address space must error instead of silently
+  // truncating into a mapped window (the 64-bit debug SBA can present any
+  // 64-bit sbaddress).
+  logic addr_oob;
+  if (ObiAddrWidth > soc_bus_pkg::AxiAddrWidth) begin : gen_oob_check
+    assign addr_oob = |s_addr_i[ObiAddrWidth-1:soc_bus_pkg::AxiAddrWidth];
+  end else begin : gen_no_oob_check
+    assign addr_oob = 1'b0;
+  end
 
   always_comb begin
     m_axi_req_o = '0;
@@ -93,9 +157,9 @@ module soc_obi_to_axi
       StateWriteReq: begin
         m_axi_req_o.aw_valid    = !aw_done_q;
         m_axi_req_o.aw.id       = AxiId;
-        m_axi_req_o.aw.addr     = AxiAddrWidth'(addr_q);
+        m_axi_req_o.aw.addr     = soc_bus_pkg::AxiAddrWidth'(ax_enc.addr);
         m_axi_req_o.aw.len      = '0;
-        m_axi_req_o.aw.size     = AxiSize;
+        m_axi_req_o.aw.size     = ax_enc.size;
         m_axi_req_o.aw.burst    = axi_pkg::BURST_INCR;
         m_axi_req_o.aw.lock     = 1'b0;
         m_axi_req_o.aw.cache    = '0;
@@ -121,9 +185,9 @@ module soc_obi_to_axi
       StateReadReq: begin
         m_axi_req_o.ar_valid    = 1'b1;
         m_axi_req_o.ar.id       = AxiId;
-        m_axi_req_o.ar.addr     = AxiAddrWidth'(addr_q);
+        m_axi_req_o.ar.addr     = soc_bus_pkg::AxiAddrWidth'(ax_enc.addr);
         m_axi_req_o.ar.len      = '0;
-        m_axi_req_o.ar.size     = AxiSize;
+        m_axi_req_o.ar.size     = ax_enc.size;
         m_axi_req_o.ar.burst    = axi_pkg::BURST_INCR;
         m_axi_req_o.ar.lock     = 1'b0;
         m_axi_req_o.ar.cache    = '0;
@@ -138,6 +202,11 @@ module soc_obi_to_axi
         s_rvalid_o          = m_axi_rsp_i.r_valid;
         s_rdata_o           = select_rdata(addr_q, m_axi_rsp_i.r.data);
         s_err_o             = (m_axi_rsp_i.r.resp != axi_pkg::RESP_OKAY) || !m_axi_rsp_i.r.last;
+      end
+
+      StateErrResp: begin
+        s_rvalid_o = 1'b1;
+        s_err_o    = 1'b1;
       end
 
       default: begin
@@ -162,7 +231,11 @@ module soc_obi_to_axi
             addr_q  <= s_addr_i;
             wdata_q <= s_wdata_i;
             be_q    <= s_be_i;
-            state_q <= s_we_i ? StateWriteReq : StateReadReq;
+            if (addr_oob) begin
+              state_q <= StateErrResp;
+            end else begin
+              state_q <= s_we_i ? StateWriteReq : StateReadReq;
+            end
           end
         end
 
@@ -197,6 +270,12 @@ module soc_obi_to_axi
           end
         end
 
+        StateErrResp: begin
+          if (s_rready_i) begin
+            state_q <= StateIdle;
+          end
+        end
+
         default: begin
           state_q <= StateIdle;
         end
@@ -208,13 +287,13 @@ module soc_obi_to_axi
   always_ff @(posedge clk_i) begin
     if (rst_ni) begin
       if (m_axi_req_o.aw_valid && !m_axi_rsp_i.aw_ready) begin
-        assert (m_axi_req_o.aw.addr == AxiAddrWidth'(addr_q));
+        assert (m_axi_req_o.aw.addr == soc_bus_pkg::AxiAddrWidth'(ax_enc.addr));
       end
       if (m_axi_req_o.w_valid && !m_axi_rsp_i.w_ready) begin
         assert (m_axi_req_o.w.strb == expand_be(addr_q, be_q));
       end
       if (m_axi_req_o.ar_valid && !m_axi_rsp_i.ar_ready) begin
-        assert (m_axi_req_o.ar.addr == AxiAddrWidth'(addr_q));
+        assert (m_axi_req_o.ar.addr == soc_bus_pkg::AxiAddrWidth'(ax_enc.addr));
       end
     end
   end
