@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// CoreJack shim; the module name is mandated by the CV32E40P integration
+// contract, hence filename == vendor module name rather than a corejack_
+// prefix.
 module cv32e40p_clock_gate (
   input  logic clk_i,
   input  logic en_i,

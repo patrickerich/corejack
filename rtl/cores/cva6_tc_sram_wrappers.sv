@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// CoreJack replacements for the PULP tc_sram wrappers CVA6 instantiates.
+// Module names are mandated by the instantiation sites; both wrappers live
+// in this one file with a cva6_ prefix to avoid collisions (style
+// exception: filename != module name, two modules per file).
 module tc_sram_wrapper #(
   parameter int unsigned NumWords     = 32'd1024,
   parameter int unsigned DataWidth    = 32'd128,

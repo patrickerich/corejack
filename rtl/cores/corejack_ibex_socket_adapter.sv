@@ -78,6 +78,11 @@ module corejack_ibex_socket_adapter #(
     .DbgTriggerEn(1'b0),
     .SecureIbex(1'b0),
     .PMPEnable(1'b0),
+    // Explicit platform choices (these used to be wrapper-default divergences
+    // from ibex_top; the wrapper now mirrors upstream defaults, so the values
+    // the validated builds shipped with are pinned here instead).
+    .PMPNumRegions(16),
+    .MHPMCounterNum(4),
     .DmBaseAddr(DmBaseAddr),
     .DmHaltAddr(DmHaltAddr),
     .DmExceptionAddr(DmExceptionAddr)

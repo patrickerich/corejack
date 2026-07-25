@@ -2,7 +2,10 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 //
-// FPGA-oriented replacement for the CV32E40S CSR primitive.
+// FPGA-oriented replacement for the CV32E40S CSR primitive. The module name
+// (cv32e40s_csr) is mandated by the vendor integration contract; the _fpga
+// filename suffix distinguishes this implementation (style exception:
+// filename != module name).
 //
 // The upstream hardened CSR implementation uses local clock gates as write
 // enables for the data/shadow registers. That is suitable for ASIC libraries
@@ -32,7 +35,6 @@ module cv32e40s_csr #(
   assign unused_lib = ^LIB;
   assign rd_data_o  = rdata_q;
 
-  generate
     if (SHADOWCOPY) begin : gen_hardened
       logic [WIDTH-1:0] shadow_q;
       logic             wr_en;
@@ -73,5 +75,4 @@ module cv32e40s_csr #(
 
       assign rd_error_o = 1'b0;
     end
-  endgenerate
 endmodule

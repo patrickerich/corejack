@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
+//
+// Adapted from the upstream CORE-V-Wally ebufsmarb; internal naming keeps the
+// upstream Wally style deliberately, to minimize the diff against the source
+// it tracks (style exception). The cvw_ file prefix avoids collisions with
+// other cores' files (filename != module name is intentional).
 module ebufsmarb (
   input  logic       HCLK,
   input  logic       HRESETn,
