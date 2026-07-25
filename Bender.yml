@@ -69,6 +69,7 @@ sources:
     - rtl/interfaces/core_socket_if.sv
     - rtl/interfaces/accel_socket_if.sv
     - rtl/mem/soc_sram_slice_model.sv
+    - rtl/mem/soc_sram_byte_lane_xilinx.sv
     - rtl/mem/soc_sram_slice_xilinx.sv
     - rtl/mem/soc_sram_slice_wrapper.sv
     - rtl/mem/soc_obi_mem_buffer.sv

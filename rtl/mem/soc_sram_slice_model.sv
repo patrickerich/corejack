@@ -3,20 +3,21 @@
 module soc_sram_slice_model #(
   parameter int unsigned NumWords = 32768,
   parameter int unsigned DataWidth = 32,
+  parameter int unsigned AddrWidth = 32,
   parameter int unsigned AddressShift = 3
 ) (
   input  logic        clk_i,
   input  logic        rst_ni,
   input  logic        req_i,
   input  logic        we_i,
-  input  logic [31:0] addr_i,
+  input  logic [AddrWidth-1:0] addr_i,
   input  logic [DataWidth-1:0] wdata_i,
   input  logic [DataWidth/8-1:0]  be_i,
   output logic [DataWidth-1:0] rdata_o
 );
   localparam int unsigned IdxWidth = (NumWords > 1) ? $clog2(NumWords) : 1;
 
-  logic [DataWidth-1:0] mem_q [0:NumWords-1];
+  logic [DataWidth-1:0] mem_q [NumWords];
   logic [DataWidth-1:0] rdata_q;
   logic [DataWidth-1:0] mem_wdata_d;
   logic        mem_we_d;

@@ -83,7 +83,11 @@ module soc_obi_mem_buffer #(
   assign m_wdata_o    = req_fifo_out.wdata;
   assign m_be_o       = req_fifo_out.be;
 
-  assign m_rready_o    = !rsp_fifo_full || rsp_fifo_pop;
+  // Accept a response only when the FIFO has room *this* cycle: fifo_v3
+  // internally gates push_i with ~full_o (full_o is registered), so a
+  // full-and-popping cycle would accept the beat on the m side and then
+  // silently drop it.
+  assign m_rready_o    = !rsp_fifo_full;
   assign rsp_fifo_push = m_rvalid_i && m_rready_o;
   assign s_rvalid_o    = !rsp_fifo_empty;
   assign rsp_fifo_pop  = s_rvalid_o && s_rready_i;

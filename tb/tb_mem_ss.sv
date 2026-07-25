@@ -275,6 +275,22 @@ module tb_mem_ss;
       end
     join
 
+    // Empty scoreboards are necessary but not sufficient: entries are pushed
+    // at grant time, so a port that stops being *granted* drains to empty
+    // while its access budget is unspent. Require the completed-access count
+    // to match the budget so grant starvation cannot produce a false PASS.
+    begin
+      int total_done;
+      total_done = 0;
+      for (i = 0; i < NumPorts32; i++) total_done += done32[i];
+      for (i = 0; i < NumPorts64; i++) total_done += done64[i];
+      if (total_done != total_exp) begin
+        $error("completed %0d of %0d budgeted accesses (grant starvation?)",
+               total_done, total_exp);
+        errors++;
+      end
+    end
+
     if (errors == 0) $display("TB_MEM_SS: PASS (all %0d accesses checked)", total_exp);
     else             $display("TB_MEM_SS: FAIL (%0d errors)", errors);
     $finish;
