@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module sim_ctrl_monitor #(
   parameter logic [31:0] SimCtrlAddr = 32'h1000_2000
 ) (

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module uart_sram_loader_dut (
   input  logic        clk_i,
   input  logic        rst_ni,
