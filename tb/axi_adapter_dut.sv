@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module axi_adapter_dut
   import soc_bus_pkg::*;
 (

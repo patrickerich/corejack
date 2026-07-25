@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module uart_apb_tx_monitor #(
   parameter type apb_req_t = logic
 ) (

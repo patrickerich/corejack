@@ -132,7 +132,7 @@ def board_xdc(args: argparse.Namespace) -> str:
 def board_wrapper(args: argparse.Namespace) -> str:
     module = f"corejack_{args.board}_wrap"
     return f"""module {module} #(
-  parameter int unsigned CoreType = platform_pkg::CORE_IBEX,
+  parameter int unsigned CoreType = platform_pkg::CoreIbex,
   parameter bit EnableUartLoader = 1'b0,
   // Shared SRAM size in 32-bit words, derived from the single source of truth
   // (cfg/boards/{args.board}.yaml: memory.ram_bytes / 4) and driven in by the

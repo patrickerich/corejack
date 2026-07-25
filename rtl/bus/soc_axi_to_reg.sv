@@ -64,7 +64,9 @@ module soc_axi_to_reg #(
   function automatic reg_addr_t active_reg_addr(input logic second);
     logic [31:0] offset;
     offset = active_addr(second) - BaseAddr;
-    return offset[RegAddrWidth-1:0];
+    // Register files decode word-exact addresses; sub-word accesses convey
+    // their byte position through wstrb (writes) / lane extraction (reads).
+    return {offset[RegAddrWidth-1:2], 2'b00};
   endfunction
 
   function automatic logic [31:0] active_wdata(input logic second);
@@ -144,14 +146,21 @@ module soc_axi_to_reg #(
             aw_q       <= s_axi_req_i.aw;
             w_q        <= s_axi_req_i.w;
             op_write_q <= 1'b1;
-            split_q    <= (s_axi_req_i.aw.size == axi_pkg::size_t'(3));
+            // Split only 8-byte-aligned full-width beats: an unaligned size-3
+            // beat addresses byte lanes [7:4] of the aligned window only, so it
+            // is a single 32-bit access selected by addr[2] (AXI narrow-lane
+            // rules; the debug SBA emits such beats for 32-bit accesses at
+            // odd-word addresses).
+            split_q    <= (s_axi_req_i.aw.size == axi_pkg::size_t'(3)) &&
+                          !s_axi_req_i.aw.addr[2];
             err_q      <= (s_axi_req_i.aw.len != '0) || (s_axi_req_i.aw.size > axi_pkg::size_t'(3));
             rr_prefer_read_q <= 1'b1;  // serving a write; favor a read next
             state_q    <= StateFirst;
           end else if (s_axi_rsp_o.ar_ready && s_axi_req_i.ar_valid) begin
             ar_q       <= s_axi_req_i.ar;
             op_write_q <= 1'b0;
-            split_q    <= (s_axi_req_i.ar.size == axi_pkg::size_t'(3));
+            split_q    <= (s_axi_req_i.ar.size == axi_pkg::size_t'(3)) &&
+                          !s_axi_req_i.ar.addr[2];
             err_q      <= (s_axi_req_i.ar.len != '0) || (s_axi_req_i.ar.size > axi_pkg::size_t'(3));
             r_q.data   <= '0;
             rr_prefer_read_q <= 1'b0;  // just served a read; favor a write next

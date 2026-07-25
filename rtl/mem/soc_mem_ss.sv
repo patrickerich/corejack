@@ -221,15 +221,13 @@ module soc_mem_ss
     end
   end
 
-`ifndef SYNTHESIS
   // The soc_mem_port bank/in-bank address decode is bit-sliced, so it only
   // realizes word-mod / word-div for a power-of-two bank count >= 2. A
   // non-power-of-two NumBanks (or NumBanks == 1) would route 64-bit words to
-  // phantom banks and deadlock the owning port, so fail loudly at elaboration.
-  initial begin : validate_num_banks
-    if ((NumBanks < 2) || ((NumBanks & (NumBanks - 1)) != 0)) begin
-      $fatal(1, "soc_mem_ss: NumBanks (%0d) must be a power of two >= 2", NumBanks);
-    end
+  // phantom banks and deadlock the owning port. The check is a generate-scope
+  // elaboration task (not guarded by SYNTHESIS) so synthesis-only flows fail
+  // loudly too instead of building broken hardware.
+  if ((NumBanks < 2) || ((NumBanks & (NumBanks - 1)) != 0)) begin : gen_validate_num_banks
+    $fatal(1, "soc_mem_ss: NumBanks must be a power of two >= 2");
   end
-`endif
 endmodule

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 module corejack_axku5_wrap #(
-  parameter int unsigned CoreType = platform_pkg::CORE_IBEX,
+  parameter int unsigned CoreType = platform_pkg::CoreIbex,
   parameter bit EnableUartLoader = 1'b0,
   // Shared SRAM size in 32-bit words, derived from the single source of truth
   // (cfg/boards/axku5.yaml: memory.ram_bytes / 4) and driven in by the FPGA
@@ -24,6 +24,11 @@ module corejack_axku5_wrap #(
 );
   import dm::*;
   import soc_bus_pkg::*;
+
+  // Core clock produced by the PLL below (200 MHz * 5 / 40). Passed to
+  // soc_top so clock-derived dividers (UART loader baud) stay correct if the
+  // PLL configuration ever changes.
+  localparam int unsigned CoreClkHz = 25_000_000;
 
   logic clk_in_200;
   logic clk_in_200_buf;
@@ -93,17 +98,14 @@ module corejack_axku5_wrap #(
   assign apb_req_unused = '0;
 
   soc_top #(
-    .apb_req_t       (soc_apb_req_t),
-    .apb_rsp_t       (soc_apb_resp_t),
-    .axi_req_t       (soc_axi_req_t),
-    .axi_rsp_t       (soc_axi_resp_t),
-    .obi_req_t       (soc_obi_req_t),
-    .obi_rsp_t       (soc_obi_rsp_t),
-    .CoreType        (CoreType),
-    .EnablePlatform  (1'b1),
-    .EnableUartLoader(EnableUartLoader),
-    .RamWords        (RamWords),
-    .MemImpl         (mem_ss_pkg::MemImplXilinx)
+    .apb_req_t        (soc_apb_req_t),
+    .apb_rsp_t        (soc_apb_resp_t),
+    .CoreType         (CoreType),
+    .EnablePlatform   (1'b1),
+    .EnableUartLoader (EnableUartLoader),
+    .UartLoaderClockHz(CoreClkHz),
+    .RamWords         (RamWords),
+    .MemImpl          (mem_ss_pkg::MemImplXilinx)
   ) i_soc_top (
     .clk_i                  (core_clk),
     .rst_ni                 (rst_ni_raw),

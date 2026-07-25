@@ -61,6 +61,23 @@ module corejack_cv32e40p_socket_adapter #(
   assign unused_bus_err         = instr_err_i ^ data_err_i;
   assign unused_irq_nm          = irq_nm_i;
 
+`ifndef SYNTHESIS
+  // cv32e40p_top has no bus-error inputs, so error responses are necessarily
+  // dropped; fail loudly in simulation (same policy as the SERV and PicoRV32
+  // adapters) instead of letting the core continue on error/garbage data.
+  always_ff @(posedge clk_i) begin
+    if (rst_ni) begin
+      if (instr_err_i && instr_rvalid_i) begin
+        $fatal(1, "CV32E40P instruction bus error is not supported");
+      end
+
+      if (data_err_i && data_rvalid_i) begin
+        $fatal(1, "CV32E40P data bus error is not supported");
+      end
+    end
+  end
+`endif
+
   cv32e40p_top #(
     .COREV_PULP       (0),
     .COREV_CLUSTER    (0),

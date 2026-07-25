@@ -25,7 +25,10 @@ def require_identifier(name: str, field: str) -> None:
 
 
 def core_enum_name(core: str) -> str:
-    return "CORE_" + re.sub(r"[^A-Za-z0-9]+", "_", core).upper()
+    # Enum members are UpperCamelCase per the coding style (ALL_CAPS is
+    # reserved for `define macros): ibex -> CoreIbex, cv32e40p -> CoreCv32e40p.
+    segments = re.split(r"[^A-Za-z0-9]+", core.lower())
+    return "Core" + "".join(seg.capitalize() for seg in segments if seg)
 
 
 def write_new(path: Path, content: str, repo_root: Path) -> None:
@@ -103,7 +106,7 @@ def existing_core_type_values(text: str) -> list[int]:
     )
     if not match:
         fail("could not find platform_pkg::core_type_e")
-    return [int(value) for _, value in re.findall(r"\b(CORE_[A-Z0-9_]+)\s*=\s*([0-9]+)", match.group("body"))]
+    return [int(value) for _, value in re.findall(r"\b(Core[A-Za-z0-9]+)\s*=\s*([0-9]+)", match.group("body"))]
 
 
 def next_core_type(repo_root: Path) -> int:
@@ -119,7 +122,7 @@ def update_platform_pkg(repo_root: Path, args: argparse.Namespace) -> None:
     if re.search(rf"\b{re.escape(enum_name)}\b", text):
         fail(f"{enum_name} already exists in {PLATFORM_PKG}")
 
-    pattern = r"(?P<indent>\s*)(?P<last>CORE_[A-Z0-9_]+\s*=\s*[0-9]+)(?P<trailing>\s*)\n(?P<close>\s*\}\s*core_type_e\s*;)"
+    pattern = r"(?P<indent>\s*)(?P<last>Core[A-Za-z0-9]+\s*=\s*[0-9]+)(?P<trailing>\s*)\n(?P<close>\s*\}\s*core_type_e\s*;)"
     match = re.search(pattern, text)
     if not match:
         fail("could not find final core_type_e enum entry")

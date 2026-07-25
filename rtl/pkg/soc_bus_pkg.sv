@@ -10,10 +10,11 @@ package soc_bus_pkg;
   localparam int unsigned AxiDataWidth = 64;
   localparam int unsigned AxiIdWidth   = 4;
   // Number of AXI initiators entering the system crossbar (core instruction,
-  // core data, debug SBA, iDMA). The fabric `axi_xbar` prepends the slave-port
-  // index to the AXI ID, so its master ports carry a wider ID; this is the
-  // single source for that width. Keep in sync with `soc_top` CoreAxiPorts.
-  localparam int unsigned AxiNumInitiators = 4;
+  // core data, debug SBA; the iDMA is not an xbar initiator - it has dedicated
+  // soc_mem_ss ports). The fabric `axi_xbar` prepends the slave-port index to
+  // the AXI ID, so its master ports carry a wider ID; this is the single
+  // source for that width. Keep in sync with `soc_top` CoreAxiPorts.
+  localparam int unsigned AxiNumInitiators = 3;
   localparam int unsigned AxiMstIdWidth    = AxiIdWidth + $clog2(AxiNumInitiators);
   localparam int unsigned ApbAddrWidth = 32;
   localparam int unsigned ApbDataWidth = 32;

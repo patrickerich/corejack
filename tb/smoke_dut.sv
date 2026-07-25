@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 module smoke_dut (
   input  logic        clk_i,
   input  logic        rst_ni,
@@ -27,11 +29,7 @@ module smoke_dut (
 
   soc_top #(
     .apb_req_t(soc_apb_req_t),
-    .apb_rsp_t(soc_apb_resp_t),
-    .axi_req_t(soc_axi_req_t),
-    .axi_rsp_t(soc_axi_resp_t),
-    .obi_req_t(soc_obi_req_t),
-    .obi_rsp_t(soc_obi_rsp_t)
+    .apb_rsp_t(soc_apb_resp_t)
   ) i_soc_top (
     .clk_i(clk_i),
     .rst_ni(rst_ni),

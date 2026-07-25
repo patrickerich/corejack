@@ -86,7 +86,8 @@ module soc_mem_bank
   // --- SRAM slice (registered read) ---
   logic [DataWidth-1:0] slice_rdata;
   soc_sram_slice_wrapper #(
-    .NumWords(NumWords), .DataWidth(DataWidth), .AddressShift(AddressShift), .MemImpl(MemImpl)
+    .NumWords(NumWords), .DataWidth(DataWidth), .AddrWidth(AddrWidth),
+    .AddressShift(AddressShift), .MemImpl(MemImpl)
   ) i_slice (
     .clk_i, .rst_ni,
     .req_i(issue), .we_i(head_we), .addr_i(head_addr),

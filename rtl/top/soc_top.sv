@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 module soc_top #(
-  parameter int N_IRQ = 64,
-  parameter int unsigned CoreType = platform_pkg::CORE_IBEX,
+  parameter int unsigned CoreType = platform_pkg::CoreIbex,
   parameter type apb_req_t = soc_bus_pkg::soc_apb_req_t,
   parameter type apb_rsp_t = soc_bus_pkg::soc_apb_resp_t,
-  parameter type axi_req_t = soc_bus_pkg::soc_axi_req_t,
-  parameter type axi_rsp_t = soc_bus_pkg::soc_axi_resp_t,
-  parameter type obi_req_t = soc_bus_pkg::soc_obi_req_t,
-  parameter type obi_rsp_t = soc_bus_pkg::soc_obi_rsp_t,
   parameter bit EnablePlatform = 1'b0,
   parameter logic [31:0] DebugBaseAddr = 32'h0000_0000,
   parameter logic [31:0] ClintBaseAddr = 32'h0200_0000,
@@ -54,10 +49,10 @@ module soc_top #(
     // Stub-only address windows used by the smoke testbench (`tb/test_smoke.py`).
     // The real platform branch below builds its address map from module
     // parameters and does not use these constants.
-    localparam logic [31:0] UART0_BASE  = 32'h1000_0000;
-    localparam logic [31:0] UART0_SIZE  = 32'h0000_1000;
-    localparam logic [31:0] DEBUG0_BASE = 32'hFFFF_0000;
-    localparam logic [31:0] DEBUG0_SIZE = 32'h0001_0000;
+    localparam logic [31:0] Uart0Base  = 32'h1000_0000;
+    localparam logic [31:0] Uart0Size  = 32'h0000_1000;
+    localparam logic [31:0] Debug0Base = 32'hFFFF_0000;
+    localparam logic [31:0] Debug0Size = 32'h0001_0000;
 
     logic [31:0] accel_cfg_reg_q;
     logic [31:0] debug_status_q;
@@ -66,8 +61,8 @@ module soc_top #(
     logic        apb_access;
     apb_rsp_t    apb_rsp;
 
-    assign apb_hit_uart  = (apb_req_i.paddr - UART0_BASE) < UART0_SIZE;
-    assign apb_hit_debug = (apb_req_i.paddr - DEBUG0_BASE) < DEBUG0_SIZE;
+    assign apb_hit_uart  = (apb_req_i.paddr - Uart0Base) < Uart0Size;
+    assign apb_hit_debug = (apb_req_i.paddr - Debug0Base) < Debug0Size;
     assign apb_access    = apb_req_i.psel && apb_req_i.penable;
 
     always_ff @(posedge clk_i or negedge rst_ni) begin
@@ -175,11 +170,12 @@ module soc_top #(
     logic core_rst_ni;
     logic core_init_ni;
     logic core_init_ni_q;
-    logic ndmreset_q;
+    logic ndmreset_pending_q;
     logic core_debug_unavailable;
     logic uart_loader_active;
     logic uart_loader_tx;
     logic apb_uart_tx;
+    logic          dmi_rst_n;
     dm::dmi_req_t  dmi_req;
     dm::dmi_resp_t dmi_resp;
     logic          dmi_req_valid;
@@ -333,6 +329,13 @@ module soc_top #(
     end
 `endif
 
+    // Core-only reset: ndmreset / the UART loader reset the core while the
+    // debug module, fabric, and memory stay live (required for SBA during
+    // ndmreset). The bus-side blocks that hold core-initiated transaction
+    // state (OBI buffers, routers, obi-to-axi bridges) deliberately stay on
+    // rst_ni: their response inputs are always-ready (s_rready tied high), so
+    // in-flight responses drain during the multi-cycle window between reset
+    // assertion and rstgen's synchronized release, leaving no stale state.
     rstgen i_rstgen_core (
       .clk_i       (clk_i),
       .rst_ni      (rst_ni & ~ndmreset & ~uart_loader_active),
@@ -341,28 +344,44 @@ module soc_top #(
       .init_no     (core_init_ni)
     );
 
+    // ndmreset acknowledge: rstgen releases core_init_ni several cycles after
+    // ndmreset deasserts, so a sticky pending flag (not a delayed ndmreset
+    // sample) must qualify the core_init_ni rising edge - the debug module
+    // sets dmstatus.{all,any}havereset only on this pulse.
     always_ff @(posedge clk_i or negedge rst_ni) begin
       if (!rst_ni) begin
-        core_init_ni_q <= 1'b0;
-        ndmreset_q     <= 1'b0;
-        ndmreset_ack   <= 1'b0;
+        core_init_ni_q    <= 1'b0;
+        ndmreset_pending_q <= 1'b0;
+        ndmreset_ack      <= 1'b0;
       end else begin
         core_init_ni_q <= core_init_ni;
-        ndmreset_q     <= ndmreset;
-        ndmreset_ack   <= ndmreset_q && core_init_ni && !core_init_ni_q;
+        ndmreset_ack   <= ndmreset_pending_q && core_init_ni && !core_init_ni_q;
+        if (ndmreset) begin
+          ndmreset_pending_q <= 1'b1;
+        end else if (core_init_ni && !core_init_ni_q) begin
+          ndmreset_pending_q <= 1'b0;
+        end
       end
     end
 
+    // Rule bounds are widened explicitly: the xbar rules are 64-bit and the
+    // base + size sums must not wrap in 32-bit arithmetic.
     assign fabric_addr_map = '{
-      '{idx: 0, start_addr: RamBaseAddr,   end_addr: RamBaseAddr + RamSize},
-      '{idx: 1, start_addr: UartBaseAddr,  end_addr: UartBaseAddr + UartSize},
-      '{idx: 2, start_addr: DebugBaseAddr, end_addr: DebugBaseAddr + DebugSize},
-      '{idx: 3, start_addr: ClintBaseAddr, end_addr: ClintBaseAddr + ClintSize},
-      '{idx: 4, start_addr: DmaBaseAddr,   end_addr: DmaBaseAddr + DmaSize},
-      '{idx: 5, start_addr: PlicBaseAddr,  end_addr: PlicBaseAddr + PlicSize}
+      '{idx: 0, start_addr: {32'h0, RamBaseAddr},
+                end_addr:   {32'h0, RamBaseAddr} + {32'h0, RamSize}},
+      '{idx: 1, start_addr: {32'h0, UartBaseAddr},
+                end_addr:   {32'h0, UartBaseAddr} + {32'h0, UartSize}},
+      '{idx: 2, start_addr: {32'h0, DebugBaseAddr},
+                end_addr:   {32'h0, DebugBaseAddr} + {32'h0, DebugSize}},
+      '{idx: 3, start_addr: {32'h0, ClintBaseAddr},
+                end_addr:   {32'h0, ClintBaseAddr} + {32'h0, ClintSize}},
+      '{idx: 4, start_addr: {32'h0, DmaBaseAddr},
+                end_addr:   {32'h0, DmaBaseAddr} + {32'h0, DmaSize}},
+      '{idx: 5, start_addr: {32'h0, PlicBaseAddr},
+                end_addr:   {32'h0, PlicBaseAddr} + {32'h0, PlicSize}}
     };
 
-    if (CoreType == platform_pkg::CORE_CVA6) begin : gen_cva6_core_path
+    if (CoreType == platform_pkg::CoreCva6) begin : gen_cva6_core_path
       assign core_axi_req[0] = cva6_axi_req;
       assign core_axi_req[1] = '0;
       assign instr_axi_rsp   = '0;
@@ -852,8 +871,6 @@ module soc_top #(
     );
 
     if (EnableUartLoader) begin : gen_uart_sram_loader
-      logic uart_loader_done;
-
       soc_uart_sram_loader #(
         .ClockHz   (UartLoaderClockHz),
         .Baud      (UartLoaderBaud),
@@ -866,7 +883,7 @@ module soc_top #(
         .uart_rx_i     (uart_rx_i),
         .uart_tx_o     (uart_loader_tx),
         .active_o      (uart_loader_active),
-        .done_o        (uart_loader_done),
+        .done_o        (),
         .mem_req_o     (mem_init_req[2]),
         .mem_we_o      (mem_init_we[2]),
         .mem_addr_o    (mem_init_addr[2]),
@@ -1033,7 +1050,10 @@ module soc_top #(
       .clk_i            (clk_i),
       .rst_ni           (rst_ni),
       .testmode_i       (1'b0),
-      .dmi_rst_no       (),
+      // Synchronized DMI clear generated on TAP reset / dtmcs.dmihardreset;
+      // wired to dm_top so a DMI recovery also flushes the DM-side response
+      // queue (dm_csrs uses ~dmi_rst_ni as its response-FIFO flush).
+      .dmi_rst_no       (dmi_rst_n),
       .dmi_req_o        (dmi_req),
       .dmi_req_valid_o  (dmi_req_valid),
       .dmi_req_ready_i  (dmi_req_ready),
@@ -1082,7 +1102,7 @@ module soc_top #(
       .master_r_err_i       (sba_r_err),
       .master_r_other_err_i (1'b0),
       .master_r_rdata_i     (sba_r_rdata),
-      .dmi_rst_ni           (rst_ni),
+      .dmi_rst_ni           (dmi_rst_n),
       .dmi_req_valid_i      (dmi_req_valid),
       .dmi_req_ready_o      (dmi_req_ready),
       .dmi_req_i            (dmi_req),

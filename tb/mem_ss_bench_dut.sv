@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 // Throughput benchmark harness for soc_mem_ss.
 //
 // Instantiates soc_mem_ss with a configurable number of 64-bit init ports and

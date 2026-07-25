@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// CoreJack-owned CVA6 configuration. The package name cva6_config_pkg is
+// mandated by CVA6; the cva6_ file prefix avoids a collision with other
+// cores' config packages (style exception: filename != package name).
 package cva6_config_pkg;
   localparam int unsigned CVA6ConfigXlen = 64;
   localparam bit CVA6ConfigRvfiTrace = 1'b0;
@@ -47,7 +52,9 @@ package cva6_config_pkg;
     MmuPresent: bit'(0),
     RVS: bit'(0),
     RVU: bit'(0),
-    SoftwareInterruptEn: bit'(0),
+    // Gate for mip.MSIP: must be enabled for the CLINT software interrupt
+    // wired to ipi_i (the platform IPI contract every supported core honors).
+    SoftwareInterruptEn: bit'(1),
     HaltAddress: 64'h800,
     ExceptionAddress: 64'h810,
     RASDepth: unsigned'(2),

@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
+//
+// CoreJack rewrite of the upstream CORE-V-Wally subwordread (RV32 subset).
+// The module name is mandated by the Wally instantiation site; the cvw_ file
+// prefix avoids collisions (style exception: filename != module name).
 module subwordread
   import cvw::*;
 #(
@@ -38,6 +42,11 @@ module subwordread
       endcase
     end
   end else begin : gen_unsupported_width
+    // Only the LLEN==32 subword extraction is implemented in this CoreJack
+    // rewrite (the shipped CVW config is RV32 without F/D). Fail at
+    // elaboration rather than silently passing the raw bus word through.
+    $fatal(1, "cvw_subwordread only supports P.LLEN == 32");
+
     always_comb begin
       ReadDataM = ReadDataWordMuxM;
     end

@@ -74,6 +74,7 @@ filesets:
       - rtl/interfaces/core_socket_if.sv
       - rtl/interfaces/accel_socket_if.sv
       - rtl/mem/soc_sram_slice_model.sv
+      - rtl/mem/soc_sram_byte_lane_xilinx.sv
       - rtl/mem/soc_sram_slice_xilinx.sv
       - rtl/mem/soc_sram_slice_wrapper.sv
       - rtl/mem/soc_obi_mem_buffer.sv
@@ -152,6 +153,7 @@ filesets:
     files:
       - rtl/pkg/mem_ss_pkg.sv
       - rtl/mem/soc_sram_slice_model.sv
+      - rtl/mem/soc_sram_byte_lane_xilinx.sv
       - rtl/mem/soc_sram_slice_xilinx.sv
       - rtl/mem/soc_sram_slice_wrapper.sv
       - rtl/mem/soc_mem_bank.sv
@@ -183,7 +185,10 @@ targets:
         - trace_vcd ? (--trace)
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
-        # axi_xbar dependencies (rr_arb_tree, lzc) raise these benign lints.
+        # NOTE: these -Wno-* waivers are GLOBAL (they also cover CoreJack-native
+        # RTL, which is currently width-clean); they exist because axi_xbar
+        # dependencies (rr_arb_tree, lzc) raise these benign lints. Prefer a
+        # scoped waiver file if a per-file mechanism is adopted.
         - -Wno-UNSIGNED
         - -Wno-SPLITVAR
         # iDMA dependencies (axi_burst_splitter_gran, id_queue) raise these.
@@ -294,7 +299,10 @@ targets:
         - -Wno-UNOPTFLAT
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
-        # axi_xbar dependencies (rr_arb_tree, lzc) raise these benign lints.
+        # NOTE: these -Wno-* waivers are GLOBAL (they also cover CoreJack-native
+        # RTL, which is currently width-clean); they exist because axi_xbar
+        # dependencies (rr_arb_tree, lzc) raise these benign lints. Prefer a
+        # scoped waiver file if a per-file mechanism is adopted.
         - -Wno-UNSIGNED
         - -Wno-SPLITVAR
     filesets_append:
@@ -328,7 +336,10 @@ targets:
         - -Wno-UNOPTFLAT
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
-        # axi_xbar dependencies (rr_arb_tree, lzc) raise these benign lints.
+        # NOTE: these -Wno-* waivers are GLOBAL (they also cover CoreJack-native
+        # RTL, which is currently width-clean); they exist because axi_xbar
+        # dependencies (rr_arb_tree, lzc) raise these benign lints. Prefer a
+        # scoped waiver file if a per-file mechanism is adopted.
         - -Wno-UNSIGNED
         - -Wno-SPLITVAR
     filesets_append:

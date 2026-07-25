@@ -3,13 +3,14 @@
 module soc_sram_slice_xilinx #(
   parameter int unsigned NumWords = 32768,
   parameter int unsigned DataWidth = 32,
+  parameter int unsigned AddrWidth = 32,
   parameter int unsigned AddressShift = 3
 ) (
   input  logic        clk_i,
   input  logic        rst_ni,
   input  logic        req_i,
   input  logic        we_i,
-  input  logic [31:0] addr_i,
+  input  logic [AddrWidth-1:0] addr_i,
   input  logic [DataWidth-1:0] wdata_i,
   input  logic [DataWidth/8-1:0]  be_i,
   output logic [DataWidth-1:0] rdata_o
@@ -43,7 +44,7 @@ module soc_sram_slice_xilinx #(
 
 `ifndef SYNTHESIS
   task automatic load_mem(string file_path);
-    logic [DataWidth-1:0] init_mem [0:NumWords-1];
+    logic [DataWidth-1:0] init_mem [NumWords];
 
     $readmemh(file_path, init_mem);
     for (int unsigned word = 0; word < NumWords; word++) begin
@@ -74,33 +75,4 @@ module soc_sram_slice_xilinx #(
     end
   endtask : load_mem
 `endif
-endmodule
-
-module soc_sram_byte_lane_xilinx #(
-  parameter int unsigned NumWords = 32768,
-  parameter int unsigned IdxWidth = 15
-) (
-  input  logic              clk_i,
-  input  logic              rst_ni,
-  input  logic              req_i,
-  input  logic              we_i,
-  input  logic [IdxWidth-1:0] word_i,
-  input  logic [7:0]        wdata_i,
-  output logic [7:0]        rdata_o
-);
-  (* ram_style = "block" *) logic [7:0] mem_q [0:NumWords-1];
-  logic [7:0] rdata_q;
-  logic unused_rst_ni;
-
-  assign unused_rst_ni = rst_ni;
-
-  always_ff @(posedge clk_i) begin
-    rdata_o <= rdata_q;
-    if (req_i) begin
-      rdata_q <= mem_q[word_i];
-      if (we_i) begin
-        mem_q[word_i] <= wdata_i;
-      end
-    end
-  end
 endmodule

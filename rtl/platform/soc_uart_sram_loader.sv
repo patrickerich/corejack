@@ -4,7 +4,14 @@ module soc_uart_sram_loader #(
   parameter int unsigned ClockHz = 25_000_000,
   parameter int unsigned Baud = 115_200,
   parameter int unsigned AddrWidth = 32,
-  parameter int unsigned DataWidth = 64
+  parameter int unsigned DataWidth = 64,
+  // Mid-command host-silence timeout (protocol resync): if the host stops
+  // sending while a 'W' command is in flight (e.g. a corrupted byte was
+  // dropped by the stop-bit check and both sides are waiting on each other),
+  // the loader NAKs and returns to idle so the host can retry, instead of
+  // hanging forever with the core held in reset. Default is one second at the
+  // loader clock; 0 disables the timeout.
+  parameter int unsigned IdleTimeoutCycles = ClockHz
 ) (
   input  logic                     clk_i,
   input  logic                     rst_ni,
@@ -72,6 +79,13 @@ module soc_uart_sram_loader #(
   logic tx_start_q;
   logic [7:0] tx_data;
 
+  localparam int unsigned TimeoutCntW =
+      (IdleTimeoutCycles > 1) ? $clog2(IdleTimeoutCycles + 1) : 1;
+
+  logic [TimeoutCntW-1:0] timeout_cnt_q;
+  logic awaiting_host;
+  logic host_timeout;
+
   logic [31:0] addr_q;
   logic [15:0] len_q;
   logic [7:0] byte_q;
@@ -112,7 +126,7 @@ module soc_uart_sram_loader #(
       end else begin
         rx_baud_cnt_q <= BaudCntWidth'(BaudDiv - 1);
         if (rx_bit_cnt_q < 8) begin
-          rx_shift_q[rx_bit_cnt_q] <= rx_sync_q;
+          rx_shift_q[rx_bit_cnt_q[2:0]] <= rx_sync_q;
           rx_bit_cnt_q <= rx_bit_cnt_q + 1'b1;
         end else begin
           rx_busy_q <= 1'b0;
@@ -156,6 +170,26 @@ module soc_uart_sram_loader #(
 
   assign tx_start = tx_start_q;
   assign tx_data = resp_q;
+
+  // Host-silence watchdog: runs only while a command sequence is waiting for
+  // the next host byte (not during memory handshakes or while a byte is being
+  // received).
+  assign awaiting_host = (state_q inside {StateAddr0, StateAddr1, StateAddr2,
+                                          StateAddr3, StateLen0, StateLen1,
+                                          StateData});
+  assign host_timeout = (IdleTimeoutCycles != 0) && awaiting_host &&
+                        !rx_busy_q && !rx_valid_q &&
+                        (timeout_cnt_q >= TimeoutCntW'(IdleTimeoutCycles));
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      timeout_cnt_q <= '0;
+    end else if (!awaiting_host || rx_busy_q || rx_valid_q) begin
+      timeout_cnt_q <= '0;
+    end else begin
+      timeout_cnt_q <= timeout_cnt_q + 1'b1;
+    end
+  end
 
   always_comb begin
     mem_req_o = mem_req_q;
@@ -316,6 +350,14 @@ module soc_uart_sram_loader #(
             state_q <= StateIdle;
           end
         endcase
+
+        // Watchdog override: abandon a stalled command, NAK, resync to idle.
+        // The loader stays active (core held in reset) so the host can retry
+        // the whole load.
+        if (host_timeout) begin
+          resp_q  <= RespNak;
+          state_q <= StateResp;
+        end
       end
     end
   end

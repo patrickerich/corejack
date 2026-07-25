@@ -50,6 +50,10 @@ def eval_expr(expr: str, values: dict[str, int]) -> int:
 
 def parse_soc_top(path: Path) -> tuple[dict[str, int], list[tuple[int, str, str]]]:
     text = path.read_text(encoding="utf-8")
+    # The RTL widens the 32-bit window parameters to the 64-bit xbar rule
+    # fields with a zero-extension concatenation; flatten it so the rule
+    # regex sees the bare parameter names.
+    text = re.sub(r"\{\s*32'h0\s*,\s*(\w+)\s*\}", r"\1", text)
     values: dict[str, int] = {}
     pending = [(match["name"], match["expr"].strip()) for match in ASSIGN_RE.finditer(text)]
     while pending:

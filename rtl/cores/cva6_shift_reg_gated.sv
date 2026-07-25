@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// CoreJack replacement for the tech-cell shift_reg_gated used by CVA6. The
+// module name is mandated by the instantiation site; the cva6_ file prefix
+// avoids a collision (style exception: filename != module name).
 module shift_reg_gated #(
   parameter type dtype = logic,
   parameter int unsigned Depth = 1

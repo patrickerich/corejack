@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// CoreJack shims for the CV32E40S technology primitives. Module names
+// (cv32e40s_clock_gate, cv32e40s_sffr, cv32e40s_sffs) are mandated by the
+// vendor integration contract; they are grouped in this one file (style
+// exception to one-module-per-file) because they are three tiny cells of
+// the same primitive library slot.
 module cv32e40s_clock_gate #(
   parameter int unsigned LIB = 0
 ) (

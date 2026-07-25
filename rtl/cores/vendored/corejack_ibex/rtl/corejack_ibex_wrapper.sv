@@ -1,8 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+//
 // integration/wrappers/ibex_wrapper.sv
 // Thin parametric wrapper that forwards *all* Ibex parameters and ports.
 //
 // Notes:
-// - Mirrors ibex_top's parameter list and defaults exactly.
+// - Mirrors ibex_top's parameter list and defaults, with three exceptions
+//   that are fixed at their upstream defaults because the wrapper's memory
+//   ports are shaped for the non-ECC 32-bit interface (separate 7-bit
+//   integrity sidebands): LockstepOffset, MemECC, and MemDataWidth.
 // - Keeps RVFI ports under `ifdef RVFI` like ibex_top.
 // - Uses explicit named port connections (no wildcard .* connections).
 
@@ -12,8 +17,8 @@ module corejack_ibex_wrapper
   // ---------------- PMPs / Counters / Resets ----------------
   parameter bit                     PMPEnable                    = 1'b0,
   parameter int unsigned            PMPGranularity               = 0,
-  parameter int unsigned            PMPNumRegions                = 16,
-  parameter int unsigned            MHPMCounterNum               = 4,
+  parameter int unsigned            PMPNumRegions                = 4,
+  parameter int unsigned            MHPMCounterNum               = 0,
   parameter int unsigned            MHPMCounterWidth             = 40,
   parameter ibex_pkg::pmp_cfg_t     PMPRstCfg[16]                = ibex_pkg::PmpCfgRst,
   parameter logic [33:0]            PMPRstAddr[16]               = ibex_pkg::PmpAddrRst,
@@ -22,11 +27,11 @@ module corejack_ibex_wrapper
   // ---------------- Core feature selection -------------------
   parameter bit                     RV32E                        = 1'b0,
   parameter rv32m_e                 RV32M                        = ibex_pkg::RV32MFast,
-  parameter rv32b_e                 RV32B                        = ibex_pkg::RV32BBalanced,
+  parameter rv32b_e                 RV32B                        = ibex_pkg::RV32BNone,
   parameter rv32zc_e                RV32ZC                       = ibex_pkg::RV32ZcaZcbZcmp,
   parameter regfile_e               RegFile                      = ibex_pkg::RegFileFF,
-  parameter bit                     BranchTargetALU              = 1'b1,
-  parameter bit                     WritebackStage               = 1'b1,
+  parameter bit                     BranchTargetALU              = 1'b0,
+  parameter bit                     WritebackStage               = 1'b0,
   parameter bit                     ICache                       = 1'b0,
   parameter bit                     ICacheECC                    = 1'b0,
   parameter bit                     BranchPredictor              = 1'b0,

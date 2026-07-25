@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-module corejack_cvw_ahb_adapter (
+module corejack_cvw_ahb_adapter #(
+  parameter logic [31:0] BootAddr = 32'h8000_0080
+) (
   input  logic        clk_i,
   input  logic        rst_ni,
   input  logic        irq_software_i,
@@ -31,11 +33,24 @@ module corejack_cvw_ahb_adapter (
 `include "config.vh"
 `include "parameter-defs.vh"
 
+  // The Wally config header freezes RESET_VECTOR; rebind it to the platform
+  // BootAddr so a board/descriptor that moves RAM cannot leave CVW booting at
+  // a stale address.
+  function automatic cvw_t cvw_with_boot_addr(input cvw_t p, input logic [31:0] boot);
+    cvw_t r;
+    r = p;
+    r.RESET_VECTOR = {32'h0, boot};
+    return r;
+  endfunction
+
+  localparam cvw_t PCfg = cvw_with_boot_addr(P, BootAddr);
+
   typedef enum logic [2:0] {
     StateIdle,
     StateWriteData,
     StateIssue,
     StateWaitRsp,
+    StateErrFirst,
     StateRsp
   } state_e;
 
@@ -90,6 +105,10 @@ module corejack_cvw_ahb_adapter (
   assign data_addr_o  = addr_q;
   assign data_wdata_o = wdata_q;
 
+  // AHB error responses take the mandated two cycles: HRESP high with HREADY
+  // low first (StateErrFirst), then HRESP high with HREADY high (StateRsp).
+  // Wally's EBU currently ignores HRESP, but any compliant master must see
+  // the two-cycle form.
   assign hready = (state_q == StateIdle) || (state_q == StateRsp);
   assign hresp  = err_q;
   assign hrdata = rdata_q;
@@ -139,8 +158,12 @@ module corejack_cvw_ahb_adapter (
           if (rsp_seen) begin
             rdata_q <= we_q ? '0 : data_rdata_i;
             err_q   <= data_err_i;
-            state_q <= StateRsp;
+            state_q <= data_err_i ? StateErrFirst : StateRsp;
           end
+        end
+
+        StateErrFirst: begin
+          state_q <= StateRsp;
         end
 
         default: begin
@@ -164,7 +187,7 @@ module corejack_cvw_ahb_adapter (
 `endif
 
   wallypipelinedcore #(
-    .P (P)
+    .P (PCfg)
   ) i_cvw (
     .clk           (clk_i),
     .reset         (!rst_ni),
@@ -172,6 +195,11 @@ module corejack_cvw_ahb_adapter (
     .MExtInt       (irq_external_i),
     .SExtInt       (1'b0),
     .MSwInt        (irq_software_i),
+    // KNOWN LIMITATION: Wally shadows the CLINT's memory-mapped mtime through
+    // this port for the time/timeh CSRs (rdtime), but the platform's vendored
+    // PULP CLINT does not export its mtime counter, so rdtime reads 0 on CVW.
+    // Software must use the memory-mapped mtime at 0x0200_bff8 instead. See
+    // docs/open_items.md.
     .MTIME_CLINT   (64'h0),
     .HRDATA        (hrdata),
     .HREADY        (hready),
