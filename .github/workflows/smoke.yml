@@ -39,10 +39,18 @@ jobs:
           make axi-addr-map-check
 
       - name: Setup Verilator
-        # Local/dev builds pin Verilator v5.050 (see Makefile), but the
-        # setup-verilator action has no v5.050 prebuilt yet (fetch 404s). Keep
-        # CI on v5.048 -- its newest available prebuilt -- and bump this to
-        # '5.050' once the action publishes it. Do not build from source in CI.
+        # Local/dev builds pin Verilator v5.050 (see Makefile), but no v5.050
+        # prebuilt exists yet (fetch 404s). Keep CI on v5.048 -- the newest
+        # available prebuilt -- and bump this to '5.050' once one is published.
+        # Do not build from source in CI.
+        #
+        # The gate is NOT this action: setup-verilator hosts no binaries, it
+        # fetches
+        #   github.com/veryl-lang/verilator-package/releases/download/v<version>/verilator-<image>.zip
+        # So check the releases of veryl-lang/verilator-package (not of
+        # setup-verilator, and not upstream verilator/verilator) to see whether
+        # a bump is possible. Last checked 2026-08-02: that repo tops out at
+        # v5.048, two upstream releases behind.
         uses: veryl-lang/setup-verilator@v2
         with:
           version: '5.048'
