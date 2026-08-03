@@ -1,0 +1,47 @@
+# Expected smoke-test UART output — single source of truth.
+#
+# These strings mirror what the firmware actually prints:
+#   sw/c/hello_world/main.c   (baremetal)
+#   sw/zephyr/src/main.c      (zephyr)
+# Keep this file and those sources in step; nothing else may hardcode the text.
+#
+# Consumed by bin/validate_target.py --uart-banner, which bin/fpga_debug_acceptance.sh
+# calls instead of carrying its own copy. The expectation is a property of the
+# firmware and the selected path, not of the board, so it lives here once rather
+# than being duplicated into every cfg/boards/*.yaml.
+#
+# Resolution: expected lines = banner + alive[<variant>]
+#
+# Variants:
+#   sim     target=sim,  running under Verilator
+#   debug   target=fpga, core has JTAG debug (OpenOCD/GDB path)
+#   loader  target=fpga, no JTAG debug, loaded over the UART SRAM loader
+#
+# Placeholders: {core}, {board}, {target}. {target} resolves to "sim" for the
+# sim variant and "fpga" otherwise.
+
+baremetal:
+  banner:
+    - "=== CoreJack SoC Demo ==="
+    - "Target: {target}"
+    - "Core: {core}"
+    - "Board: {board}"
+  # sw/c/hello_world/main.c picks exactly one of these three.
+  alive:
+    sim: "UART and sim_ctrl path are alive."
+    debug: "UART and JTAG debug path are alive."
+    loader: "UART path is alive."
+
+zephyr:
+  banner:
+    - "=== CoreJack Zephyr Demo ==="
+    - "Target: zephyr"
+    - "Core: {core}"
+    - "Board: {board}"
+    - "UART and Zephyr console path are alive."
+  # sw/zephyr/src/main.c prints both lines unconditionally, so unlike baremetal
+  # this is not a branch: the timer line is simply the last thing printed, and
+  # both variants wait for it.
+  alive:
+    debug: "Machine timer interrupt path is alive."
+    loader: "Machine timer interrupt path is alive."

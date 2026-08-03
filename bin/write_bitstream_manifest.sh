@@ -118,21 +118,9 @@ if command -v vivado >/dev/null 2>&1; then
   fi
 fi
 
-design_hash="$(
-  {
-    git ls-files \
-      'Bender.lock' \
-      'Bender.yml' \
-      'Makefile' \
-      'cfg' \
-      'patches' \
-      'rtl' \
-      'corejack.core' \
-      'sw/zephyr/boards' \
-      'sw/zephyr/soc' \
-      2>/dev/null || true
-  } | sort | xargs -r sha256sum | sha256sum | awk '{print $1}'
-)"
+# Shared with bin/fpga_debug_acceptance.sh so the recorded and checked hashes
+# cannot drift apart. See bin/design_input_hash.sh for the tracked file set.
+design_hash="$("$(dirname "${BASH_SOURCE[0]}")/design_input_hash.sh")"
 if [ -z "$design_hash" ]; then
   design_hash="unknown"
 fi

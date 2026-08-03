@@ -13,8 +13,12 @@ from string import Formatter
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CORE_DIR = REPO_ROOT / "cfg" / "cores"
 BOARD_DIR = REPO_ROOT / "cfg" / "boards"
+UART_BANNER_FILE = REPO_ROOT / "cfg" / "validation" / "uart_banners.yaml"
 MAKEFILE = REPO_ROOT / "Makefile"
 FUSESOC_CORE = REPO_ROOT / "corejack.core"
+UART_FIRMWARES = ("baremetal", "zephyr")
+UART_VARIANTS = ("sim", "debug", "loader")
+UART_BANNER_FIELDS = {"core", "board", "target"}
 SUPPORTED_STATUS = "supported"
 ZEPHYR_STATUSES = {"initial_supported", "supported", "planned", "unsupported"}
 PLATFORM_INTEGRATIONS = {"socket_region", "native_axi"}
@@ -101,6 +105,86 @@ def yaml_top_list(text: str, key: str) -> list[str]:
                 values.append(item_match.group(1).strip().strip("'\""))
 
     return values
+
+
+def yaml_path_list(text: str, path: tuple[str, ...]) -> list[str]:
+    """Return the list under a nested key path, e.g. ('baremetal', 'banner')."""
+    current_path: list[tuple[int, str]] = []
+    values: list[str] = []
+    list_indent: int | None = None
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        if list_indent is not None:
+            item_match = re.match(r"^(\s*)-\s*(.+?)\s*$", line)
+            if item_match and len(item_match.group(1)) > list_indent:
+                values.append(item_match.group(2).strip().strip("'\""))
+                continue
+            break
+
+        match = re.match(r"^(\s*)([A-Za-z0-9_]+):\s*(.*?)\s*$", line)
+        if not match:
+            continue
+
+        indent = len(match.group(1))
+        while current_path and current_path[-1][0] >= indent:
+            current_path.pop()
+        current_path.append((indent, match.group(2)))
+
+        if tuple(item[1] for item in current_path) == path:
+            list_indent = indent
+
+    return values
+
+
+def resolve_uart_banner(firmware: str, variant: str, core: str, board: str) -> list[str]:
+    """Resolve the expected UART lines for a firmware/path variant."""
+    if firmware not in UART_FIRMWARES:
+        fail(f"unknown firmware '{firmware}', expected one of: {', '.join(UART_FIRMWARES)}")
+    if variant not in UART_VARIANTS:
+        fail(f"unknown variant '{variant}', expected one of: {', '.join(UART_VARIANTS)}")
+    if not UART_BANNER_FILE.is_file():
+        fail(f"missing UART banner descriptor: {UART_BANNER_FILE.relative_to(REPO_ROOT)}")
+
+    text = UART_BANNER_FILE.read_text(encoding="utf-8")
+    banner = yaml_path_list(text, (firmware, "banner"))
+    if not banner:
+        fail(f"{firmware}.banner must list at least one expected line")
+
+    alive = yaml_path_scalar(text, (firmware, "alive", variant))
+    if alive is None:
+        fail(f"{firmware}.alive.{variant} is not defined")
+
+    target = "sim" if variant == "sim" else "fpga"
+    return [line.format(core=core, board=board, target=target) for line in banner + [alive]]
+
+
+def check_uart_banner_descriptor() -> None:
+    """Validate the shared UART banner descriptor independently of any board."""
+    if not UART_BANNER_FILE.is_file():
+        fail(f"missing UART banner descriptor: {UART_BANNER_FILE.relative_to(REPO_ROOT)}")
+
+    text = UART_BANNER_FILE.read_text(encoding="utf-8")
+    for firmware in UART_FIRMWARES:
+        banner = yaml_path_list(text, (firmware, "banner"))
+        if not banner:
+            fail(f"{firmware}.banner must list at least one expected line")
+        for line in banner:
+            fields = {field for _, field, _, _ in Formatter().parse(line) if field}
+            unsupported = fields - UART_BANNER_FIELDS
+            if unsupported:
+                fail(
+                    f"{firmware}.banner contains unsupported placeholder(s): "
+                    f"{', '.join(sorted(unsupported))}"
+                )
+        # sim only applies to baremetal; the Zephyr smoke app is FPGA-only.
+        variants = UART_VARIANTS if firmware == "baremetal" else ("debug", "loader")
+        for variant in variants:
+            if yaml_path_scalar(text, (firmware, "alive", variant)) is None:
+                fail(f"{firmware}.alive.{variant} is not defined")
 
 
 def parse_positive_int(value: str, field: str) -> int:
@@ -705,7 +789,6 @@ def board_check(board: str, verbose: bool = True) -> None:
         f"BOARD '{board}'",
     )
     smoke_app = require_scalar(board_text, ("validation", "smoke_app"), f"BOARD '{board}'")
-    expected_uart = yaml_top_list(board_text, "expected_uart")
     compatible_cores = yaml_top_list(board_text, "compatible_cores")
 
     template_fields = {field for _, field, _, _ in Formatter().parse(top_template) if field}
@@ -768,16 +851,9 @@ def board_check(board: str, verbose: bool = True) -> None:
         fail("fpga.work_root should include {core} to keep core builds isolated")
     if not compatible_cores:
         fail("compatible_cores must list at least one core")
-    if not expected_uart:
-        fail("validation.expected_uart must list expected smoke-test UART text")
-    for line in expected_uart:
-        fields = {field for _, field, _, _ in Formatter().parse(line) if field}
-        unsupported_fields = fields - {"core", "board"}
-        if unsupported_fields:
-            fail(
-                "validation.expected_uart contains unsupported placeholder(s): "
-                f"{', '.join(sorted(unsupported_fields))}"
-            )
+    # Expected UART text is a property of the firmware, not the board, so it lives
+    # once in cfg/validation/uart_banners.yaml rather than per board descriptor.
+    check_uart_banner_descriptor()
 
     known_cores = set(descriptor_names(CORE_DIR))
     missing_cores = [core for core in compatible_cores if core not in known_cores]
@@ -904,7 +980,39 @@ def main() -> int:
         action="store_true",
         help="Validate the descriptor matrix for a board and its compatible cores",
     )
+    parser.add_argument(
+        "--uart-banner",
+        action="store_true",
+        help="Print the expected smoke-test UART lines, one per line",
+    )
+    parser.add_argument(
+        "--firmware",
+        choices=UART_FIRMWARES,
+        default="baremetal",
+        help="Firmware stack for --uart-banner. Defaults to baremetal.",
+    )
+    parser.add_argument(
+        "--variant",
+        choices=UART_VARIANTS,
+        default="debug",
+        help="Software load path for --uart-banner. Defaults to debug.",
+    )
+    parser.add_argument(
+        "--alive-only",
+        action="store_true",
+        help="With --uart-banner, print only the trailing 'alive' line",
+    )
     args = parser.parse_args()
+
+    if args.uart_banner:
+        if not args.core:
+            fail("--core is required with --uart-banner")
+        if not args.board:
+            fail("--board is required with --uart-banner")
+        lines = resolve_uart_banner(args.firmware, args.variant, args.core, args.board)
+        for line in lines[-1:] if args.alive_only else lines:
+            print(line)
+        return 0
 
     if args.list:
         list_targets()
