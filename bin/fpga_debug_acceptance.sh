@@ -173,6 +173,20 @@ target_config_value() {
   make target-config CORE="$core" BOARD="$board" | sed -n "s/^${key}=//p" | tail -n 1
 }
 
+uart_banner_lines() {
+  local core="$1"
+  local variant="$2"
+  shift 2
+
+  "${PYTHON:-python3.13}" bin/validate_target.py \
+    --core "$core" \
+    --board "$board" \
+    --uart-banner \
+    --firmware "$firmware" \
+    --variant "$variant" \
+    "$@"
+}
+
 fpga_work_root() {
   local core="$1"
 
@@ -210,19 +224,9 @@ core_debug_supported() {
 }
 
 design_input_hash() {
-  {
-    git ls-files \
-      'Bender.lock' \
-      'Bender.yml' \
-      'Makefile' \
-      'cfg' \
-      'patches' \
-      'rtl' \
-      'corejack.core' \
-      'sw/zephyr/boards' \
-      'sw/zephyr/soc' \
-      2>/dev/null || true
-  } | sort | xargs -r sha256sum | sha256sum | awk '{print $1}'
+  # Shared with bin/write_bitstream_manifest.sh so the recorded and checked
+  # hashes cannot drift apart.
+  bin/design_input_hash.sh
 }
 
 write_fpga_manifest() {
@@ -375,29 +379,14 @@ check_uart_capture() {
 
   stop_uart_capture
 
+  # Expected text comes from cfg/validation/uart_banners.yaml via
+  # validate_target.py, so it cannot drift from what the firmware prints.
   local expected=()
-
-  case "$firmware" in
-    baremetal)
-      expected=(
-        "=== CoreJack SoC Demo ==="
-        "Target: fpga"
-        "Core: $core"
-        "Board: $board"
-        "UART and JTAG debug path are alive."
-      )
-      ;;
-    zephyr)
-      expected=(
-        "=== CoreJack Zephyr Demo ==="
-        "Target: zephyr"
-        "Core: $core"
-        "Board: $board"
-        "UART and Zephyr console path are alive."
-        "Machine timer interrupt path is alive."
-      )
-      ;;
-  esac
+  mapfile -t expected < <(uart_banner_lines "$core" debug)
+  if [ "${#expected[@]}" -eq 0 ]; then
+    echo "Error: could not resolve expected UART banner for CORE=$core." >&2
+    exit 1
+  fi
 
   for line in "${expected[@]}"; do
     if ! grep -Fq "$line" "$uart_log"; then
@@ -545,14 +534,11 @@ start_openocd() {
 }
 
 uart_loader_expect_text() {
-  case "$firmware" in
-    baremetal)
-      printf 'path is alive.'
-      ;;
-    zephyr)
-      printf 'Machine timer interrupt path is alive.'
-      ;;
-  esac
+  local core="$1"
+
+  # Same source of truth as check_uart_capture(); the loader host tool waits on
+  # the single trailing "alive" line rather than the whole banner.
+  uart_banner_lines "$core" loader --alive-only
 }
 
 run_uart_loader_acceptance() {
@@ -565,7 +551,7 @@ run_uart_loader_acceptance() {
   fi
 
   uart_log="$log_dir/uart_loader_${firmware}_${board}_${core}.log"
-  expect="$(uart_loader_expect_text)"
+  expect="$(uart_loader_expect_text "$core")"
 
   if [ "$firmware" = "baremetal" ]; then
     if ! make fpga-uart-load-sw \
