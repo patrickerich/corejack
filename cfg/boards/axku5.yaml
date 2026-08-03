@@ -40,12 +40,6 @@ programming:
 
 validation:
   smoke_app: hello_world
-  expected_uart:
-    - "=== CoreJack SoC Demo ==="
-    - "Target: fpga"
-    - "Core: {core}"
-    - "Board: {board}"
-    - "path is alive."
 
 compatible_cores:
   - ibex

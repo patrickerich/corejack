@@ -266,19 +266,29 @@ programming:
 
 validation:
   smoke_app: hello_world
-  expected_uart:
-    - "=== CoreJack SoC Demo ==="
-    - "Target: fpga"
-    - "Core: {core}"
-    - "Board: {board}"
-    - "path is alive."
 ```
 
 Board descriptors should describe physical and tool-flow facts. They should not
-contain SoC policy that belongs in the generic platform integration. Use the
-`{core}` and `{board}` placeholders in `expected_uart` fragments when the
-expected text is core- or board-specific so the same descriptor stays
-reusable across all compatible cores.
+contain SoC policy that belongs in the generic platform integration.
+
+The expected smoke-test UART text is deliberately *not* a board field. It is a
+property of the firmware and of the software load path, identical across boards,
+so it lives once in [`cfg/validation/uart_banners.yaml`](../cfg/validation/uart_banners.yaml)
+and is resolved by `bin/validate_target.py --uart-banner`:
+
+```bash
+# full expected banner for a debug-capable core
+bin/validate_target.py --core ibex --board axku5 --uart-banner --variant debug
+
+# just the trailing "alive" line, as the UART SRAM loader waits for
+bin/validate_target.py --core serv --board axku5 --uart-banner --variant loader --alive-only
+```
+
+`bin/fpga_debug_acceptance.sh` calls that resolver rather than carrying its own
+copy, so the acceptance expectation cannot drift from the descriptor. Variants
+are `sim`, `debug`, and `loader`; placeholders are `{core}`, `{board}`, and
+`{target}`. Keep the file in step with `sw/c/hello_world/main.c` and
+`sw/zephyr/src/main.c`, which are where the strings actually originate.
 
 Two board fields are optional:
 
