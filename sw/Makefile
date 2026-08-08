@@ -13,7 +13,9 @@ SW_BUILD_LAYOUT := 2
 ELF := $(CMAKE_BUILD_DIR)/$(APP)/$(APP)
 BIN := $(BUILD_DIR)/$(TARGET)/$(CORE)/$(TOOLCHAIN)/$(APP)/$(APP).bin
 DIS := $(BUILD_DIR)/$(TARGET)/$(CORE)/$(TOOLCHAIN)/$(APP)/$(APP).dis
-NUM_BANKS ?= 4
+# Interleave width of the bank_<n>.hex preload split. Must match soc_top's
+# MemNumBanks, which is how soc_mem_bank reads the images back.
+NUM_BANKS ?= 8
 TOOLCHAIN ?= riscv-multilib
 MARCH ?= rv32imc
 MABI ?= ilp32

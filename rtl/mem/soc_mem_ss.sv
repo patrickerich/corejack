@@ -25,10 +25,18 @@ module soc_mem_ss
   parameter int unsigned AddrWidth    = 32,
   parameter int unsigned WordsPerBank = 2048,
   parameter logic [AddrWidth-1:0] BaseAddr = 32'h8000_0000,
+  // Outstanding/buffer depths. These set the throughput ceiling: a port
+  // sustains EgressDepth / (ReadLat + 4) accesses per cycle (the reorder-buffer
+  // slot round trip from grant to release), and a bank sustains
+  // SliceOutDepth / (ReadLat + 2). The defaults below put both at ~1 per cycle
+  // for the 2-cycle Xilinx slice, so the subsystem is not the limiter even
+  // though today's initiators issue far fewer outstanding requests.
+  // SliceInDepth must stay >= 2: a depth-1 fifo_v3 blocks its push while full,
+  // which alone would halve the per-bank rate.
   parameter int unsigned IngressDepth = 2,
-  parameter int unsigned EgressDepth  = 2,
-  parameter int unsigned SliceInDepth = 1,
-  parameter int unsigned SliceOutDepth = 1,
+  parameter int unsigned EgressDepth  = 8,
+  parameter int unsigned SliceInDepth = 2,
+  parameter int unsigned SliceOutDepth = 4,
   parameter string       MemInitPath  = "",
   parameter mem_impl_e   MemImpl       = MemImplModel,
   // Floor the declared port-group width so a zero-sized group (NumPorts32 or

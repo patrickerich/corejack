@@ -17,11 +17,13 @@ module soc_top #(
   parameter int unsigned UartLoaderBaud = 115_200,
   parameter string MemInitPath = "",
   parameter mem_ss_pkg::mem_impl_e MemImpl = mem_ss_pkg::MemImplModel,
-  // SRAM banking is a designer's choice. The default of 4 matches the
-  // currently validated AXKU5 baseline; soc_mem_ss is generic over NumBanks,
-  // and sw/Makefile exposes a matching NUM_BANKS knob so software preload
-  // files can be regenerated for any value chosen here.
-  parameter int unsigned MemNumBanks = 4
+  // SRAM banking is a designer's choice. The default of 8 matches the seven
+  // ports that drive soc_mem_ss (two native 32-bit CPU ports plus five 64-bit
+  // ports), so concurrent streams rarely collide on a bank; soc_mem_ss is
+  // generic over NumBanks. sw/Makefile's NUM_BANKS must match this value - it
+  // splits the preload image into bank_<n>.hex the same way soc_mem_bank reads
+  // it back.
+  parameter int unsigned MemNumBanks = 8
 ) (
   input  logic clk_i,
   input  logic rst_ni,

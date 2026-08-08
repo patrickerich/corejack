@@ -20,7 +20,7 @@ module tb_mem_ss;
   localparam int unsigned NumPorts64   = 2;
   localparam int unsigned NumBanks     = 4;
   localparam int unsigned WordsPerBank = 64;
-  localparam int unsigned EgressDepth  = 2;
+  localparam int unsigned EgressDepth  = 8;
   localparam logic [31:0] BaseAddr     = 32'h8000_0000;
   localparam int unsigned TotalWords64 = NumBanks * WordsPerBank;      // 256
   localparam int unsigned TotalBytes   = TotalWords64 * 8;
