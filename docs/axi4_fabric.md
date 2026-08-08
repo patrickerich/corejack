@@ -174,7 +174,7 @@ extending the small adapters ad hoc.
 
 ### Memory throughput is no longer fabric-limited
 
-The shared SRAM is banked (see `MemNumBanks` on `soc_top`, default 4, and
+The shared SRAM is banked (see `MemNumBanks` on `soc_top`, default 8, and
 `soc_mem_ss`'s per-bank round-robin arbiter). Three independent initiators reach
 the fabric - core instruction fetch, core data access, and debug SBA - and each
 can target a different bank. Previously they could not run in parallel against
@@ -201,10 +201,12 @@ iDMA uses **dedicated 64-bit read/write ports**, all bypassing the crossbar, so
 those initiators reach the banks directly with per-port multi-outstanding,
 in-order delivery. The crossbar's RAM path (`soc_axi_to_mem`, split into read
 and write engines) now mainly carries debug SBA and any other fabric-routed RAM
-traffic. The remaining follow-up is **revisiting the bank count**:
-`soc_top.MemNumBanks` is a parameter (default 4), so experiments at 8 or 16
-banks need only an override at instantiation; `sw/Makefile` already responds to
-a matching `NUM_BANKS` value when regenerating hex preload files. See
+traffic. The bank count has since been raised to **8**, matching the seven ports
+that drive the subsystem, and the per-port and per-bank outstanding depths were
+sized so `soc_mem_ss` sustains ~1 access/cycle on both. Note that this caps at
+the *memory subsystem's* ports: the fabric-routed RAM legs still accept one
+transaction at a time inside `soc_axi_to_mem`, so debug SBA and any future
+fabric RAM initiator are bounded by that adapter, not by the banks. See
 [`roadmap.md`](roadmap.md) for the coupling between `MemNumBanks` and the
 port count.
 
@@ -261,11 +263,13 @@ closure:
 - add burst support (target adapters and the single-beat protocol checker) when
   an AXI-native burst initiator is integrated; the crossbar itself already
   forwards multiple outstanding requests
-- revisit `MemNumBanks` as more ports drive the memory subsystem (the bank-count
+- give `soc_axi_to_mem` more than one transaction in flight, so the crossbar's
+  RAM legs can use the per-port rate `soc_mem_ss` now offers
+- revisit `MemNumBanks` again if the port count grows past 8 (the bank-count
   vs port-count coupling; see [`roadmap.md`](roadmap.md))
 
 FPGA timing closure with the crossbar on the fabric path is validated at the
-25 MHz default on both boards (ibex WNS: +13.3 ns on the AXKU5, +8.8 ns on the
-Arty A7-100T). If a future higher clock or a larger initiator set regresses
+25 MHz default on both boards (ibex WNS at 8 banks: +12.1 ns on the AXKU5,
++8.9 ns on the Arty A7-100T). If a future higher clock or a larger initiator set regresses
 timing, the crossbar's `LatencyMode` (e.g. `CUT_ALL_AX`) is the first knob to
 try.

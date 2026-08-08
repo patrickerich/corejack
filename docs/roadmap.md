@@ -35,12 +35,15 @@ Platform pieces:
   round-robin arbitration and is port-owned: two native 32-bit CPU ports
   (data, instruction) plus five 64-bit ports (xbar RAM read/write engines,
   UART SRAM loader, iDMA read/write), each with loss-free, in-order,
-  multi-outstanding access. The simulation preload loads each bank's
-  interleaved hex image via `$readmemh` inside `soc_mem_bank`.
+  multi-outstanding access across 8 interleaved banks. The outstanding depths
+  are sized so neither a port nor a bank caps below ~1 access/cycle
+  (`mem-ss-bench`: 0.98 for one port, 3.91 across four). The simulation preload
+  loads each bank's interleaved hex image via `$readmemh` inside
+  `soc_mem_bank`.
 - `riscv-dbg` (`dmi_jtag` + `dm_top`) and CLINT are integrated in `soc_top`.
 - Bitstreams close timing at the conservative `25 MHz` default with the
-  `axi_xbar` crossbar on both boards (ibex WNS: `+13.3 ns` on the AXKU5,
-  `+8.8 ns` on the Arty A7-100T).
+  `axi_xbar` crossbar on both boards (ibex WNS at 8 banks: `+12.1 ns` on the
+  AXKU5, `+8.9 ns` on the Arty A7-100T).
 - OpenOCD enumerates and examines the RISC-V target over external JTAG;
   GDB loads an ELF into SRAM through the debug module SBA path.
 - `hello_world` runs from SRAM and prints through the platform APB UART at
@@ -128,10 +131,10 @@ Software and validation flow:
   the core adapter boundary but must reach RAM, UART, CLINT, debug, and
   other shared peripherals through the shared AXI fabric.
 - Keep the memory subsystem modular and multi-initiator aware. The
-  `soc_mem_ss` per-bank fair round-robin arbiter is already generic in
-  `NumBanks`, `NumPorts32`, and `NumPorts64`, and `soc_top.MemNumBanks` is a
-  parameter (default 4) - so the platform is set up to grow the bank
-  count when a workload warrants it.
+  `soc_mem_ss` per-bank fair round-robin arbiter is generic in `NumBanks`,
+  `NumPorts32`, and `NumPorts64`, and `soc_top.MemNumBanks` is a parameter
+  (default 8, matching the seven ports that drive it) - so the platform can grow
+  the bank count further when a workload warrants it.
 - Widen the AXI fabric. **Done (sim- and hardware-validated):** the
   single-outstanding `soc_axi_arbiter` + `soc_axi_demux` pair has been replaced
   by a PULP `axi_xbar` system crossbar, so the then-three initiators (core
@@ -314,39 +317,37 @@ mistakes.
 
 ### Memory subsystem follow-up
 
-With the fabric widened, the memory subsystem redesigned to be port-owned,
-and seven ports now driving it, the bank count revisit is now concrete. The
-infrastructure is already in place:
+**Done.** `MemNumBanks` is now **8**, matching the seven ports that drive the
+subsystem (CPU instruction + CPU data native 32-bit ports, the xbar RAM read +
+write engines, the UART loader, and the iDMA read + write), and the outstanding
+depths were raised so neither a port nor a bank is the throughput limiter.
 
-- `soc_mem_ss` is generic over `NumBanks`, `NumPorts32`, and `NumPorts64`.
-- `soc_top.MemNumBanks` is a parameter (default 4); overriding it at
-  instantiation is enough to experiment with 8 or 16 banks.
-- `sw/Makefile` exposes a matching `NUM_BANKS` knob so hex preload
-  files line up with whatever the RTL chose.
+The bank count followed the **`MemNumBanks ≈ port count`** target rather than the
+textbook `B ≈ 2·N` heuristic, because that heuristic assumes pathologically
+random independent address streams (DRAM-style or NoC-style worst-case), which is
+not what CoreJack carries: CPU instruction fetch, CPU data, DMA, and most
+accelerators have highly structured sequential or strided access patterns. Under
+round-robin arbitration, sequential streams self-align within a handful of cycles
+even at `B = N`. Total SRAM bit count is unchanged; only per-bank capacity
+changed (both boards stay on the same BRAM count). Bumping beyond that (12 or 16
+banks) remains a future option to revisit only if a measured workload — a
+worst-case all-accelerators-streaming benchmark, for example — shows real bank
+pressure.
 
-`MemNumBanks` and the **port count** are coupled tuning levers: as the port
-count grows (today seven: CPU instruction + CPU data native 32-bit ports, the
-xbar RAM read + write engines, the UART loader, and the iDMA read + write),
-and as future accelerators add more, `MemNumBanks` should grow with it. The
-textbook `B ≈ 2·N` heuristic assumes pathologically random independent address
-streams (DRAM-style or NoC-style worst-case), which is not what CoreJack
-carries: CPU instruction fetch, CPU data, DMA, and most accelerators have
-highly structured sequential or strided access patterns. Under round-robin
-arbitration, sequential streams self-align within a handful of cycles
-even at `B = N`, so the realistic target is **`MemNumBanks ≈ port count`**
-(for example, 8 banks alongside the current seven ports). Total SRAM
-bit count stays constant; only per-bank capacity changes. Bumping beyond
-that (12 or 16 banks) is a future option to revisit only if a measured
-workload — a worst-case all-accelerators-streaming benchmark, for
-example — shows real bank pressure.
+Two things are intentionally **not** done:
 
-What is intentionally **not** done yet, pending real workload evidence:
-threading the bank count through the board descriptor, the FPGA wrapper,
-the Zephyr devicetree, and the bitstream manifest, so the choice becomes
-descriptor-driven rather than a manual override. That plumbing is a
-small follow-up best designed when there is a second value worth
-supporting (for example, AXKU5 stays at 4 while a different board or
-benchmark configuration opts into 8).
+- **Descriptor-driven bank count.** `soc_top.MemNumBanks` and `sw/Makefile
+  NUM_BANKS` are two defaults that must agree. Threading one value through the
+  board descriptor, the FPGA wrapper, the Zephyr devicetree, and the bitstream
+  manifest is a small follow-up best designed when there is a second value worth
+  supporting (for example, one board staying at 8 while a benchmark
+  configuration opts into 16).
+- **Initiator-side outstanding requests.** The subsystem now sustains ~1
+  access/cycle per port, so the remaining gap in a real workload is how many
+  requests a core keeps in flight — for example Ibex's instruction-fetch unit has
+  a lower-level outstanding-fetch option that its top-level parameter list does
+  not expose. Raising it means editing vendored core RTL and needs to be a
+  deliberate, separately validated change.
 
 ## Software Ecosystem
 

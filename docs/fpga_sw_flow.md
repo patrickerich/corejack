@@ -150,9 +150,8 @@ cmake/my_test/my_test
 my_test.bin
 my_test.dis
 bank_0.hex
-bank_1.hex
-bank_2.hex
-bank_3.hex
+...
+bank_7.hex
 ```
 
 For the default `CORE=ibex` and `TOOLCHAIN=riscv-multilib` selection this
@@ -163,8 +162,10 @@ The `bank_N.hex` files match the current interleaved SRAM layout. Each line
 contains one 64-bit SRAM word:
 
 ```text
-bank = word64_index % 4
+bank = word64_index % NUM_BANKS
 ```
+
+`NUM_BANKS` (`sw/Makefile`) is 8 and must match `soc_top`'s `MemNumBanks`.
 
 ## Run In Simulation
 

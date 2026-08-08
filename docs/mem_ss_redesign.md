@@ -7,7 +7,9 @@ design decisions that follow. Update it as the design evolves.
 Status: **implemented and integrated into `soc_top` (option A, native 32-bit CPU
 ports); promoted to the canonical `soc_mem_ss` name, replacing the original
 bank-owned design in place. Verified standalone and in the SoC simulation
-regressions; the `mem-ss-bench` throughput benchmark targets the new subsystem.**
+regressions; the `mem-ss-bench` throughput benchmark targets the new subsystem.
+Running at 8 banks with the outstanding depths sized so neither a port nor a bank
+caps below ~1 access/cycle.**
 
 ## 1. Requirements (as specified)
 
@@ -110,7 +112,9 @@ buffer is replaced by a plain FIFO and responses may return out of order).
 ```
 
 - **Ingress buffer** (per port, in-order FIFO, depth `IngressDepth`=2). `gnt =
-  !full`. Only the head is arbitrated -> per-port request order preserved.
+  !full`. Only the head is arbitrated -> per-port request order preserved. Depth
+  2 is enough to sustain one grant per cycle; the outstanding count is bounded by
+  the egress reorder buffer, not by this FIFO.
 - **Address decode.** word `W = (addr-BaseAddr)>>3`; bank `= W % NumBanks`;
   in-bank word `= W / NumBanks`; 32-bit lane `= addr[2]`. Out-of-range -> error
   responder.
@@ -119,13 +123,16 @@ buffer is replaced by a plain FIFO and responses may return out of order).
   advance the RR pointer so no port is starved.
 - **Slice pipeline (elastic).** Per bank: an input buffer, the registered-read
   SRAM slice, and an output buffer. The input/output buffers are parameterizable
-  FIFOs (default depth 1) - the R8 timing-break stages - and they backpressure
-  (slave upstream, master downstream). The non-stallable SRAM read is applied
-  only when the output FIFO has room to catch the result.
+  FIFOs (`SliceInDepth`=2, `SliceOutDepth`=4) - the R8 timing-break stages - and
+  they backpressure (slave upstream, master downstream). The non-stallable SRAM
+  read is applied only when the output FIFO has room to catch the result. Both
+  depths are sized so a bank accepts a request every cycle: the output side must
+  hold `ReadLat + 2` claims to cover issue -> read -> drain, and the input side
+  must be at least 2 because a depth-1 `fifo_v3` blocks its push while full.
 - **Lane select.** For a 32-bit port, the requested 32-bit half is selected from
   the 64-bit slice word on the way into egress (reads); writes expand the 32-bit
   lane + 4-bit BE into the 64-bit word at the slice input.
-- **Egress reorder buffer** (per port, depth `EgressDepth`=2). A slot is allocated
+- **Egress reorder buffer** (per port, depth `EgressDepth`=8). A slot is allocated
   in request order at grant and its index tags the request; the completing
   response (from any bank, any time) fills its reserved slot; the buffer delivers
   slots in order. For an `allows_ooo` port this is a plain FIFO instead.
@@ -157,25 +164,32 @@ contending port is served within at most `NumPorts` arbitration rounds per bank.
 
 ## 5. Consequences to note (not open questions)
 
-- **Latency.** The two slice timing-break stages put bank read latency at roughly
-  request-reg -> slice-read -> output-reg = ~3 cycles, plus ingress/egress FIFO
-  stages. With the default outstanding depth of 2, sustained per-port throughput
-  is therefore ~depth / latency. This is the deliberate
-  correctness/timing-vs-throughput trade; raising the per-port depth (a
-  parameter) toward the latency is how an initiator that supports more
-  outstanding requests reclaims ~1 access/cycle. Aggregate cross-port throughput
-  still scales with the number of active ports / banks. **Measured** by the
-  retargeted `mem-ss-bench` (default depths): a single disjoint port sustains
-  ~0.33 access/cycle (so the round-trip is ~6 cycles), scaling **linearly** to
-  ~0.66 / ~1.33 at 2 / 4 disjoint ports, while same-bank traffic stays pinned at
-  one slice's ~0.33 no matter how many ports drive it - exactly the multi-bank
-  concurrency the redesign targets.
-- **The latency lever is deferred but identified.** Reclaiming ~1/cycle is a
-  later, separate task: it needs the initiator to issue more outstanding
-  requests. For example Ibex's instruction-fetch unit has a lower-level option
-  to increase the number of outstanding fetches (not exposed at the top-level
-  parameter list), and the other cores likely expose something similar. Not in
-  scope for this redesign.
+- **Latency is covered by depth, not removed.** The two slice timing-break
+  stages put bank read latency at roughly request-reg -> slice-read ->
+  output-reg, and the full reorder-buffer slot round trip - grant to slot
+  release - is `ReadLat + 4` cycles (5 on the model slice, 6 on the 2-cycle
+  Xilinx cell). Latency is a deliberate correctness/timing choice and stays; what
+  the depths buy is the ability to keep enough requests in flight to hide it.
+  Two independent ceilings follow, and both defaults are sized to ~1 access per
+  cycle:
+  - a **port** sustains `EgressDepth / (ReadLat + 4)` -> `EgressDepth` = 8;
+  - a **bank** sustains `SliceOutDepth / (ReadLat + 2)` -> `SliceOutDepth` = 4,
+    with `SliceInDepth` = 2 so the input FIFO can push and pop in the same cycle.
+
+  **Measured** by `mem-ss-bench` at these defaults: a single disjoint port
+  sustains **0.98 access/cycle**, scaling **linearly** to 1.95 / 3.91 at 2 / 4
+  disjoint ports, while same-bank traffic is pinned at one slice's **0.99** no
+  matter how many ports drive it - the multi-bank concurrency the redesign
+  targets, now with the per-slice rate at the useful ceiling rather than a third
+  of it. Writes match reads (3.91 at 4 ports). A random pattern reaches 2.72 at
+  4 ports; the shortfall is genuine bank collision, not a subsystem limit.
+- **The remaining lever is on the initiator side.** The subsystem no longer
+  throttles anyone, so reclaiming that ~1 access/cycle in a real workload now
+  depends on the *initiator* issuing enough outstanding requests. Ibex's
+  instruction-fetch unit, for example, has a lower-level option to increase the
+  number of outstanding fetches that is not exposed at its top-level parameter
+  list, and the other cores likely expose something similar. Changing that means
+  editing vendored core RTL and is deliberately not done here.
 
 ## 6. Open questions
 
@@ -277,14 +291,25 @@ for out-of-range addresses.
   (`Np32`/`Np64` + tie-offs) so an all-one-width config elaborates without a
   `[-1:0]` range. Re-verified standalone on both slice models and via
   `mem-ss-bench` and `make axi-smoke`.
+- **Throughput lever taken; bank count raised to the port count.** The default
+  depths now cover the pipeline round trip on both slice models -
+  `EgressDepth` 2 -> 8 (port ceiling), `SliceOutDepth` 1 -> 4 and `SliceInDepth`
+  1 -> 2 (bank ceiling) - superseding the "default depth 2 / 1-deep slice
+  buffers" of C3/C9, and `soc_top.MemNumBanks` went 4 -> 8 to match the seven
+  ports driving the subsystem (`sw/Makefile NUM_BANKS` follows). Measured effect:
+  a single port 0.33 -> 0.98 access/cycle, same-bank 0.33 -> 0.99, 4-port
+  disjoint 1.33 -> 3.91. Re-verified by `tb/tb_mem_ss.sv` on both slice models at
+  the shipping depths and by `make axi-smoke`.
 
 ## 9. Follow-ups
 
 Still open:
 
-- **Throughput/latency lever** (deferred, see Section 5): raise the per-port
-  outstanding depth toward the pipeline latency, paired with the core IFU
-  outstanding-fetch options, to reclaim ~1 access/cycle per port.
-- **Bank count vs port count:** `soc_top` runs `MemNumBanks=4` under seven ports;
-  raising the bank count toward the port count is tracked in
-  [`open_items.md`](open_items.md) and [`roadmap.md`](roadmap.md).
+- **Initiator-side outstanding requests** (see Section 5): the subsystem now
+  sustains ~1 access/cycle per port, so the remaining gap to that rate in a real
+  workload is how many requests a core keeps in flight. The core IFU
+  outstanding-fetch options are vendored-RTL changes and are not taken here.
+- **Descriptor-driven bank count:** `MemNumBanks` and `sw/Makefile NUM_BANKS` are
+  two defaults that must agree. Threading one value through the board descriptor
+  is still deferred - see [`roadmap.md`](roadmap.md) - until a second value is
+  worth supporting.
