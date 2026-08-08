@@ -229,3 +229,27 @@ def test_ram_size_derives_from_descriptor(board: str, expected_bytes: str, expec
     )
     assert make_var(result.stdout, "SOC_RAM_BYTES") == expected_bytes
     assert make_var(result.stdout, "RAM_WORDS") == expected_words
+
+
+def test_mem_num_banks_reads_the_rtl_package() -> None:
+    result = run_cmd([sys.executable, "bin/validate_target.py", "--mem-num-banks"])
+    banks = int(result.stdout.strip())
+    # soc_mem_ss bit-slices the bank index, so anything else breaks elaboration.
+    assert banks >= 2 and (banks & (banks - 1)) == 0, f"not a power of two >= 2: {banks}"
+
+
+def test_bank_count_has_a_single_source_of_truth() -> None:
+    # mem_ss_pkg::MemNumBanksDefault is the only place the count is written
+    # down. These guard the two consumers against a literal creeping back in
+    # and silently drifting from the RTL.
+    soc_top = (REPO_ROOT / "rtl" / "top" / "soc_top.sv").read_text(encoding="utf-8")
+    assert re.search(
+        r"parameter\s+int\s+unsigned\s+MemNumBanks\s*=\s*mem_ss_pkg::MemNumBanksDefault",
+        soc_top,
+    ), "soc_top.MemNumBanks must default to mem_ss_pkg::MemNumBanksDefault, not a literal"
+
+    sw_makefile = (REPO_ROOT / "sw" / "Makefile").read_text(encoding="utf-8")
+    assert not re.search(
+        r"(?m)^\s*NUM_BANKS\s*[:?]?=\s*[0-9]", sw_makefile
+    ), "sw/Makefile must derive NUM_BANKS from the RTL, not assign a literal"
+    assert "--mem-num-banks" in sw_makefile

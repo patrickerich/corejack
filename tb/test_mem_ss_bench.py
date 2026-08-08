@@ -7,12 +7,11 @@ direction: with disjoint banks, throughput scales with the number of active
 init ports, whereas same-bank traffic is capped at one slice's rate no matter
 how many ports drive it.
 
-Absolute numbers reflect the redesigned subsystem at its default outstanding
-depths (per-port ingress/egress = 2, slice in/out = 1): a single port sustains
-~0.33 access/cycle to its own bank (~= depth / pipeline latency), so the floors
-below are set accordingly. The scaling *ratios* are what matter and are
-depth-independent. Raising the per-port depth toward the latency to reclaim
-~1 access/cycle is the deferred throughput lever (docs/mem_ss_redesign.md s5).
+Absolute numbers reflect the subsystem at its default outstanding depths
+(per-port ingress = 2 / egress = 8, slice in = 2 / out = 4), which are sized so
+neither a port nor a bank is the limiter: a single port sustains ~1 access per
+cycle, and so does a single slice under any number of ports. The floors below
+are set accordingly, and the scaling *ratios* are what matter beyond them.
 """
 
 import cocotb
@@ -105,18 +104,20 @@ async def mem_ss_throughput(dut):
         % (d1, d2, d4, s1, s4, wr4)
     )
 
-    # A single pipelined port sustains ~0.33 access/cycle to its own bank
-    # (depth / pipeline latency at the default outstanding depths).
-    assert d1 > 0.25, f"single-port disjoint throughput too low: {d1:.3f}"
+    # A single pipelined port sustains ~1 access/cycle: the per-port egress
+    # depth covers the reorder-buffer slot round trip, so the subsystem does not
+    # throttle an initiator that keeps requests in flight.
+    assert d1 > 0.9, f"single-port disjoint throughput below ~1/cycle: {d1:.3f}"
     # Disjoint banks: throughput scales with active ports (multi-bank concurrency).
-    assert d4 > 1.0, f"4-port disjoint throughput did not scale: {d4:.3f}"
-    assert d4 > 1.8 * d1, (
+    assert d4 > 3.5, f"4-port disjoint throughput did not scale: {d4:.3f}"
+    assert d4 > 3.5 * d1, (
         f"4-port disjoint ({d4:.3f}) did not beat single-port ({d1:.3f}) ~linearly")
-    assert d2 > 1.5 * d1, f"2-port disjoint ({d2:.3f}) did not scale over 1-port ({d1:.3f})"
-    # Same bank is the serialization floor: one slice caps at its own rate no
-    # matter how many ports pile onto it.
-    assert s4 < 0.5, f"same-bank throughput exceeded one slice's ceiling: {s4:.3f}"
-    assert d4 > 1.8 * s4, (
+    assert d2 > 1.8 * d1, f"2-port disjoint ({d2:.3f}) did not scale over 1-port ({d1:.3f})"
+    # Same bank is the serialization floor: one slice caps at its own rate - now
+    # ~1 access/cycle - no matter how many ports pile onto it.
+    assert s4 < 1.1, f"same-bank throughput exceeded one slice's ceiling: {s4:.3f}"
+    assert s1 > 0.9, f"single-port same-bank throughput below one slice's rate: {s1:.3f}"
+    assert d4 > 3.5 * s4, (
         f"banked concurrency ({d4:.3f}) did not beat single-bank serialization ({s4:.3f})")
     # Writes are as concurrent as reads.
-    assert wr4 > 1.0, f"4-port disjoint write throughput did not scale: {wr4:.3f}"
+    assert wr4 > 3.5, f"4-port disjoint write throughput did not scale: {wr4:.3f}"

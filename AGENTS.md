@@ -131,10 +131,13 @@ check that repository (not `setup-verilator`, and not upstream
 - **`soc_mem_ss` is port-owned and multi-outstanding.** Each port — two native
   32-bit CPU ports (data, instruction) plus five 64-bit ports (xbar RAM
   read/write engines, UART SRAM loader, iDMA read/write) — gets loss-free,
-  in-order, multi-outstanding access with per-bank fair round-robin. The live
-  constraint is now the **bank count**: `soc_top` runs `MemNumBanks = 4` under
-  seven ports, so raise it toward the port count for heavy concurrent RAM
-  traffic. See [`docs/open_items.md`](docs/open_items.md).
+  in-order, multi-outstanding access with per-bank fair round-robin across
+  `MemNumBanks = 8` banks, and the outstanding depths are sized so neither a port
+  nor a bank caps below ~1 access/cycle. The bank count has one home,
+  **`mem_ss_pkg::MemNumBanksDefault`** — `soc_top.MemNumBanks` defaults to it and
+  `sw/Makefile` reads it back via `validate_target.py --mem-num-banks` to split
+  the `bank_<n>.hex` preload, so don't write the number anywhere else. See
+  [`docs/mem_ss_redesign.md`](docs/mem_ss_redesign.md).
 - **CV32E40X is intentionally excluded** from default regressions — see
   [`docs/cv32e40x_boot_issue.md`](docs/cv32e40x_boot_issue.md). Do not re-enable
   it in regression sets without resolving that.

@@ -13,7 +13,17 @@ SW_BUILD_LAYOUT := 2
 ELF := $(CMAKE_BUILD_DIR)/$(APP)/$(APP)
 BIN := $(BUILD_DIR)/$(TARGET)/$(CORE)/$(TOOLCHAIN)/$(APP)/$(APP).bin
 DIS := $(BUILD_DIR)/$(TARGET)/$(CORE)/$(TOOLCHAIN)/$(APP)/$(APP).dis
-NUM_BANKS ?= 4
+# Interleave width of the bank_<n>.hex preload split. Derived from the RTL so
+# the images cannot drift from what soc_mem_bank reads back:
+# mem_ss_pkg::MemNumBanksDefault is the single source of truth, and soc_top's
+# MemNumBanks parameter defaults to it. Set NUM_BANKS on the command line only
+# to match a deliberately overridden MemNumBanks.
+ifeq ($(origin NUM_BANKS),undefined)
+NUM_BANKS := $(shell python3 $(abspath $(CURDIR)/..)/bin/validate_target.py --mem-num-banks)
+endif
+ifeq ($(strip $(NUM_BANKS)),)
+$(error NUM_BANKS is empty: cannot read mem_ss_pkg::MemNumBanksDefault via validate_target.py)
+endif
 TOOLCHAIN ?= riscv-multilib
 MARCH ?= rv32imc
 MABI ?= ilp32

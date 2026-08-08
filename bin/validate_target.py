@@ -534,6 +534,33 @@ def platform_core_type_values() -> dict[str, int]:
     return values
 
 
+def mem_num_banks() -> int:
+    """Read the SRAM bank count from mem_ss_pkg, the single source of truth.
+
+    soc_top's MemNumBanks parameter defaults to this literal and the software
+    build splits its preload image into that many bank_<n>.hex files, so both
+    sides derive from one place instead of tracking each other.
+    """
+    pkg_path = REPO_ROOT / "rtl" / "pkg" / "mem_ss_pkg.sv"
+    if not pkg_path.is_file():
+        fail(f"missing memory subsystem package: {pkg_path.relative_to(REPO_ROOT)}")
+
+    text = pkg_path.read_text(encoding="utf-8")
+    match = re.search(
+        r"(?m)^\s*localparam\s+int\s+unsigned\s+MemNumBanksDefault\s*=\s*([0-9_]+)\s*;",
+        text,
+    )
+    if not match:
+        fail("could not find mem_ss_pkg::MemNumBanksDefault")
+
+    banks = int(match.group(1).replace("_", ""), 10)
+    # Mirror the soc_mem_ss elaboration check, but fail at build time with a
+    # message instead of deep inside elaboration.
+    if banks < 2 or (banks & (banks - 1)) != 0:
+        fail(f"mem_ss_pkg::MemNumBanksDefault must be a power of two >= 2, got {banks}")
+    return banks
+
+
 def expected_core_enum_name(core: str) -> str:
     # Enum members are UpperCamelCase per the coding style (ALL_CAPS is
     # reserved for `define macros): ibex -> CoreIbex, cv32e40p -> CoreCv32e40p.
@@ -1002,7 +1029,16 @@ def main() -> int:
         action="store_true",
         help="With --uart-banner, print only the trailing 'alive' line",
     )
+    parser.add_argument(
+        "--mem-num-banks",
+        action="store_true",
+        help="Print the SRAM bank count from mem_ss_pkg::MemNumBanksDefault",
+    )
     args = parser.parse_args()
+
+    if args.mem_num_banks:
+        print(mem_num_banks())
+        return 0
 
     if args.uart_banner:
         if not args.core:
