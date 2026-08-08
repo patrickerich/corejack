@@ -336,12 +336,14 @@ pressure.
 
 Two things are intentionally **not** done:
 
-- **Descriptor-driven bank count.** `soc_top.MemNumBanks` and `sw/Makefile
-  NUM_BANKS` are two defaults that must agree. Threading one value through the
-  board descriptor, the FPGA wrapper, the Zephyr devicetree, and the bitstream
-  manifest is a small follow-up best designed when there is a second value worth
-  supporting (for example, one board staying at 8 while a benchmark
-  configuration opts into 16).
+- **Per-board bank counts.** The count is a single constant
+  (`mem_ss_pkg::MemNumBanksDefault`, which `soc_top.MemNumBanks` defaults to and
+  the software build reads back), so there is no longer a pair of values to keep
+  in step. Making it *vary* per board is the part still outstanding: that needs
+  the value threaded through the FPGA wrapper as a vlogparam, the simulation
+  DUT, the Zephyr devicetree, and the bitstream manifest. Best designed when
+  there is a second value worth supporting (for example, one board staying at 8
+  while a benchmark configuration opts into 16).
 - **Initiator-side outstanding requests.** The subsystem now sustains ~1
   access/cycle per port, so the remaining gap in a real workload is how many
   requests a core keeps in flight — for example Ibex's instruction-fetch unit has

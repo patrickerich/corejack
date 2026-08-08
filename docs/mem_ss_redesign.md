@@ -300,6 +300,14 @@ for out-of-range addresses.
   a single port 0.33 -> 0.98 access/cycle, same-bank 0.33 -> 0.99, 4-port
   disjoint 1.33 -> 3.91. Re-verified by `tb/tb_mem_ss.sv` on both slice models at
   the shipping depths and by `make axi-smoke`.
+- **Bank count reduced to one literal.** `mem_ss_pkg::MemNumBanksDefault` is now
+  the single source of truth: `soc_top.MemNumBanks` defaults to it, and
+  `sw/Makefile` derives its `NUM_BANKS` hex-split width from the same constant
+  through `bin/validate_target.py --mem-num-banks` instead of restating it. This
+  follows the existing `platform_pkg::core_type_e` -> `CORE_TYPE` precedent, and
+  covers the simulation and FPGA paths with one mechanism because both take the
+  `soc_top` default. `bin/tests/test_descriptor_tools.py` guards against a
+  literal creeping back into either consumer.
 
 ## 9. Follow-ups
 
@@ -309,7 +317,8 @@ Still open:
   sustains ~1 access/cycle per port, so the remaining gap to that rate in a real
   workload is how many requests a core keeps in flight. The core IFU
   outstanding-fetch options are vendored-RTL changes and are not taken here.
-- **Descriptor-driven bank count:** `MemNumBanks` and `sw/Makefile NUM_BANKS` are
-  two defaults that must agree. Threading one value through the board descriptor
-  is still deferred - see [`roadmap.md`](roadmap.md) - until a second value is
-  worth supporting.
+- **Per-board bank counts:** the count is now a single constant
+  (`mem_ss_pkg::MemNumBanksDefault`), which removes the drift risk but keeps it
+  global. Making it vary per board still needs the vlogparam plumbing through
+  the FPGA wrapper and the simulation DUT - see [`roadmap.md`](roadmap.md) -
+  and stays deferred until a second value is worth supporting.

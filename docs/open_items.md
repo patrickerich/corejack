@@ -7,14 +7,6 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
-- **The bank count is a pair of defaults that must agree.** `soc_top.MemNumBanks`
-  and `sw/Makefile NUM_BANKS` are both 8 and have to stay in lockstep: the RTL
-  reads back exactly the `bank_<n>.hex` split the software build wrote. A
-  mismatch fails loudly (missing bank images, so the core boots from zeroed
-  memory) rather than silently, which is why threading a single value through the
-  board descriptor stayed deferred. Make it descriptor-driven when a second value
-  is worth supporting. See the *Memory subsystem follow-up* in
-  [`roadmap.md`](roadmap.md).
 - **Sim UART printf is baud-throttled, inflating simulation cycle counts.** The
   cocotb harness captures printf passively by tapping the APB write to the UART
   THR (`tb/uart_apb_tx_monitor.sv`), so capture does not decode the serial pin.

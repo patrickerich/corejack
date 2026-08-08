@@ -20,10 +20,10 @@ module soc_top #(
   // SRAM banking is a designer's choice. The default of 8 matches the seven
   // ports that drive soc_mem_ss (two native 32-bit CPU ports plus five 64-bit
   // ports), so concurrent streams rarely collide on a bank; soc_mem_ss is
-  // generic over NumBanks. sw/Makefile's NUM_BANKS must match this value - it
-  // splits the preload image into bank_<n>.hex the same way soc_mem_bank reads
-  // it back.
-  parameter int unsigned MemNumBanks = 8
+  // generic over NumBanks. The value itself lives in mem_ss_pkg because the
+  // software build reads it from there to split the bank_<n>.hex preload
+  // images - override this parameter and the images stop matching.
+  parameter int unsigned MemNumBanks = mem_ss_pkg::MemNumBanksDefault
 ) (
   input  logic clk_i,
   input  logic rst_ni,
