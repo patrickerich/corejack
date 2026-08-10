@@ -321,15 +321,20 @@ module soc_top #(
       );
     end
 
-    initial begin : validate_mem_geometry
-      if ((RamWords % 2) != 0) begin
-        $fatal(1, "soc_top: RamWords must be even for the 64-bit SRAM path");
-      end
-      if ((MemWords % MemNumBanks) != 0) begin
-        $fatal(1, "soc_top: 64-bit SRAM word count must divide evenly across banks");
-      end
-    end
 `endif
+
+    // RAM geometry validation. These are generate-scope elaboration tasks, not
+    // an `initial` block under `ifndef SYNTHESIS`: a bad geometry silently
+    // advertises a RamSize larger than the memory actually instantiated
+    // (WordsPerBank truncates), so synthesis-only flows have to fail loudly too
+    // rather than build the broken hardware. Same reasoning as soc_mem_ss's
+    // NumBanks check.
+    if ((RamWords % 2) != 0) begin : gen_validate_ram_words
+      $fatal(1, "soc_top: RamWords must be even for the 64-bit SRAM path");
+    end
+    if ((MemWords % MemNumBanks) != 0) begin : gen_validate_mem_banks
+      $fatal(1, "soc_top: 64-bit SRAM word count must divide evenly across banks");
+    end
 
     // Core-only reset: ndmreset / the UART loader reset the core while the
     // debug module, fabric, and memory stay live (required for SBA during
@@ -384,11 +389,102 @@ module soc_top #(
     };
 
     if (CoreType == platform_pkg::CoreCva6) begin : gen_cva6_core_path
-      assign core_axi_req[0] = cva6_axi_req;
       assign core_axi_req[1] = '0;
       assign instr_axi_rsp   = '0;
       assign data_axi_rsp    = '0;
-      assign cva6_axi_rsp    = core_axi_rsp[0];
+
+      // CVA6 is the only core that is itself the AXI initiator, so a core-only
+      // reset can orphan a transaction the crossbar has already accepted. The
+      // RV32 path cannot: its bus-side blocks (OBI buffers, obi-to-axi bridges)
+      // sit on rst_ni and own the fabric transaction, and the buffers' core-side
+      // s_rready_i is tied high so responses always retire. This is the AXI
+      // analogue of that arrangement - an isolation stage on rst_ni that owns
+      // the outstanding transactions, issues no new ones while the core is down,
+      // and retires in-flight responses without the core (see the forced
+      // response readies below), so the fabric is never left waiting.
+      //
+      // The window is held until axi_isolate reports the drain complete, not
+      // merely while core_rst_ni is low, so a slow response cannot land on a
+      // freshly released core. uart_loader_active also gates core_rst_ni, but
+      // the loader only serves cores without a debug interface (serv, picorv32,
+      // cvw) and never CVA6, so ~core_rst_ni covers that path.
+      logic         cva6_isolate;
+      logic         cva6_isolated;
+      logic         cva6_isolate_q;
+      soc_axi_req_t cva6_iso_req;
+
+      assign cva6_isolate = ~core_rst_ni | ndmreset_pending_q |
+                            (cva6_isolate_q & ~cva6_isolated);
+
+      always_ff @(posedge clk_i or negedge rst_ni) begin
+        if (!rst_ni) begin
+          cva6_isolate_q <= 1'b0;
+        end else begin
+          cva6_isolate_q <= cva6_isolate;
+        end
+      end
+
+      // The AXI analogue of the OBI buffers' s_rready_i tie-high: while the core
+      // is down, responses are accepted regardless of it, so axi_isolate's drain
+      // completes instead of stalling on a reset core that holds its readies low.
+      always_comb begin
+        cva6_iso_req         = cva6_axi_req;
+        cva6_iso_req.r_ready = cva6_axi_req.r_ready | cva6_isolate;
+        cva6_iso_req.b_ready = cva6_axi_req.b_ready | cva6_isolate;
+      end
+
+      axi_isolate #(
+        // CVA6's outstanding capacity is bounded well below this by
+        // cva6_corejack_config_pkg (2 load-buffer entries, 4 outstanding stores,
+        // 8 scoreboard entries) plus cache line fills. Oversizing only widens a
+        // counter; undersizing would throttle the core.
+        .NumPending           (32),
+        // Block rather than error-terminate: between core_rst_ni release and the
+        // isolate window closing, a stall is safer for a freshly reset core than
+        // an injected decode error.
+        .TerminateTransaction (1'b0),
+        // The fabric runs without atomics (see FabricXbarCfg).
+        .AtopSupport          (1'b0),
+        .AxiAddrWidth         (soc_bus_pkg::AxiAddrWidth),
+        .AxiDataWidth         (soc_bus_pkg::AxiDataWidth),
+        .AxiIdWidth           (soc_bus_pkg::AxiIdWidth),
+        .AxiUserWidth         ($bits(soc_bus_pkg::axi_user_t)),
+        .axi_req_t            (soc_axi_req_t),
+        .axi_resp_t           (soc_axi_resp_t)
+      ) i_cva6_isolate (
+        .clk_i,
+        // rst_ni, not core_rst_ni: this stage must outlive the core reset.
+        .rst_ni,
+        .slv_req_i  (cva6_iso_req),
+        .slv_resp_o (cva6_axi_rsp),
+        .mst_req_o  (core_axi_req[0]),
+        .mst_resp_i (core_axi_rsp[0]),
+        .isolate_i  (cva6_isolate),
+        .isolated_o (cva6_isolated)
+      );
+
+`ifndef SYNTHESIS
+      // The drain must finish. It cannot if a write was committed on AW without
+      // its W beat ever being sent, since axi_isolate waits on pending_w and
+      // does not inject one. No regression issues ndmreset with CVA6 traffic in
+      // flight today, so this watchdog is what would surface that corner.
+      localparam int unsigned Cva6IsolateTimeout = 1024;
+      int unsigned cva6_isolate_cnt_q;
+      always_ff @(posedge clk_i or negedge rst_ni) begin
+        if (!rst_ni) begin
+          cva6_isolate_cnt_q <= 0;
+        end else if (!cva6_isolate) begin
+          cva6_isolate_cnt_q <= 0;
+        end else begin
+          cva6_isolate_cnt_q <= cva6_isolate_cnt_q + 1;
+          // Report once at the threshold rather than every cycle after it.
+          if (cva6_isolate_cnt_q == Cva6IsolateTimeout) begin
+            $error("soc_top: CVA6 AXI isolation did not drain within %0d cycles",
+                   Cva6IsolateTimeout);
+          end
+        end
+      end
+`endif
 
       assign core_instr_req    = 1'b0;
       assign core_instr_addr   = '0;
