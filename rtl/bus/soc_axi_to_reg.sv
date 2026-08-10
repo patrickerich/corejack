@@ -42,6 +42,12 @@ module soc_axi_to_reg #(
   logic op_write_q;
   logic split_q;
   logic err_q;
+  // Classified as illegal when the beat was captured (multi-beat burst or an
+  // oversized beat). Distinct from err_q, which also accumulates errors the
+  // register file reports mid-transaction: only the capture-time verdict
+  // suppresses the access, so a split beat whose first half errors still
+  // performs its second half exactly as before.
+  logic illegal_q;
   // Round-robin tie-break between a pending read and a pending write so
   // neither starves. A write only competes once both AW and W are valid
   // (this adapter captures them together and has no collect state).
@@ -54,6 +60,13 @@ module soc_axi_to_reg #(
   assign rd_req   = s_axi_req_i.ar_valid;
   assign wr_req   = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
   assign arb_read = rd_req && (!wr_req || rr_prefer_read_q);
+
+  // An access step retires either on the register file's handshake or, for a
+  // transaction suppressed as illegal, immediately - no request was issued, so
+  // waiting on m_reg_rsp_i.ready would depend on how the target drives ready
+  // with valid low.
+  logic step_done;
+  assign step_done = illegal_q || m_reg_rsp_i.ready;
 
   function automatic logic [31:0] active_addr(input logic second);
     logic [31:0] addr;
@@ -109,7 +122,11 @@ module soc_axi_to_reg #(
 
       StateFirst,
       StateSecond: begin
-        m_reg_req_o.valid = 1'b1;
+        // A transaction already classified as illegal (multi-beat burst or an
+        // oversized beat) must not reach the register file. Register reads can
+        // have side effects - the PLIC claim register retires an interrupt on
+        // read - so the SLVERR response has to be side-effect free.
+        m_reg_req_o.valid = !illegal_q;
       end
 
       StateWriteResp: begin
@@ -138,6 +155,7 @@ module soc_axi_to_reg #(
       op_write_q <= 1'b0;
       split_q    <= 1'b0;
       err_q      <= 1'b0;
+      illegal_q  <= 1'b0;
       rr_prefer_read_q <= 1'b1;
     end else begin
       unique case (state_q)
@@ -154,6 +172,7 @@ module soc_axi_to_reg #(
             split_q    <= (s_axi_req_i.aw.size == axi_pkg::size_t'(3)) &&
                           !s_axi_req_i.aw.addr[2];
             err_q      <= (s_axi_req_i.aw.len != '0) || (s_axi_req_i.aw.size > axi_pkg::size_t'(3));
+            illegal_q  <= (s_axi_req_i.aw.len != '0) || (s_axi_req_i.aw.size > axi_pkg::size_t'(3));
             rr_prefer_read_q <= 1'b1;  // serving a write; favor a read next
             state_q    <= StateFirst;
           end else if (s_axi_rsp_o.ar_ready && s_axi_req_i.ar_valid) begin
@@ -162,6 +181,7 @@ module soc_axi_to_reg #(
             split_q    <= (s_axi_req_i.ar.size == axi_pkg::size_t'(3)) &&
                           !s_axi_req_i.ar.addr[2];
             err_q      <= (s_axi_req_i.ar.len != '0) || (s_axi_req_i.ar.size > axi_pkg::size_t'(3));
+            illegal_q  <= (s_axi_req_i.ar.len != '0) || (s_axi_req_i.ar.size > axi_pkg::size_t'(3));
             r_q.data   <= '0;
             rr_prefer_read_q <= 1'b0;  // just served a read; favor a write next
             state_q    <= StateFirst;
@@ -169,7 +189,7 @@ module soc_axi_to_reg #(
         end
 
         StateFirst: begin
-          if (m_reg_rsp_i.ready) begin
+          if (step_done) begin
             err_q <= err_q | m_reg_rsp_i.error;
             if (!op_write_q) begin
               if (split_q) begin
@@ -199,7 +219,7 @@ module soc_axi_to_reg #(
         end
 
         StateSecond: begin
-          if (m_reg_rsp_i.ready) begin
+          if (step_done) begin
             err_q <= err_q | m_reg_rsp_i.error;
             if (!op_write_q) begin
               r_q.data[63:32] <= m_reg_rsp_i.rdata;
