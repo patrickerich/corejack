@@ -79,7 +79,9 @@ module corejack_idma_socket_adapter (
     end else if (dma_done) begin
       irq_q <= 1'b1;
     end else if (csr_reg_req.valid && csr_reg_req.write && sel_irq_reg &&
-                 csr_reg_req.wdata[0]) begin
+                 csr_reg_req.wstrb[0] && csr_reg_req.wdata[0]) begin
+      // wstrb[0] qualifies the clear: byte 0 carries the W1C bit, so a write
+      // that does not strobe it must not clear the flag whatever wdata holds.
       irq_q <= 1'b0;
     end
   end

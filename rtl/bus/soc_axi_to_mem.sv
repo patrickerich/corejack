@@ -10,11 +10,14 @@
 // exploits AXI's independent read/write channels and the memory's bank
 // parallelism instead of serializing the two through one FSM/port.
 //
-// Each engine is single-outstanding on its own init port, so the existing
-// soc_mem_ss single-outstanding-per-port contract still holds. Splitting the
-// engines also removes the former lone-AW deadlock workaround: the read engine
-// never waits on the write engine, so a read-to-write coupled initiator (e.g.
-// the iDMA doing an in-RAM memcpy) cannot deadlock.
+// Each engine keeps one transaction in flight on its own init port. That is a
+// property of this bridge, not of soc_mem_ss: the memory ports are themselves
+// multi-outstanding (EgressDepth), so these two engines - and therefore the
+// crossbar's RAM legs - are what caps fabric-routed RAM traffic below the
+// per-port rate the memory can sustain. Splitting the engines also removes the
+// former lone-AW deadlock workaround: the read engine never waits on the write
+// engine, so a read-to-write coupled initiator (e.g. the iDMA doing an in-RAM
+// memcpy) cannot deadlock.
 module soc_axi_to_mem
   import axi_pkg::*;
   import soc_bus_pkg::*;

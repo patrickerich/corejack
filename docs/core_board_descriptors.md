@@ -298,7 +298,11 @@ Two board fields are optional:
 - `memory.ram_bytes` caps the shared SRAM for boards whose block RAM cannot hold
   the default 1 MiB (e.g. the Artix-7 100T at 256 KiB). When unset, the `soc_top`
   1 MiB default applies. It drives both the board wrapper's `RamWords` and the
-  board-RAM-sized bare-metal linker (`sw/common/link.ld.in`).
+  board-RAM-sized bare-metal linker (`sw/common/link.ld.in`). It must be a
+  multiple of **8 x `mem_ss_pkg::MemNumBanksDefault`** (512 bytes at the current
+  8 banks): `soc_top` derives `WordsPerBank` with truncating division, so a size
+  that does not divide evenly across the banks would advertise a RAM window
+  larger than the memory actually instantiated. `board-check` enforces this.
 
 For the practical core bring-up checklist, see
 [`core_porting.md`](core_porting.md).

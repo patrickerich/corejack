@@ -283,19 +283,9 @@ module soc_obi_to_axi
     end
   end
 
-`ifndef SYNTHESIS
-  always_ff @(posedge clk_i) begin
-    if (rst_ni) begin
-      if (m_axi_req_o.aw_valid && !m_axi_rsp_i.aw_ready) begin
-        assert (m_axi_req_o.aw.addr == soc_bus_pkg::AxiAddrWidth'(ax_enc.addr));
-      end
-      if (m_axi_req_o.w_valid && !m_axi_rsp_i.w_ready) begin
-        assert (m_axi_req_o.w.strb == expand_be(addr_q, be_q));
-      end
-      if (m_axi_req_o.ar_valid && !m_axi_rsp_i.ar_ready) begin
-        assert (m_axi_req_o.ar.addr == soc_bus_pkg::AxiAddrWidth'(ax_enc.addr));
-      end
-    end
-  end
-`endif
+  // Payload stability while valid && !ready is checked by
+  // soc_axi_protocol_checker on the initiator-side AXI ports: it registers a
+  // hold copy and compares against it, which is the only way to catch a change.
+  // Local asserts here previously compared each field against the very
+  // expression that drives it combinationally, so they were tautologies.
 endmodule

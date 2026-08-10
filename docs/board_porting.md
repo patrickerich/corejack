@@ -70,6 +70,9 @@ clock:
 # truth for the board's SRAM size: it is derived into the FPGA wrapper RamWords
 # (soc_top RamWords vlogparam), the bare-metal linker, and the Zephyr
 # devicetree (COREJACK_RAM_BYTES) - do not hardcode the size in those places.
+# Must divide evenly across the SRAM banks: a multiple of 8 x
+# mem_ss_pkg::MemNumBanksDefault (512 bytes at the current 8 banks), which
+# `make board-check` enforces.
 # Example for a 256 KiB board:
 # memory:
 #   ram_bytes: 262144

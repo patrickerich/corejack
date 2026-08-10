@@ -43,6 +43,15 @@ module soc_sram_slice_xilinx #(
   end
 
 `ifndef SYNTHESIS
+  // The per-lane stores below are unrolled because a generate-block instance
+  // array cannot be indexed by a run-time variable in a hierarchical reference,
+  // so the preload covers at most 8 byte lanes. The hardware itself is generic
+  // in DataWidth; only this simulation preload is not, hence the guard - a
+  // wider slice would otherwise silently load just its low 8 bytes.
+  if (NumBytes > 8) begin : gen_validate_load_mem_lanes
+    $fatal(1, "soc_sram_slice_xilinx: load_mem supports at most 8 byte lanes");
+  end
+
   task automatic load_mem(string file_path);
     logic [DataWidth-1:0] init_mem [NumWords];
 

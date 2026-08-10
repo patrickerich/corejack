@@ -103,6 +103,9 @@ filesets:
       # axi >= 0.39 splits the demux into a wrapper plus axi_demux_simple.
       - deps/axi/src/axi_demux_simple.sv
       - deps/axi/src/axi_demux.sv
+      # Reset isolation for the CVA6 AXI leg (soc_top gen_cva6_core_path);
+      # depends on axi_demux and axi_err_slv above.
+      - deps/axi/src/axi_isolate.sv
       - deps/axi/src/axi_mux.sv
       # axi >= 0.39 splits the crossbar into an unmuxed core plus a wrapper.
       - deps/axi/src/axi_xbar_unmuxed.sv
