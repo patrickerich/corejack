@@ -788,12 +788,20 @@ def board_check(board: str, verbose: bool = True) -> None:
     clk_n = yaml_path_scalar(board_text, ("clock", "constraints_ports", "n")) or ""
     reset_polarity = require_scalar(board_text, ("reset", "polarity"), f"BOARD '{board}'")
     reset_port = require_scalar(board_text, ("reset", "constraints_port"), f"BOARD '{board}'")
-    # Optional per-board SRAM size; must satisfy the 64-bit SRAM word geometry.
+    # Optional per-board SRAM size; must satisfy the 64-bit SRAM word geometry
+    # *and* divide evenly across the banks. soc_top derives WordsPerBank as
+    # (ram_bytes / 8) / MemNumBanks with truncating integer division, so a size
+    # that is a multiple of 8 but not of 8*MemNumBanks would advertise a RAM
+    # window larger than the memory actually instantiated.
     ram_bytes_raw = yaml_path_scalar(board_text, ("memory", "ram_bytes"))
     if ram_bytes_raw is not None:
         ram_bytes_val = parse_positive_int(ram_bytes_raw, "memory.ram_bytes")
-        if ram_bytes_val % 8 != 0:
-            fail("memory.ram_bytes must be a multiple of 8 (64-bit SRAM word)")
+        ram_granule = 8 * mem_num_banks()
+        if ram_bytes_val % ram_granule != 0:
+            fail(
+                f"memory.ram_bytes must be a multiple of {ram_granule} "
+                f"(64-bit SRAM word x {mem_num_banks()} banks)"
+            )
     uart_baud = parse_positive_int(
         require_scalar(board_text, ("uart", "baud"), f"BOARD '{board}'"),
         "uart.baud",

@@ -238,6 +238,33 @@ def test_mem_num_banks_reads_the_rtl_package() -> None:
     assert banks >= 2 and (banks & (banks - 1)) == 0, f"not a power of two >= 2: {banks}"
 
 
+def test_ram_bytes_must_divide_across_banks(tmp_path: Path) -> None:
+    # soc_top truncates when deriving WordsPerBank, so a ram_bytes that is a
+    # multiple of 8 but not of 8*MemNumBanks would advertise more RAM than is
+    # instantiated. board-check has to reject it.
+    banks = int(run_cmd([sys.executable, "bin/validate_target.py", "--mem-num-banks"]).stdout)
+    granule = 8 * banks
+
+    board_src = REPO_ROOT / "cfg" / "boards" / "arty_a7_100t.yaml"
+    text = board_src.read_text(encoding="utf-8")
+    assert int(re.search(r"ram_bytes:\s*(\d+)", text).group(1)) % granule == 0
+
+    bad = re.sub(r"ram_bytes:\s*\d+", f"ram_bytes: {granule + 8}", text)
+    bad = bad.replace("name: arty_a7_100t", "name: _ram_granule_check")
+    scratch = REPO_ROOT / "cfg" / "boards" / "_ram_granule_check.yaml"
+    scratch.write_text(bad, encoding="utf-8")
+    try:
+        result = run_cmd(
+            [sys.executable, "bin/validate_target.py", "--board", "_ram_granule_check",
+             "--board-check"],
+            check=False,
+        )
+        assert result.returncode != 0
+        assert f"multiple of {granule}" in result.stderr
+    finally:
+        scratch.unlink()
+
+
 def test_bank_count_has_a_single_source_of_truth() -> None:
     # mem_ss_pkg::MemNumBanksDefault is the only place the count is written
     # down. These guard the two consumers against a literal creeping back in
