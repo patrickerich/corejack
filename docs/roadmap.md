@@ -124,6 +124,21 @@ Software and validation flow:
   for the supported core/board pairs.
 - Keep the UART SRAM loader path as the supported FPGA load flow for the
   non-debug cores (SERV, PicoRV32, CVW/Wally).
+- **Re-evaluate what CI covers.** `.github/workflows/smoke.yml` runs the fast
+  descriptor checks plus `make smoke`, and nothing else: no core-specific
+  simulation reaches CI at all - not `hello_world` on any core, not
+  `debug-sim`, not `cva6-reset-sim`. The constraint is the RISC-V toolchain,
+  which CI does not install, so every flow going through `sim-run-sw` is out of
+  reach; `make smoke` is the one simulation that runs without it. Everything
+  else lives in `make axi-smoke`, a local pre-PR gate that depends on
+  contributor discipline rather than enforcement.
+
+  The tractable direction is not running everything in CI but caching a
+  *prebuilt* RISC-V toolchain - the same policy already applied to Verilator,
+  and for the same reason - so a single representative core's `hello_world`
+  and `debug-sim` fit inside the existing 20-minute budget. Worth revisiting
+  when a regression escapes to `main` that `axi-smoke` would have caught, or
+  when the contributor set grows beyond people who run it by habit.
 
 ## Platform Architecture Direction
 
