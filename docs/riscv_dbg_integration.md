@@ -173,6 +173,33 @@ If `dmi_jtag.dmi_rst_no` is used, connect it deliberately to the DMI-facing
 debug reset path. If it is left unused, document why the DMI reset behavior is
 still correct for the platform.
 
+### Who owns a transaction across a core reset
+
+Resetting only the hart raises a question the reset domains alone do not answer:
+if the fabric has already accepted a transaction from the core, who completes
+it? An orphaned response would sit on the crossbar's slave port with `valid`
+held and `ready` low, and could later land on the restarted core.
+
+The RV32 cores never own a fabric transaction. Their OBI buffers and
+`soc_obi_to_axi` bridges sit on `rst_ni`, so they survive the core reset and
+finish the AXI side themselves; the buffers' core-facing `s_rready_i` is tied
+high, so responses always retire whether or not the core is alive to take them.
+
+**CVA6 is different: it is the AXI initiator itself.** `soc_top` therefore puts
+an `axi_isolate` stage on `rst_ni` in the CVA6 path, which blocks new
+transactions while the core is down and — with its response readies forced high
+for the duration — retires the outstanding ones without the core. The window is
+held until the drain completes rather than merely while `core_rst_ni` is low.
+
+Measured behaviour, from `make cva6-reset-sim`: with CVA6 actively fetching,
+forcing `ndmreset` produces **no fabric-side response activity at all**. The
+reset synchroniser's delay exceeds the fabric response latency, so in-flight
+responses retire while CVA6 is still accepting them, and the orphan condition
+does not arise from `ndmreset` with RAM as the target. The isolation stage is
+therefore insurance that removes the dependency on that timing relationship
+holding — not a fix for an observed failure. A slower target (the APB UART is
+tens of cycles) has not been exercised; see [`open_items.md`](open_items.md).
+
 ## OpenOCD And GDB Flow
 
 The expected debugger flow is:
