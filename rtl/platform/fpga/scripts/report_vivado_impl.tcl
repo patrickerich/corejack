@@ -60,6 +60,57 @@ report_timing \
 report_clock_interaction \
   -file [file join $report_dir clock_interaction.rpt]
 
+# Key timing numbers in a greppable form.
+#
+# CORE_CLK_WNS_NS is the intra-clock worst slack on core_clk_raw - the SoC
+# clock - and is the number that reflects this design's logic. DESIGN_WNS_NS is
+# report_timing_summary's whole-design minimum across every path group; in these
+# builds that is normally a single JTAG/IO endpoint, so it is a poor proxy for
+# SoC timing and is recorded separately and labelled rather than led with.
+#
+# Slack sign convention: positive means the constraint is met with that much
+# margin, negative means it is violated by that amount.
+#
+# Note when cross-checking against timing_summary.rpt by hand: core_clk_raw
+# paths are split across that report's Intra Clock Table and its
+# **async_default** row in Other Path Groups. get_timing_paths spans both, so
+# CORE_CLK_WNS_NS can be lower than the Intra Clock Table figure alone - it is
+# the worst of every core_clk_raw -> core_clk_raw path, which is what matters.
+set core_clk [get_clocks -quiet core_clk_raw]
+set core_wns ""
+set core_period ""
+if {[llength $core_clk] > 0} {
+  set core_period [get_property -quiet PERIOD [lindex $core_clk 0]]
+  set core_paths [get_timing_paths -quiet -from $core_clk -to $core_clk \
+                                   -delay_type max -max_paths 1]
+  if {[llength $core_paths] > 0} {
+    set core_wns [get_property SLACK [lindex $core_paths 0]]
+  }
+}
+
+set design_wns ""
+set design_paths [get_timing_paths -quiet -delay_type max -max_paths 1]
+if {[llength $design_paths] > 0} {
+  set design_wns [get_property SLACK [lindex $design_paths 0]]
+}
+
+set timing_key [open [file join $report_dir timing_key.txt] w]
+puts $timing_key "# CoreJack key timing numbers. Positive slack = constraint met."
+puts $timing_key "# CORE_CLK_WNS_NS is the SoC clock and is the meaningful number."
+puts $timing_key "# DESIGN_WNS_NS spans all path groups and is often a lone JTAG/IO"
+puts $timing_key "# endpoint; do not read it as SoC logic timing."
+puts $timing_key "CORE_CLK_PERIOD_NS=$core_period"
+puts $timing_key "CORE_CLK_WNS_NS=$core_wns"
+puts $timing_key "DESIGN_WNS_NS=$design_wns"
+if {$design_wns ne "" && $design_wns >= 0} {
+  puts $timing_key "DESIGN_TIMING_MET=1"
+} else {
+  puts $timing_key "DESIGN_TIMING_MET=0"
+}
+close $timing_key
+
+puts "INFO: core_clk_raw WNS = $core_wns ns (design-wide WNS = $design_wns ns)"
+
 report_utilization \
   -hierarchical \
   -file [file join $report_dir utilization_hier.rpt]

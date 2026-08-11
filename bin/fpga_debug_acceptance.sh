@@ -213,6 +213,39 @@ fpga_manifest_path() {
   printf '%s/.corejack_bitstream_manifest\n' "$work_root"
 }
 
+# Echo the key timing numbers into the acceptance log. The SoC clock's
+# intra-clock slack is the number that reflects the design; the whole-design
+# WNS spans every path group and is normally a lone JTAG/IO endpoint, so it is
+# printed only as a secondary figure. Written by report_vivado_impl.tcl during
+# fpga-bit; absent for a --skip-bit run against an older build.
+report_timing_key() {
+  local core="$1"
+  local key_file
+  local core_wns=""
+  local core_period=""
+  local design_wns=""
+  local met=""
+
+  key_file="$(fpga_work_root "$core")/reports/timing_key.txt"
+  if [ ! -f "$key_file" ]; then
+    echo "==> TIMING CORE=$core BOARD=$board : no timing_key.txt (pre-dates this report, or --skip-bit)"
+    return 0
+  fi
+
+  core_wns="$(sed -n 's/^CORE_CLK_WNS_NS=//p' "$key_file")"
+  core_period="$(sed -n 's/^CORE_CLK_PERIOD_NS=//p' "$key_file")"
+  design_wns="$(sed -n 's/^DESIGN_WNS_NS=//p' "$key_file")"
+  met="$(sed -n 's/^DESIGN_TIMING_MET=//p' "$key_file")"
+
+  echo "==> TIMING CORE=$core BOARD=$board core_clk_wns=${core_wns}ns" \
+       "period=${core_period}ns design_wns=${design_wns}ns met=${met}"
+
+  if [ "$met" != "1" ]; then
+    echo "Error: timing not met for CORE=$core BOARD=$board (design WNS ${design_wns}ns)" >&2
+    exit 1
+  fi
+}
+
 core_debug_supported() {
   local core="$1"
 
@@ -602,6 +635,7 @@ for core in $cores; do
   if [ "$skip_bit" -eq 0 ]; then
     make fpga-bit CORE="$core" BOARD="$board" UART_LOADER="$uart_loader"
     write_fpga_manifest "$core" "$uart_loader"
+    report_timing_key "$core"
   elif [ "$skip_pgm" -eq 0 ]; then
     check_fpga_manifest "$core" "$uart_loader"
   fi
