@@ -130,7 +130,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -189,6 +189,7 @@ help:
 	@printf '  %-18s %s\n' '' 'tests must use sim_ctrl_pass()/sim_ctrl_fail() and print via UART'
 	@printf '  %-18s %s\n' '' 'set SIM_WAVES=1 SIM_WAVE_FORMAT=fst|vcd to dump optional waveforms'
 	@printf '  %-18s %s\n' 'debug-sim' 'run debug-window and SBA integration regressions'
+	@printf '  %-18s %s\n' 'cva6-reset-sim' 'run CVA6 AXI reset-isolation regression'
 	@printf '  %-18s %s\n' 'axi-adapter-sim' 'run OBI-to-AXI and AXI-to-memory adapter regressions'
 	@printf '  %-18s %s\n' 'uart-loader-sim' 'run side-path UART SRAM loader protocol regression'
 	@printf '  %-18s %s\n' 'plic-sim' 'run soc_plic claim/complete and gateway regression'
@@ -562,6 +563,18 @@ sim-run-sw: deps-core sw-build
 		CCACHE_DISABLE=1 \
 		fusesoc --cores-root . run --clean --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform --run_options="$$run_options"
 
+cva6-reset-sim: deps-base deps-cva6
+	@wave_file="$(SIM_WAVE_FILE)"; \
+	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/cva6-reset-sim.$(SIM_WAVE_FORMAT)"; fi; \
+	extra_args=(); \
+	if [ "$(SIM_WAVES)" = "1" ]; then \
+		mkdir -p "$$(dirname "$$wave_file")"; \
+		echo "Waveform: $$wave_file"; \
+		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
+	fi; \
+	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
+		fusesoc --cores-root . run --clean --target cva6-reset-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
+
 debug-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/debug-sim.$(SIM_WAVE_FORMAT)"; fi; \
@@ -625,7 +638,7 @@ mem-ss-bench: deps-base
 axi-addr-map-check:
 	@$(PY) bin/check_axi_addr_map.py
 
-axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench debug-sim
+axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench debug-sim cva6-reset-sim
 	@for core in $(AXI_SMOKE_CORES); do \
 		echo "AXI smoke: sim-run-sw CORE=$$core"; \
 		$(MAKE) sim-run-sw CORE="$$core" SW_APP=hello_world SIM_TIMEOUT_CYCLES="$(SIM_TIMEOUT_CYCLES)"; \

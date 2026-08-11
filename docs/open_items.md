@@ -7,6 +7,19 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
+- **The CVA6 orphaned-response condition is not constructed by any test.**
+  `cva6-reset-sim` runs a real CVA6 with `ndmreset` forced while it is fetching,
+  and measures zero fabric-side response activity: the reset synchroniser's
+  delay exceeds the RAM response latency, so nothing is ever left outstanding.
+  The test therefore guards against gross regressions but cannot distinguish a
+  working `axi_isolate` stage from its absence — verified by running it against
+  the pre-isolation RTL, which passes identically. Constructing the condition
+  needs a hook that stalls the *target* while the reset lands, for example
+  forcing `mem_init_gnt[0]` low to hold the xbar RAM read engine, then
+  releasing it after `core_rst_ni` drops. That would also cover the untested
+  case of a slow target (the APB UART) still being outstanding at reset. See
+  the reset-ownership section in
+  [`riscv_dbg_integration.md`](riscv_dbg_integration.md).
 - **Sim UART printf is baud-throttled, inflating simulation cycle counts.** The
   cocotb harness captures printf passively by tapping the APB write to the UART
   THR (`tb/uart_apb_tx_monitor.sv`), so capture does not decode the serial pin.

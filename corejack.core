@@ -119,6 +119,10 @@ filesets:
     files:
       - tb/test_debug_integration.py : {file_type : user, copyto : .}
 
+  tb_cva6_reset_cocotb:
+    files:
+      - tb/test_cva6_reset_isolation.py : {file_type : user, copyto : .}
+
   tb_axi_adapter_sv:
     files:
       - tb/axi_adapter_dut.sv
@@ -315,6 +319,51 @@ targets:
       - core_region_rtl
       - tb_sw_sv
       - tb_debug_cocotb
+    toplevel: soc_dut
+
+  # CVA6 reset isolation. Deliberately separate from debug-sim: that target
+  # builds no CVA6 RTL and takes no core flags, so it cannot cover this path,
+  # and adding CVA6 to it would slow the gate every other change runs through.
+  cva6-reset-sim:
+    <<: *default
+    flow: sim
+    flow_options:
+      tool: verilator
+      cocotb_module: test_cva6_reset_isolation
+      timescale: 1ns/1ps
+      verilator_options:
+        - trace_fst ? (--trace-fst)
+        - trace_vcd ? (--trace)
+        # See sw-sim: required for async-reset flops behind gated core clocks.
+        - --x-initial-edge
+        - -DCOREJACK_CORE_CVA6
+        - -DDEBUG_TEST_HOOKS
+        - -DASSERTS_OFF
+        # Same global waiver list as debug-sim; CVA6 adds lint noise, not less.
+        - -Wno-MODDUP
+        - -Wno-REDEFMACRO
+        - -Wno-IMPLICIT
+        - -Wno-PINMISSING
+        - -Wno-LATCH
+        - -Wno-MULTIDRIVEN
+        - -Wno-UNOPTFLAT
+        - -Wno-WIDTHEXPAND
+        - -Wno-WIDTHTRUNC
+        - -Wno-UNSIGNED
+        - -Wno-SPLITVAR
+        # CVA6-specific waivers, matching the core_cva6 set in sw-sim. This
+        # target is CVA6-only, so they are unconditional here.
+        - -Wno-CASEINCOMPLETE
+        - -Wno-SELRANGE
+        - -Wno-ASCRANGE
+        - -Wno-IMPLICITSTATIC
+        - -Wno-CMPCONST
+        - -Wno-SYMRSVDWORD
+    filesets_append:
+      - core_cva6_rtl
+      - core_region_rtl
+      - tb_sw_sv
+      - tb_cva6_reset_cocotb
     toplevel: soc_dut
 
   axi-adapter-sim:

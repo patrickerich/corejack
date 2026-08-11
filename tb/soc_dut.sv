@@ -70,6 +70,14 @@ module soc_dut;
   logic dbg_cva6_axi_w_ready;
   logic dbg_cva6_axi_ar_valid;
   logic dbg_cva6_axi_ar_ready;
+  // Fabric side of the CVA6 leg, i.e. the crossbar's slave port 0. These sit
+  // on the far side of any core-reset isolation stage, so a response the
+  // fabric has accepted but nothing retires shows up here as valid held with
+  // ready low. Probing the core side (cva6_axi_*) would not see it.
+  logic dbg_cva6_fab_r_valid;
+  logic dbg_cva6_fab_r_ready;
+  logic dbg_cva6_fab_b_valid;
+  logic dbg_cva6_fab_b_ready;
   logic [63:0] dbg_cva6_frontend_npc;
   logic [63:0] dbg_cva6_frontend_vaddr;
   logic [63:0] dbg_cva6_frontend_data;
@@ -224,6 +232,10 @@ module soc_dut;
   assign dbg_cva6_axi_ar_ready = i_soc_top.gen_platform.cva6_axi_rsp.ar_ready;
   assign dbg_cva6_axi_aw_addr  = i_soc_top.gen_platform.cva6_axi_req.aw.addr;
   assign dbg_cva6_axi_ar_addr  = i_soc_top.gen_platform.cva6_axi_req.ar.addr;
+  assign dbg_cva6_fab_r_valid  = i_soc_top.gen_platform.core_axi_rsp[0].r_valid;
+  assign dbg_cva6_fab_r_ready  = i_soc_top.gen_platform.core_axi_req[0].r_ready;
+  assign dbg_cva6_fab_b_valid  = i_soc_top.gen_platform.core_axi_rsp[0].b_valid;
+  assign dbg_cva6_fab_b_ready  = i_soc_top.gen_platform.core_axi_req[0].b_ready;
 `else
   assign dbg_cva6_debug_mode   = 1'b0;
   assign dbg_cva6_set_debug_pc = 1'b0;
@@ -242,6 +254,10 @@ module soc_dut;
   assign dbg_cva6_axi_ar_ready = 1'b0;
   assign dbg_cva6_axi_aw_addr  = '0;
   assign dbg_cva6_axi_ar_addr  = '0;
+  assign dbg_cva6_fab_r_valid  = 1'b0;
+  assign dbg_cva6_fab_r_ready  = 1'b0;
+  assign dbg_cva6_fab_b_valid  = 1'b0;
+  assign dbg_cva6_fab_b_ready  = 1'b0;
 `endif
 `endif
 endmodule
