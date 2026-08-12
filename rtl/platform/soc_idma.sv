@@ -22,7 +22,13 @@
 `include "idma/typedef.svh"
 
 module soc_idma #(
-  parameter int unsigned NumAxInFlight = 2,
+  // AX transactions the backend keeps in flight per direction. This has to be
+  // deep enough to cover the round trip through soc_axi_to_mem and soc_mem_ss
+  // (~9 cycles), otherwise it becomes the limiter as soon as the bridge stops
+  // being one: measured at NumAxInFlight=2 with a single-outstanding bridge,
+  // raising this alone changed the 24 KiB copy in mem_bw_smoke by exactly zero
+  // cycles. Kept equal to the bridge's MaxOutstanding.
+  parameter int unsigned NumAxInFlight = 8,
   parameter type reg_req_t = soc_bus_pkg::soc_reg_req_t,
   parameter type reg_rsp_t = soc_bus_pkg::soc_reg_rsp_t,
   parameter type axi_req_t = soc_bus_pkg::soc_axi_req_t,

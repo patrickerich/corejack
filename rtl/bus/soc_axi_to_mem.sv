@@ -10,20 +10,42 @@
 // exploits AXI's independent read/write channels and the memory's bank
 // parallelism instead of serializing the two through one FSM/port.
 //
-// Each engine keeps one transaction in flight on its own init port. That is a
-// property of this bridge, not of soc_mem_ss: the memory ports are themselves
-// multi-outstanding (EgressDepth), so these two engines - and therefore the
-// crossbar's RAM legs - are what caps fabric-routed RAM traffic below the
-// per-port rate the memory can sustain. Splitting the engines also removes the
-// former lone-AW deadlock workaround: the read engine never waits on the write
-// engine, so a read-to-write coupled initiator (e.g. the iDMA doing an in-RAM
-// memcpy) cannot deadlock.
+// Each engine is **pipelined**, holding up to MaxOutstanding transactions in
+// flight. That matters because the round trip through this bridge and the
+// memory is long (~9 cycles measured end to end on the iDMA path): a bridge
+// that allows one transaction at a time turns the whole of that latency into
+// throughput cost, capping a 64-bit port at ~0.11 accesses/cycle against the
+// ~1.0 soc_mem_ss itself sustains. Depth is what hides the latency, not a
+// shorter pipeline - see docs/axi4_fabric.md.
+//
+// Structure per engine, made simple by soc_mem_ss returning responses to a
+// port strictly in order (so no reorder buffer is needed, unlike
+// soc_mem_port's egress):
+//
+//   addr FIFO : accepted AXI request -> memory request   (pop on mem grant)
+//   id   FIFO : accepted AXI request -> AXI response     (pop on AXI handshake)
+//   rsp  FIFO : memory response      -> AXI response     (pop on AXI handshake)
+//
+// Never-drop: a request is admitted only while a response slot is reserved for
+// it (the outstanding counter below), and mem_*_rready_o additionally
+// backpressures the memory whenever the response FIFO is full. Same discipline
+// as soc_mem_port - buffers' own full/empty, no credit accounting.
+//
+// Splitting the engines also removes the former lone-AW deadlock workaround:
+// the read engine never waits on the write engine, so a read-to-write coupled
+// initiator (e.g. the iDMA doing an in-RAM memcpy) cannot deadlock. A write is
+// still admitted only once both AW and W are valid, which is what fixed that
+// deadlock; pipelining must not reintroduce accepting a lone AW.
 module soc_axi_to_mem
   import axi_pkg::*;
   import soc_bus_pkg::*;
 #(
   parameter int unsigned AddrWidth = 32,
   parameter int unsigned DataWidth = soc_bus_pkg::AxiDataWidth,
+  // Transactions in flight per engine. The iDMA leg wants this deep enough to
+  // cover the round trip; the crossbar leg is bounded by the xbar's
+  // MaxMstTrans regardless, so a smaller value there costs nothing.
+  parameter int unsigned MaxOutstanding = 8,
   // AXI slave-port types. Default to the platform initiator-side types; the
   // platform overrides these with the wider master-side types behind the xbar.
   parameter type axi_req_t     = soc_bus_pkg::soc_axi_req_t,
@@ -63,85 +85,85 @@ module soc_axi_to_mem
   output logic                   mem_wr_rready_o,
   input  logic                   mem_wr_err_i
 );
+  localparam int unsigned IdW    = $bits(s_axi_req_i.ar.id);
+  localparam int unsigned StrbW  = DataWidth / 8;
+  localparam int unsigned CntW   = $clog2(MaxOutstanding + 1);
+  localparam int unsigned RdAddrW = AddrWidth;
+  localparam int unsigned WrReqW = AddrWidth + DataWidth + StrbW;
+  localparam int unsigned RdRspW = DataWidth + 1;
+
   // ---------------------------------------------------------------------------
   // Read engine: AR/R channels -> read init port.
   // ---------------------------------------------------------------------------
-  typedef enum logic [1:0] {RdIdle, RdMem, RdWait, RdResp} rd_state_e;
-  rd_state_e    rd_state_q;
-  axi_ar_chan_t ar_q;
-  axi_r_chan_t  r_q;
+  logic                rd_admit;
+  logic [CntW-1:0]     rd_outstanding_q;
+  logic                rd_addr_full, rd_addr_empty, rd_addr_pop;
+  logic                rd_id_full, rd_id_empty;
+  logic                rd_rsp_full, rd_rsp_empty;
+  logic [RdAddrW-1:0]  rd_addr_head;
+  logic [IdW-1:0]      rd_id_head;
+  logic [RdRspW-1:0]   rd_rsp_head;
+  logic                rd_r_fire;
+  logic                rd_rsp_push;
+  // Requests issued to memory but not yet answered. Responses are only taken
+  // while this engine actually has one outstanding, so a port that shares its
+  // rvalid with the other engine (as the unit harness does) cannot inject a
+  // phantom response - the previous FSM had this property implicitly by only
+  // sampling rvalid in its wait state.
+  logic [CntW-1:0]     rd_pending_q;
 
-  logic rd_ar_ready;
-  logic rd_r_valid;
+  // Admit an AR only while a response slot is reserved for it. Bounding total
+  // in-flight to MaxOutstanding is what makes the response FIFO unable to
+  // overflow, so no request can be dropped once accepted.
+  assign rd_admit = s_axi_req_i.ar_valid && (rd_outstanding_q < CntW'(MaxOutstanding))
+                    && !rd_addr_full && !rd_id_full;
 
-  always_comb begin
-    rd_ar_ready     = 1'b0;
-    rd_r_valid      = 1'b0;
-    mem_rd_req_o    = 1'b0;
-    mem_rd_we_o     = 1'b0;
-    mem_rd_addr_o   = '0;
-    mem_rd_wdata_o  = '0;
-    mem_rd_be_o     = '0;
-    mem_rd_rready_o = 1'b0;
+  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(RdAddrW), .DEPTH(MaxOutstanding)) i_rd_addr_fifo (
+    .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
+    .full_o(rd_addr_full), .empty_o(rd_addr_empty), .usage_o(),
+    .data_i(AddrWidth'(s_axi_req_i.ar.addr)), .push_i(rd_admit),
+    .data_o(rd_addr_head), .pop_i(rd_addr_pop)
+  );
 
-    unique case (rd_state_q)
-      RdIdle: begin
-        rd_ar_ready = 1'b1;
-      end
-      RdMem: begin
-        mem_rd_req_o    = 1'b1;
-        mem_rd_addr_o   = AddrWidth'(ar_q.addr);
-        mem_rd_be_o     = '1;
-        mem_rd_rready_o = 1'b1;
-      end
-      RdWait: begin
-        mem_rd_rready_o = 1'b1;
-      end
-      RdResp: begin
-        rd_r_valid = 1'b1;
-      end
-      default: begin
-      end
-    endcase
-  end
+  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(IdW), .DEPTH(MaxOutstanding)) i_rd_id_fifo (
+    .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
+    .full_o(rd_id_full), .empty_o(rd_id_empty), .usage_o(),
+    .data_i(s_axi_req_i.ar.id), .push_i(rd_admit),
+    .data_o(rd_id_head), .pop_i(rd_r_fire)
+  );
+
+  // Memory request: drive from the address FIFO head until granted.
+  assign mem_rd_req_o   = !rd_addr_empty;
+  assign mem_rd_we_o    = 1'b0;
+  assign mem_rd_addr_o  = rd_addr_head;
+  assign mem_rd_wdata_o = '0;
+  assign mem_rd_be_o    = '1;
+  assign rd_addr_pop    = mem_rd_req_o && mem_rd_gnt_i;
+
+  // Accept memory responses while there is room to hold them.
+  assign mem_rd_rready_o = !rd_rsp_full;
+
+  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(RdRspW), .DEPTH(MaxOutstanding)) i_rd_rsp_fifo (
+    .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
+    .full_o(rd_rsp_full), .empty_o(rd_rsp_empty), .usage_o(),
+    .data_i({mem_rd_err_i, mem_rd_rdata_i}),
+    .push_i(rd_rsp_push),
+    .data_o(rd_rsp_head), .pop_i(rd_r_fire)
+  );
+
+  assign rd_rsp_push = mem_rd_rvalid_i && mem_rd_rready_o && (rd_pending_q != '0);
+
+  // R output. Both FIFO heads are stable until popped, so the payload is held
+  // while r_valid && !r_ready, as soc_axi_protocol_checker requires.
+  assign rd_r_fire = !rd_rsp_empty && !rd_id_empty && s_axi_req_i.r_ready;
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
-      rd_state_q <= RdIdle;
-      ar_q       <= '0;
-      r_q        <= '0;
+      rd_outstanding_q <= '0;
+      rd_pending_q     <= '0;
     end else begin
-      unique case (rd_state_q)
-        RdIdle: begin
-          if (rd_ar_ready && s_axi_req_i.ar_valid) begin
-            ar_q       <= s_axi_req_i.ar;
-            rd_state_q <= RdMem;
-          end
-        end
-        RdMem: begin
-          if (mem_rd_req_o && mem_rd_gnt_i) begin
-            rd_state_q <= RdWait;
-          end
-        end
-        RdWait: begin
-          if (mem_rd_rvalid_i) begin
-            r_q.id   <= ar_q.id;
-            r_q.data <= DataWidth'(mem_rd_rdata_i);
-            r_q.resp <= mem_rd_err_i ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
-            r_q.last <= 1'b1;
-            r_q.user <= '0;
-            rd_state_q <= RdResp;
-          end
-        end
-        RdResp: begin
-          if (s_axi_req_i.r_ready) begin
-            rd_state_q <= RdIdle;
-          end
-        end
-        default: begin
-          rd_state_q <= RdIdle;
-        end
-      endcase
+      rd_outstanding_q <= rd_outstanding_q + CntW'(rd_admit) - CntW'(rd_r_fire);
+      rd_pending_q     <= rd_pending_q + CntW'(rd_addr_pop) - CntW'(rd_rsp_push);
     end
   end
 
@@ -150,91 +172,62 @@ module soc_axi_to_mem
   // once both AW and W are valid (committing on a lone AW is unnecessary and
   // was the old deadlock source); the read engine is independent either way.
   // ---------------------------------------------------------------------------
-  typedef enum logic [1:0] {WrIdle, WrMem, WrWait, WrResp} wr_state_e;
-  wr_state_e    wr_state_q;
-  axi_aw_chan_t aw_q;
-  axi_w_chan_t  w_q;
-  axi_b_chan_t  b_q;
+  logic               wr_admit;
+  logic [CntW-1:0]    wr_outstanding_q;
+  logic               wr_req_full, wr_req_empty, wr_req_pop;
+  logic               wr_id_full, wr_id_empty;
+  logic               wr_rsp_full, wr_rsp_empty;
+  logic [WrReqW-1:0]  wr_req_head;
+  logic [IdW-1:0]     wr_id_head;
+  logic               wr_rsp_head;
+  logic               wr_b_fire;
+  logic               wr_rsp_push;
+  logic [CntW-1:0]    wr_pending_q;  // see rd_pending_q
 
-  logic wr_aw_ready;
-  logic wr_w_ready;
-  logic wr_b_valid;
-  logic wr_fire;
+  assign wr_admit = s_axi_req_i.aw_valid && s_axi_req_i.w_valid
+                    && (wr_outstanding_q < CntW'(MaxOutstanding))
+                    && !wr_req_full && !wr_id_full;
 
-  assign wr_fire = s_axi_req_i.aw_valid && s_axi_req_i.w_valid;
+  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(WrReqW), .DEPTH(MaxOutstanding)) i_wr_req_fifo (
+    .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
+    .full_o(wr_req_full), .empty_o(wr_req_empty), .usage_o(),
+    .data_i({AddrWidth'(s_axi_req_i.aw.addr), DataWidth'(s_axi_req_i.w.data),
+             s_axi_req_i.w.strb[StrbW-1:0]}),
+    .push_i(wr_admit), .data_o(wr_req_head), .pop_i(wr_req_pop)
+  );
 
-  always_comb begin
-    wr_aw_ready     = 1'b0;
-    wr_w_ready      = 1'b0;
-    wr_b_valid      = 1'b0;
-    mem_wr_req_o    = 1'b0;
-    mem_wr_we_o     = 1'b0;
-    mem_wr_addr_o   = '0;
-    mem_wr_wdata_o  = '0;
-    mem_wr_be_o     = '0;
-    mem_wr_rready_o = 1'b0;
+  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(IdW), .DEPTH(MaxOutstanding)) i_wr_id_fifo (
+    .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
+    .full_o(wr_id_full), .empty_o(wr_id_empty), .usage_o(),
+    .data_i(s_axi_req_i.aw.id), .push_i(wr_admit),
+    .data_o(wr_id_head), .pop_i(wr_b_fire)
+  );
 
-    unique case (wr_state_q)
-      WrIdle: begin
-        wr_aw_ready = wr_fire;
-        wr_w_ready  = wr_fire;
-      end
-      WrMem: begin
-        mem_wr_req_o   = 1'b1;
-        mem_wr_we_o    = 1'b1;
-        mem_wr_addr_o  = AddrWidth'(aw_q.addr);
-        mem_wr_wdata_o = DataWidth'(w_q.data);
-        mem_wr_be_o    = w_q.strb[DataWidth/8-1:0];
-      end
-      WrWait: begin
-        mem_wr_rready_o = 1'b1;
-      end
-      WrResp: begin
-        wr_b_valid = 1'b1;
-      end
-      default: begin
-      end
-    endcase
-  end
+  assign mem_wr_req_o   = !wr_req_empty;
+  assign mem_wr_we_o    = 1'b1;
+  assign {mem_wr_addr_o, mem_wr_wdata_o, mem_wr_be_o} = wr_req_head;
+  assign wr_req_pop     = mem_wr_req_o && mem_wr_gnt_i;
+
+  assign mem_wr_rready_o = !wr_rsp_full;
+
+  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(1), .DEPTH(MaxOutstanding)) i_wr_rsp_fifo (
+    .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
+    .full_o(wr_rsp_full), .empty_o(wr_rsp_empty), .usage_o(),
+    .data_i(mem_wr_err_i), .push_i(wr_rsp_push),
+    .data_o(wr_rsp_head), .pop_i(wr_b_fire)
+  );
+
+  assign wr_rsp_push = mem_wr_rvalid_i && mem_wr_rready_o && (wr_pending_q != '0);
+
+  assign wr_b_fire = !wr_rsp_empty && !wr_id_empty && s_axi_req_i.b_ready;
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
-      wr_state_q <= WrIdle;
-      aw_q       <= '0;
-      w_q        <= '0;
-      b_q        <= '0;
+      wr_outstanding_q <= '0;
+      wr_pending_q     <= '0;
     end else begin
-      unique case (wr_state_q)
-        WrIdle: begin
-          if (wr_aw_ready && s_axi_req_i.aw_valid &&
-              wr_w_ready && s_axi_req_i.w_valid) begin
-            aw_q       <= s_axi_req_i.aw;
-            w_q        <= s_axi_req_i.w;
-            wr_state_q <= WrMem;
-          end
-        end
-        WrMem: begin
-          if (mem_wr_req_o && mem_wr_gnt_i) begin
-            wr_state_q <= WrWait;
-          end
-        end
-        WrWait: begin
-          if (mem_wr_rvalid_i) begin
-            b_q.id   <= aw_q.id;
-            b_q.resp <= mem_wr_err_i ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
-            b_q.user <= '0;
-            wr_state_q <= WrResp;
-          end
-        end
-        WrResp: begin
-          if (s_axi_req_i.b_ready) begin
-            wr_state_q <= WrIdle;
-          end
-        end
-        default: begin
-          wr_state_q <= WrIdle;
-        end
-      endcase
+      wr_outstanding_q <= wr_outstanding_q + CntW'(wr_admit) - CntW'(wr_b_fire);
+      wr_pending_q     <= wr_pending_q + CntW'(wr_req_pop) - CntW'(wr_rsp_push);
     end
   end
 
@@ -243,25 +236,39 @@ module soc_axi_to_mem
   // ---------------------------------------------------------------------------
   always_comb begin
     s_axi_rsp_o          = '0;
-    s_axi_rsp_o.ar_ready = rd_ar_ready;
-    s_axi_rsp_o.r_valid  = rd_r_valid;
-    s_axi_rsp_o.r        = r_q;
-    s_axi_rsp_o.aw_ready = wr_aw_ready;
-    s_axi_rsp_o.w_ready  = wr_w_ready;
-    s_axi_rsp_o.b_valid  = wr_b_valid;
-    s_axi_rsp_o.b        = b_q;
+
+    s_axi_rsp_o.ar_ready = rd_admit;
+    s_axi_rsp_o.r_valid  = !rd_rsp_empty && !rd_id_empty;
+    s_axi_rsp_o.r.id     = rd_id_head;
+    s_axi_rsp_o.r.data   = rd_rsp_head[DataWidth-1:0];
+    s_axi_rsp_o.r.resp   = rd_rsp_head[DataWidth] ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
+    s_axi_rsp_o.r.last   = 1'b1;
+    s_axi_rsp_o.r.user   = '0;
+
+    s_axi_rsp_o.aw_ready = wr_admit;
+    s_axi_rsp_o.w_ready  = wr_admit;
+    s_axi_rsp_o.b_valid  = !wr_rsp_empty && !wr_id_empty;
+    s_axi_rsp_o.b.id     = wr_id_head;
+    s_axi_rsp_o.b.resp   = wr_rsp_head ? axi_pkg::RESP_SLVERR : axi_pkg::RESP_OKAY;
+    s_axi_rsp_o.b.user   = '0;
   end
 
 `ifndef SYNTHESIS
   always_ff @(posedge clk_i) begin
     if (rst_ni) begin
-      if (rd_state_q == RdMem) begin
-        assert (ar_q.len == '0);
+      // The fabric's single-beat invariant, checked where a transaction is
+      // admitted rather than where it was formerly registered.
+      if (rd_admit) begin
+        assert (s_axi_req_i.ar.len == '0);
       end
-      if (wr_state_q == WrMem) begin
-        assert (aw_q.len == '0);
-        assert (w_q.last);
+      if (wr_admit) begin
+        assert (s_axi_req_i.aw.len == '0);
+        assert (s_axi_req_i.w.last);
       end
+      // The admission bound must make the response FIFOs unable to overflow,
+      // so a response this engine is actually waiting for is never stalled.
+      assert (!(mem_rd_rvalid_i && (rd_pending_q != '0) && !mem_rd_rready_o));
+      assert (!(mem_wr_rvalid_i && (wr_pending_q != '0) && !mem_wr_rready_o));
     end
   end
 `endif
