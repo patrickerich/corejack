@@ -203,12 +203,39 @@ in-order delivery. The crossbar's RAM path (`soc_axi_to_mem`, split into read
 and write engines) now mainly carries debug SBA and any other fabric-routed RAM
 traffic. The bank count has since been raised to **8**, matching the seven ports
 that drive the subsystem, and the per-port and per-bank outstanding depths were
-sized so `soc_mem_ss` sustains ~1 access/cycle on both. Note that this caps at
-the *memory subsystem's* ports: the fabric-routed RAM legs still accept one
-transaction at a time inside `soc_axi_to_mem`, so debug SBA and any future
-fabric RAM initiator are bounded by that adapter, not by the banks. See
+sized so `soc_mem_ss` sustains ~1 access/cycle on both. See
 [`roadmap.md`](roadmap.md) for the coupling between `MemNumBanks` and the
 port count.
+
+### The bridge has to be pipelined for that to be usable
+
+Making the memory fast is not enough on its own. `soc_axi_to_mem` originally
+held one transaction per engine, so the whole round trip through the bridge and
+the memory - about **nine cycles** - was paid on every word instead of being
+hidden. The iDMA, the only high-bandwidth initiator on the platform, therefore
+ran at ~11% of what its own memory ports could sustain.
+
+Each engine is now a short pipeline (`MaxOutstanding`, default 8) rather than a
+four-state machine: one FIFO carries accepted requests to the memory, one
+carries the AXI id through to the response, one holds responses until the AXI
+channel takes them. No reorder buffer is needed because `soc_mem_ss` returns a
+port's responses in order. `soc_idma`'s `NumAxInFlight` is kept equal to that
+depth - without it the backend simply becomes the next limiter.
+
+Reference figures from `make mem-bw-bench` (a 24 KiB iDMA copy, timed with the
+`mcycle` CSR so the baud-throttled UART does not distort them):
+
+| | before | after |
+| --- | ---: | ---: |
+| copy | 27906 cycles | **3616 cycles** |
+| bandwidth | 0.88 B/cycle | **6.80 B/cycle** |
+| per 64-bit word | 9.08 cycles | **1.18 cycles** |
+| CPU/DMA overlap (1000 = serialized) | 1114 | **1853** |
+
+That is ~85% of the one-word-per-cycle ceiling. The crossbar leg is given
+`MaxOutstanding = MaxMstTrans` instead, since the crossbar never presents more
+than that to one master port; the iDMA leg is not behind the crossbar and keeps
+the deeper default.
 
 ## Acceptance
 
@@ -263,8 +290,9 @@ closure:
 - add burst support (target adapters and the single-beat protocol checker) when
   an AXI-native burst initiator is integrated; the crossbar itself already
   forwards multiple outstanding requests
-- give `soc_axi_to_mem` more than one transaction in flight, so the crossbar's
-  RAM legs can use the per-port rate `soc_mem_ss` now offers
+- raise the crossbar's `MaxMstTrans`/`MaxSlvTrans` when a fabric-routed
+  high-bandwidth initiator appears; it, rather than `soc_axi_to_mem`, is now
+  what bounds the crossbar's RAM legs
 - revisit `MemNumBanks` again if the port count grows past 8 (the bank-count
   vs port-count coupling; see [`roadmap.md`](roadmap.md))
 

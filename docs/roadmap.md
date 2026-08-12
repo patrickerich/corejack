@@ -359,12 +359,16 @@ Two things are intentionally **not** done:
   DUT, the Zephyr devicetree, and the bitstream manifest. Best designed when
   there is a second value worth supporting (for example, one board staying at 8
   while a benchmark configuration opts into 16).
-- **Initiator-side outstanding requests.** The subsystem now sustains ~1
-  access/cycle per port, so the remaining gap in a real workload is how many
-  requests a core keeps in flight — for example Ibex's instruction-fetch unit has
-  a lower-level outstanding-fetch option that its top-level parameter list does
-  not expose. Raising it means editing vendored core RTL and needs to be a
-  deliberate, separately validated change.
+- **Initiator-side outstanding requests.** The fabric side of this is now done:
+  `soc_axi_to_mem` is pipelined and `soc_idma`'s `NumAxInFlight` matches it, so
+  the iDMA reaches ~85% of the one-word-per-cycle ceiling (see
+  [`axi4_fabric.md`](axi4_fabric.md)). What remains is the **CPU** side, and it
+  is a core limit rather than a fabric one: Ibex's instruction-fetch unit has a
+  lower-level outstanding-fetch option its top-level parameter list does not
+  expose. Worth measuring before assuming it pays — in `mem-bw-bench` the CPU
+  streaming loop costs ~24 cycles per memory operation on Ibex, which is the
+  core's execution rate, not memory latency. Raising it means editing vendored
+  core RTL and needs to be a deliberate, separately validated change.
 
 ## Software Ecosystem
 

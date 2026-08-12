@@ -933,6 +933,10 @@ module soc_top #(
     soc_axi_to_mem #(
       .AddrWidth     (32),
       .DataWidth     (MemDataWidth),
+      // The crossbar never presents more than MaxMstTrans transactions to one
+      // master port, so depth beyond that is unreachable on this leg. The iDMA
+      // leg keeps the deeper default because it is not behind the crossbar.
+      .MaxOutstanding (FabricXbarCfg.MaxMstTrans),
       .axi_req_t     (soc_axi_mst_req_t),
       .axi_resp_t    (soc_axi_mst_resp_t),
       .axi_aw_chan_t (soc_axi_mst_aw_chan_t),
