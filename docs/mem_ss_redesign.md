@@ -313,10 +313,12 @@ for out-of-range addresses.
 
 Still open:
 
-- **Initiator-side outstanding requests** (see Section 5): the subsystem now
-  sustains ~1 access/cycle per port, so the remaining gap to that rate in a real
-  workload is how many requests a core keeps in flight. The core IFU
-  outstanding-fetch options are vendored-RTL changes and are not taken here.
+- **Initiator-side outstanding requests** (see Section 5): the subsystem
+  sustains ~1 access/cycle per port. For the iDMA this is now realized -
+  `soc_axi_to_mem` was pipelined and `NumAxInFlight` raised to match, reaching
+  ~85% of that ceiling (see [`axi4_fabric.md`](axi4_fabric.md)). For the CPUs
+  the gap remains and is a core limit: the IFU outstanding-fetch options are
+  vendored-RTL changes and are not taken here.
 - **Per-board bank counts:** the count is now a single constant
   (`mem_ss_pkg::MemNumBanksDefault`), which removes the drift risk but keeps it
   global. Making it vary per board still needs the vlogparam plumbing through

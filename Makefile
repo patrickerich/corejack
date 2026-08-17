@@ -94,6 +94,7 @@ FPGA_ACCEPT_CORES ?=
 # must exist. OPENOCD_CFG remains overridable directly for fully custom files.
 JTAG_ADAPTER   ?=
 SIM_TIMEOUT_CYCLES ?= 1000000
+MEM_BW_TIMEOUT_CYCLES ?= 4000000
 SIM_FUSESOC_WORK_ROOT ?= $(CURDIR)/build/sim/fusesoc/$(CORE)/$(SIM_FUSESOC_TARGET)
 SIM_WAVES      ?= 0
 SIM_WAVE_FORMAT ?= fst
@@ -130,7 +131,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -194,6 +195,7 @@ help:
 	@printf '  %-18s %s\n' 'uart-loader-sim' 'run side-path UART SRAM loader protocol regression'
 	@printf '  %-18s %s\n' 'plic-sim' 'run soc_plic claim/complete and gateway regression'
 	@printf '  %-18s %s\n' 'mem-ss-bench' 'measure soc_mem_ss words/cycle vs active ports/banks'
+	@printf '  %-18s %s\n' 'mem-bw-bench' 'measure CPU+iDMA memory bandwidth (mcycle-timed)'
 	@printf '  %-18s %s\n' 'axi-addr-map-check' 'check AXI fabric address windows for overlap'
 	@printf '  %-18s %s\n' 'axi-smoke' 'run AXI fabric regressions and supported-core SW sims'
 	@printf '  %-18s %s\n' 'openocd' 'launch OpenOCD for the FPGA JTAG debug target'
@@ -623,6 +625,14 @@ plic-sim: deps-base
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
 		fusesoc --cores-root . run --clean --target plic-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
 
+# System-level memory-bandwidth benchmark: a CPU streaming loop against a
+# concurrent iDMA copy, timed with the mcycle CSR so the figures are unaffected
+# by the baud-throttled UART. This is the instrument that sizes the fabric's
+# outstanding depths - see docs/axi4_fabric.md for the reference numbers.
+# Needs a core with the standard counters (ibex, cv32e40*, cva6).
+mem-bw-bench:
+	@$(MAKE) sim-run-sw SW_APP=mem_bw_smoke SIM_TIMEOUT_CYCLES="$(MEM_BW_TIMEOUT_CYCLES)"
+
 mem-ss-bench: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/mem-ss-bench.$(SIM_WAVE_FORMAT)"; fi; \
@@ -638,7 +648,7 @@ mem-ss-bench: deps-base
 axi-addr-map-check:
 	@$(PY) bin/check_axi_addr_map.py
 
-axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench debug-sim cva6-reset-sim
+axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench debug-sim cva6-reset-sim
 	@for core in $(AXI_SMOKE_CORES); do \
 		echo "AXI smoke: sim-run-sw CORE=$$core"; \
 		$(MAKE) sim-run-sw CORE="$$core" SW_APP=hello_world SIM_TIMEOUT_CYCLES="$(SIM_TIMEOUT_CYCLES)"; \

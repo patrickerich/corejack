@@ -47,12 +47,17 @@ root is `build/sim/fusesoc/<core>/<target>/`, and optional waveforms land in
 | `make axi-adapter-sim` | AXI adapters, the `axi_xbar` system crossbar (incl. cross-target concurrency and same-target arbitration), protocol checker, and 32-to-64-bit lane behavior | `axi_adapter_dut` / `test_axi_adapters` | no | [`axi4_fabric.md`](axi4_fabric.md) |
 | `make uart-loader-sim` | UART SRAM loader protocol regression | `uart_sram_loader_dut` / `test_uart_sram_loader` | no | [`uart_sram_loader.md`](uart_sram_loader.md) |
 | `make plic-sim` | `soc_plic` claim/complete, gateway, and threshold regression | `plic_dut` / `test_plic` | no | [`axi4_fabric.md`](axi4_fabric.md) |
-| `make axi-smoke` | aggregate gate: address-map check, the three focused sims above, then `hello_world` on each supported core | (composite) | yes | [`axi4_fabric.md`](axi4_fabric.md) |
+| `make mem-ss-bench` | `soc_mem_ss` words/cycle against active ports and banks | `mem_ss_bench_dut` / `test_mem_ss_bench` | no | [`mem_ss_redesign.md`](mem_ss_redesign.md) |
+| `make mem-bw-bench` | system CPU + iDMA memory bandwidth, timed with the `mcycle` CSR | `soc_dut` / `mem_bw_smoke` app | yes | [`axi4_fabric.md`](axi4_fabric.md) |
+| `make cva6-reset-sim` | CVA6 AXI behaviour across an `ndmreset` (see its scope note) | `soc_dut` / `test_cva6_reset_isolation` | no | [`riscv_dbg_integration.md`](riscv_dbg_integration.md) |
+| `make axi-smoke` | aggregate gate: address-map check, every focused sim above, then `hello_world` on each supported core | (composite) | yes | [`axi4_fabric.md`](axi4_fabric.md) |
 
-`make axi-smoke` runs `axi-adapter-sim`, `uart-loader-sim`, `plic-sim`, and
-`debug-sim`, then `sim-run-sw` for each core in `AXI_SMOKE_CORES` (default
+`make axi-smoke` runs `axi-addr-map-check`, `axi-adapter-sim`,
+`uart-loader-sim`, `plic-sim`, `mem-ss-bench`, `mem-bw-bench`, `debug-sim` and
+`cva6-reset-sim`, then `sim-run-sw` for each core in `AXI_SMOKE_CORES` (default
 `ibex cv32e40p cv32e40s cva6 serv picorv32 cvw`). Unsupported cores are intentionally excluded;
-see [`support_matrix.md`](support_matrix.md).
+see [`support_matrix.md`](support_matrix.md). A full run takes roughly 15
+minutes, dominated by the per-core Verilator builds.
 
 A typical first run, with no RISC-V toolchain required:
 

@@ -81,13 +81,15 @@ and host runtime - nothing that ends up as SystemVerilog.
 
 - `tb/` - cocotb harnesses and TB-only monitors: `soc_dut.sv`,
   `smoke_dut.sv`, `axi_adapter_dut.sv`, `uart_sram_loader_dut.sv`,
-  `plic_dut.sv`, `uart_apb_tx_monitor.sv`, `sim_ctrl_monitor.sv`,
-  `axi_sim_ctrl_monitor.sv`, plus the cocotb tests
+  `plic_dut.sv`, `mem_ss_bench_dut.sv`, `uart_apb_tx_monitor.sv`,
+  `sim_ctrl_monitor.sv`, `axi_sim_ctrl_monitor.sv`, the standalone
+  Verilator testbench `tb_mem_ss.sv`, plus the cocotb tests
   `test_soc_sw.py`, `test_smoke.py`, `test_axi_adapters.py`,
-  `test_debug_integration.py`, `test_uart_sram_loader.py`, and
-  `test_plic.py`.
+  `test_debug_integration.py`, `test_uart_sram_loader.py`,
+  `test_plic.py`, `test_mem_ss_bench.py`, and
+  `test_cva6_reset_isolation.py`.
 - `sw/c/` - bare-metal apps (`hello_world`, `self_check`, `bench_smoke`,
-  `timer_uart_smoke`, `dma_smoke`, `plic_smoke`) sharing
+  `timer_uart_smoke`, `dma_smoke`, `plic_smoke`, `mem_bw_smoke`) sharing
   `sw/common/link.ld.in` (the board-RAM-sized linker template) and the
   common runtime under `sw/c/common/` (UART, printf, sim_ctrl, and the
   iDMA and PLIC drivers `dma.{c,h}` / `plic.{c,h}`).
