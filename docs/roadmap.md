@@ -42,8 +42,12 @@ Platform pieces:
   `soc_mem_bank`.
 - `riscv-dbg` (`dmi_jtag` + `dm_top`) and CLINT are integrated in `soc_top`.
 - Bitstreams close timing at the conservative `25 MHz` default with the
-  `axi_xbar` crossbar on both boards (ibex WNS at 8 banks: `+12.1 ns` on the
-  AXKU5, `+8.9 ns` on the Arty A7-100T).
+  `axi_xbar` crossbar on both boards; all fourteen combinations in the default
+  FPGA acceptance set report timing met. The figure to quote is the SoC clock's
+  own slack (`CORE_CLK_WNS_NS`), not the whole-design WNS: at 8 banks ibex has
+  `+29.5 ns` on the AXKU5 and `+14.8 ns` on the Arty A7-100T, and the tightest
+  of the fourteen is CORE-V-Wally on the Arty at `+5.6 ns`. See
+  [`axi4_fabric.md`](axi4_fabric.md) for how the numbers are produced.
 - OpenOCD enumerates and examines the RISC-V target over external JTAG;
   GDB loads an ELF into SRAM through the debug module SBA path.
 - `hello_world` runs from SRAM and prints through the platform APB UART at

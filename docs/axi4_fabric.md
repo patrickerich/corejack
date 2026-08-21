@@ -297,7 +297,22 @@ closure:
   vs port-count coupling; see [`roadmap.md`](roadmap.md))
 
 FPGA timing closure with the crossbar on the fabric path is validated at the
-25 MHz default on both boards (ibex WNS at 8 banks: +12.1 ns on the AXKU5,
-+8.9 ns on the Arty A7-100T). If a future higher clock or a larger initiator set regresses
-timing, the crossbar's `LatencyMode` (e.g. `CUT_ALL_AX`) is the first knob to
-try.
+25 MHz default on both boards: all fourteen combinations in the default FPGA
+acceptance set report `DESIGN_TIMING_MET=1`. The meaningful figure is
+`CORE_CLK_WNS_NS`, the SoC clock's intra-clock slack. The whole-design WNS
+spans every path group and normally resolves to a lone JTAG/IO endpoint, so it
+understates how much headroom the SoC logic actually has.
+
+At `mem_ss_pkg::MemNumBanksDefault` (currently 8) ibex has `+29.5 ns` of
+SoC-clock slack on the AXKU5 and `+14.8 ns` on the Arty A7-100T. The tightest
+of the fourteen is CORE-V-Wally on the Arty at `+5.6 ns`, and it is the only
+combination whose whole-design WNS equals its SoC-clock WNS -- the design's
+worst path genuinely is on the SoC clock there -- which makes it the
+combination that bounds any future clock increase.
+
+`make fpga-bit` writes these numbers to `reports/timing_key.txt` in the
+board/core build directory (under the ignored `build/` tree, so they are not
+checked in); `bin/fpga_debug_acceptance.sh` echoes them per combination and
+exits non-zero when timing is unmet. If a future higher clock or a larger
+initiator set regresses timing, the crossbar's `LatencyMode` (e.g.
+`CUT_ALL_AX`) is the first knob to try.
