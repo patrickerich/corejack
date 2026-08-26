@@ -66,6 +66,13 @@ if [[ "${skip_build}" == "0" ]]; then
     # Clone without --recursive so the initial fetch can never fail on a
     # submodule pin; submodules are initialized below with dejagnu skipped.
     git clone "${toolchain_repo}" "${src_dir}"
+  elif [[ -n "${toolchain_commit}" ]] \
+       && git -C "${src_dir}" cat-file -e "${toolchain_commit}^{commit}" 2>/dev/null; then
+    # The pin is already in the local clone, so a fetch cannot change what gets
+    # built. Fetching anyway recurses into submodules hosted on sourceware.org,
+    # which rate-limits (HTTP 429) and then fails the build for no gain. Only
+    # reach for the network when the pinned commit is genuinely missing.
+    echo "  pinned commit already present; skipping fetch"
   else
     git -C "${src_dir}" fetch --tags origin
   fi
