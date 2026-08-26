@@ -14,6 +14,9 @@ RISCV_GNU_TOOLCHAIN_REF ?= 2026.05.19
 RISCV_GNU_TOOLCHAIN_COMMIT ?= 96e1c125620ec403962c8536ecbbde20878c5e44
 RISCV_MULTILIB_GENERATOR ?= rv32i-ilp32--;rv32imc-ilp32--;rv32imcb-ilp32--;rv64imc-lp64--;rv64gc-lp64d--
 RISCV_TOOLCHAIN_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
+RISCV_TOOLCHAIN_DIST_DIR ?= $(TOOLS_DIR)/dist
+# Set to 1 to re-package an already-built toolchain instead of rebuilding.
+TOOLCHAIN_SKIP_BUILD ?= 0
 VERILATOR_VERSION ?= v5.050
 VERILATOR_COMMIT ?= 848d926ebd4addacacd294dc84e35d9d4ae8078c
 VERILATOR_PREFIX ?= $(TOOLS_DIR)/verilator
@@ -131,12 +134,13 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender toolchain-riscv tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender toolchain-riscv toolchain-riscv-dist tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
 	@printf '  %-18s %s\n' 'bender' 'fetch pinned bender binary into TOOLS_DIR'
-	@printf '  %-18s %s\n' 'toolchain-riscv' 'build optional local RISC-V GNU multilib toolchain into TOOLS_DIR'
+	@printf '  %-18s %s\n' 'toolchain-riscv' 'build+package+install local RISC-V GNU multilib toolchain into TOOLS_DIR'
+	@printf '  %-18s %s\n' 'toolchain-riscv-dist' 'same, but keep the tarball+sha256 in RISCV_TOOLCHAIN_DIST_DIR for upload'
 	@printf '  %-18s %s\n' 'tool-verilator' 'build optional local Verilator into TOOLS_DIR'
 	@printf '  %-18s %s\n' 'tool-verible' 'install optional local Verible lint/format tools into TOOLS_DIR'
 	@printf '  %-18s %s\n' 'zephyr-init' 'initialize/update project-local Zephyr workspace'
@@ -257,14 +261,23 @@ $(BENDER_BIN):
 # Convenience alias
 bender: $(BENDER_BIN)
 
+# The script builds, packages, and then installs by unpacking that package, so
+# a local .tools/riscv is byte-identical to the artifact published for CI.
+RISCV_TOOLCHAIN_ENV = \
+	RISCV_TOOLCHAIN_PREFIX="$(RISCV_TOOLCHAIN_PREFIX)" \
+	RISCV_GNU_TOOLCHAIN_SRC="$(RISCV_GNU_TOOLCHAIN_SRC)" \
+	RISCV_GNU_TOOLCHAIN_REF="$(RISCV_GNU_TOOLCHAIN_REF)" \
+	RISCV_GNU_TOOLCHAIN_COMMIT="$(RISCV_GNU_TOOLCHAIN_COMMIT)" \
+	RISCV_MULTILIB_GENERATOR="$(RISCV_MULTILIB_GENERATOR)" \
+	RISCV_TOOLCHAIN_JOBS="$(RISCV_TOOLCHAIN_JOBS)" \
+	RISCV_TOOLCHAIN_DIST_DIR="$(RISCV_TOOLCHAIN_DIST_DIR)"
+RISCV_TOOLCHAIN_ARGS = $(if $(filter 1,$(TOOLCHAIN_SKIP_BUILD)),--skip-build)
+
 toolchain-riscv:
-	@RISCV_TOOLCHAIN_PREFIX="$(RISCV_TOOLCHAIN_PREFIX)" \
-	 RISCV_GNU_TOOLCHAIN_SRC="$(RISCV_GNU_TOOLCHAIN_SRC)" \
-	 RISCV_GNU_TOOLCHAIN_REF="$(RISCV_GNU_TOOLCHAIN_REF)" \
-	 RISCV_GNU_TOOLCHAIN_COMMIT="$(RISCV_GNU_TOOLCHAIN_COMMIT)" \
-	 RISCV_MULTILIB_GENERATOR="$(RISCV_MULTILIB_GENERATOR)" \
-	 RISCV_TOOLCHAIN_JOBS="$(RISCV_TOOLCHAIN_JOBS)" \
-	 bin/build_riscv_toolchain.sh
+	@$(RISCV_TOOLCHAIN_ENV) bin/build_riscv_toolchain.sh $(RISCV_TOOLCHAIN_ARGS)
+
+toolchain-riscv-dist:
+	@$(RISCV_TOOLCHAIN_ENV) bin/build_riscv_toolchain.sh --keep $(RISCV_TOOLCHAIN_ARGS)
 
 tool-verilator:
 	@VERILATOR_REF="$(VERILATOR_VERSION)" \
