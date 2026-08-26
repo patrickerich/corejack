@@ -33,12 +33,19 @@ make check-tools FLOW=debug
 
 ## Optional Generic RISC-V GNU Toolchain
 
-The repo can build an optional bare-metal multilib RISC-V GNU toolchain from
-source into `TOOLS_DIR`, which defaults to the ignored `.tools/` directory:
+The repo can build an optional bare-metal multilib RISC-V GNU toolchain into
+`TOOLS_DIR`, which defaults to the ignored `.tools/` directory:
 
 ```bash
 make toolchain-riscv
 ```
+
+That target does three things in one pass: it builds from source, packages the
+result into a relocatable tarball, and then installs by **unpacking that
+tarball**. Installing from the package rather than from the raw build tree is
+deliberate - it means a local `.tools/riscv` is byte-identical to the artifact
+published for CI, so there is no gap between what a contributor tests with and
+what CI downloads. See [Packaging a relocatable artifact](#packaging-a-relocatable-artifact).
 
 The default install prefix is:
 
@@ -83,6 +90,53 @@ The default RISC-V GNU toolchain source is pinned to the upstream
 `96e1c125620ec403962c8536ecbbde20878c5e44` before building. If the tag ever
 resolves to a different commit, the build stops instead of silently accepting
 the changed source.
+
+Upstream tags this repository as automated nightlies rather than curated
+releases, so a pin bump buys no described fix - treat it as its own change with
+its own validation, never as a rider on unrelated work.
+
+### Packaging a relocatable artifact
+
+```bash
+make toolchain-riscv-dist                          # build, package, install, keep tarball
+make toolchain-riscv-dist TOOLCHAIN_SKIP_BUILD=1   # re-package an existing build (~20 s)
+```
+
+`toolchain-riscv-dist` behaves exactly like `toolchain-riscv` but leaves the
+tarball and its `.sha256` in `RISCV_TOOLCHAIN_DIST_DIR` (default
+`.tools/dist/`) so it can be uploaded as a release asset. Use
+`TOOLCHAIN_SKIP_BUILD=1` to skip the source build when a usable toolchain is
+already installed; without it, retrieving an artifact you forgot to keep costs
+a full rebuild.
+
+GCC resolves its paths at runtime from the driver binary's own location, so the
+**binaries** relocate unaided - the configure-time prefix embedded in them is
+only an overridden fallback. Files read as **text** do not relocate, and those
+are what break a naively copied toolchain. The packaging step normalises them:
+
+| Carrier | Treatment |
+| --- | --- |
+| `ldscripts/*` | `SEARCH_DIR("<prefix>/...")` rewritten to `SEARCH_DIR("=/lib")`, ld's sysroot-relative form, which follows the `--sysroot` gcc computes from the driver |
+| `*.la` | deleted; a bare-metal cross toolchain links the `.a` directly and never consults libtool archives |
+| `*-gdb.py` | absolute paths recomputed from `__file__` |
+| `configargs.h`, `mkheaders*` | prefix replaced with the inert placeholder `@TOOLCHAIN_PREFIX@`; nothing reads these at build time, and the substitution keeps the audit below strict rather than carrying an exception list |
+
+Two gates then run, and **no tarball is emitted unless both pass**: an audit
+that no text file still contains the build prefix, and a relocation self-test
+that moves the tree to a throwaway path and compiles every multilib from there.
+
+Each tarball carries a `MANIFEST` recording the upstream repo, ref, resolved
+commit, multilib generator, and build timestamp. It doubles as the
+corresponding-source pointer required when publishing GCC binaries under
+GPLv3. With `TOOLCHAIN_SKIP_BUILD=1` the manifest records the pin as
+`UNVERIFIED`, because skipping the build also skips the commit check - the
+script additionally warns on stderr if the source tree has drifted from the
+pin.
+
+Finally, the run reports the artifact's host ABI floor (the minimum glibc a
+machine needs to execute it). A toolchain built on a modern distribution will
+not run on older runners; build inside an older-glibc container to lower that
+floor before publishing.
 
 ### dejagnu submodule is intentionally skipped
 
