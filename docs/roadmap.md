@@ -69,10 +69,6 @@ UART and JTAG debug path are alive.
 
 UART-loader cores end with `UART path is alive.` instead.
 
-A 50 MHz FPGA experiment generated a bitstream but missed routed timing by
-about `4.7 ns` WNS on a route-dominated path. This remains a future
-timing-closure task rather than a baseline blocker.
-
 ## Per-Core Notes
 
 The authoritative descriptor-derived matrix lives in
@@ -118,7 +114,9 @@ Hardware regression and stability:
 - Keep board LED mappings as simple status; add richer probes only when a
   specific debug investigation needs them.
 - Keep `25 MHz` as the conservative FPGA default and treat higher clocks as
-  a later timing-closure task.
+  a later timing-closure task. The bound is CORE-V-Wally on the Arty A7-100T
+  at `+5.6 ns` of SoC-clock slack; any clock increase has to clear that
+  combination first.
 
 Software and validation flow:
 
