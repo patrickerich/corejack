@@ -64,7 +64,8 @@ touch "${repo_dir}/.tools/FUSESOC_IGNORE"
 if [[ "${skip_build}" == "0" ]]; then
   if [[ ! -d "${src_dir}/.git" ]]; then
     # Clone without --recursive so the initial fetch can never fail on a
-    # submodule pin; submodules are initialized below with dejagnu skipped.
+    # submodule pin; unneeded submodules are skipped when they are initialized
+    # below.
     git clone "${toolchain_repo}" "${src_dir}"
   elif [[ -n "${toolchain_commit}" ]] \
        && git -C "${src_dir}" cat-file -e "${toolchain_commit}^{commit}" 2>/dev/null; then
@@ -85,14 +86,23 @@ if [[ "${skip_build}" == "0" ]]; then
   fi
   echo "  resolved commit: ${actual_commit}"
 
-  # dejagnu is a test-only submodule used by `make check`, not by `make newlib`.
-  # Its upstream (git.savannah.gnu.org) occasionally prunes the pinned commit and
-  # fails with "Server does not allow request for unadvertised object". Skip it
-  # so the toolchain build is not held hostage by an unrelated test pin.
+  # Submodules that `make newlib` never reaches. Cloning them buys nothing and
+  # puts the build at the mercy of hosts that are not GitHub:
+  #   dejagnu - test framework for `make check`. Its upstream
+  #             (git.savannah.gnu.org) prunes unadvertised commits, failing with
+  #             "Server does not allow request for unadvertised object".
+  #   musl    - only reachable from the separate `musl:` target in upstream's
+  #             Makefile.in; `newlib:` depends on gcc/binutils/newlib/gdb alone.
+  #             git.musl-libc.org was unreachable on 2026-08-29.
   # See docs/tooling.md for the full reasoning.
-  echo "  note: dejagnu submodule intentionally skipped (test-only; upstream pin volatile)"
-  git -C "${src_dir}" submodule deinit -f dejagnu 2>/dev/null || true
-  git -C "${src_dir}" -c submodule.dejagnu.update=none submodule update --init --recursive
+  skip_submodules=(dejagnu musl)
+  skip_args=()
+  for sm in "${skip_submodules[@]}"; do
+    echo "  note: ${sm} submodule intentionally skipped (unused by 'make newlib')"
+    git -C "${src_dir}" submodule deinit -f "${sm}" 2>/dev/null || true
+    skip_args+=(-c "submodule.${sm}.update=none")
+  done
+  git -C "${src_dir}" "${skip_args[@]}" submodule update --init --recursive
 
   configure_args=("--prefix=${prefix}")
   if [[ -n "${multilib_generator}" ]]; then
