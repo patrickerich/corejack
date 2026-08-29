@@ -1,0 +1,156 @@
+name: regression
+
+# The full `make axi-smoke` gate, split across machines. Locally it is 14
+# simulations run back to back -- 25 minutes on four cores. Here the seven
+# focused simulations take one runner and the seven-core sweep takes one runner
+# each, so wall time is the slowest job rather than the sum. See
+# docs/simulation.md for what each simulation covers and why 14 simulations
+# produce 35 tests.
+#
+# Not on the PR path: `smoke.yml` guards pull requests in about a minute. This
+# is the heavier gate, and it is free -- GitHub Actions bills nothing for public
+# repositories on standard runners.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 03:00 UTC nightly.
+    - cron: '0 3 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  # AXI_SMOKE_CORES in the Makefile is the one home for the core list; read it
+  # rather than restating it here, so the two cannot drift apart.
+  core-list:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      cores: ${{ steps.read.outputs.cores }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Read AXI_SMOKE_CORES
+        id: read
+        shell: bash
+        run: |
+          list=$(sed -nE 's/^AXI_SMOKE_CORES \?= (.*)$/\1/p' Makefile)
+          test -n "$list" || { echo "AXI_SMOKE_CORES not found in Makefile"; exit 1; }
+          echo "cores=$(printf '%s' "$list" | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
+          echo "matrix: $list"
+
+  # The seven focused simulations plus the address-map check: everything
+  # `make axi-smoke` runs before its per-core sweep.
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Install toolchain runtime libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libmpc3 libmpfr6
+
+      - name: Cache RISC-V toolchain
+        id: riscv-toolchain
+        uses: actions/cache@v4
+        with:
+          path: .tools/riscv
+          key: riscv-toolchain-v1
+
+      - name: Download RISC-V toolchain
+        if: steps.riscv-toolchain.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          curl -fsSL -o toolchain.tar.xz \
+            https://github.com/patrickerich/corejack/releases/download/toolchain-v1/corejack-riscv-toolchain-16.1.0-x86_64.tar.xz
+          echo "14369c17d88f567665dc23fb0f6fba19098595e530e616060aa5d3e9c254231b  toolchain.tar.xz" \
+            | sha256sum -c -
+          mkdir -p .tools
+          tar -C .tools -xf toolchain.tar.xz
+          mv .tools/riscv64-unknown-elf .tools/riscv
+          rm -f toolchain.tar.xz
+
+      - name: Setup Verilator
+        # Keep in lockstep with smoke.yml; see the note there on why v5.048.
+        uses: veryl-lang/setup-verilator@v2
+        with:
+          version: '5.048'
+
+      - name: Run focused simulations
+        shell: bash
+        run: |
+          touch .tools/FUSESOC_IGNORE
+          source ./sourceme.sh
+          make axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim \
+               mem-ss-bench mem-bw-bench debug-sim cva6-reset-sim
+
+  # `hello_world` on each core in AXI_SMOKE_CORES, one runner apiece.
+  # CV32E40X is absent because it is excluded there -- see
+  # docs/cv32e40x_boot_issue.md.
+  cores:
+    needs: core-list
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      # One core failing should not hide the state of the other six.
+      fail-fast: false
+      matrix:
+        core: ${{ fromJSON(needs.core-list.outputs.cores) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Install toolchain runtime libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libmpc3 libmpfr6
+
+      - name: Cache RISC-V toolchain
+        id: riscv-toolchain
+        uses: actions/cache@v4
+        with:
+          path: .tools/riscv
+          key: riscv-toolchain-v1
+
+      - name: Download RISC-V toolchain
+        if: steps.riscv-toolchain.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          curl -fsSL -o toolchain.tar.xz \
+            https://github.com/patrickerich/corejack/releases/download/toolchain-v1/corejack-riscv-toolchain-16.1.0-x86_64.tar.xz
+          echo "14369c17d88f567665dc23fb0f6fba19098595e530e616060aa5d3e9c254231b  toolchain.tar.xz" \
+            | sha256sum -c -
+          mkdir -p .tools
+          tar -C .tools -xf toolchain.tar.xz
+          mv .tools/riscv64-unknown-elf .tools/riscv
+          rm -f toolchain.tar.xz
+
+      - name: Setup Verilator
+        uses: veryl-lang/setup-verilator@v2
+        with:
+          version: '5.048'
+
+      - name: Run hello_world on ${{ matrix.core }}
+        shell: bash
+        run: |
+          touch .tools/FUSESOC_IGNORE
+          source ./sourceme.sh
+          make sim-run-sw CORE=${{ matrix.core }} SW_APP=hello_world
