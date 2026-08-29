@@ -625,7 +625,10 @@ cva6-reset-sim: deps-base deps-cva6
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
 		fusesoc --cores-root . run --clean --target cva6-reset-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
-debug-sim: deps-base
+# Appends the ibex, cv32e40p and cv32e40s filesets (see corejack.core), so it
+# needs those cores fetched -- deps-base alone leaves fusesoc unable to find
+# them on a clean checkout.
+debug-sim: deps-base deps-cv32e40p deps-cv32e40s
 	@wave_file="$(SIM_WAVE_FILE)"; \
 	if [ -z "$$wave_file" ]; then wave_file="$(SIM_WAVE_DIR)/debug-sim.$(SIM_WAVE_FORMAT)"; fi; \
 	extra_args=(); \

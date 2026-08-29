@@ -7,15 +7,26 @@ name: regression
 # docs/simulation.md for what each simulation covers and why 14 simulations
 # produce 35 tests.
 #
-# Not on the PR path: `smoke.yml` guards pull requests in about a minute. This
-# is the heavier gate, and it is free -- GitHub Actions bills nothing for public
-# repositories on standard runners.
+# `smoke.yml` stays the fast gate on every PR (about a minute). This is the
+# heavier one, and runs only on PRs that touch the RTL, testbenches, software,
+# descriptors, or the Makefile.
 
 on:
+  # PRs to main only. No schedule: nothing runs unless a pull request asks for
+  # it, so CI usage stays predictable. The paths filter keeps documentation-only
+  # PRs off these eight runners.
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'rtl/**'
+      - 'tb/**'
+      - 'sw/**'
+      - 'cfg/**'
+      - 'corejack.core'
+      - 'Makefile'
+      - '.github/workflows/regression.yml'
   workflow_dispatch:
-  schedule:
-    # 03:00 UTC nightly.
-    - cron: '0 3 * * *'
 
 permissions:
   contents: read
