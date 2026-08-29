@@ -7,9 +7,9 @@ orientation for human contributors. It is intentionally short: it points into
 the canonical docs rather than duplicating them. Start here, then follow the
 links.
 
-- Full doc index: [`docs/README.md`](docs/README.md)
+- Full doc index: [`docs/source/index.md`](docs/source/index.md)
 - Contribution workflow: [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- Source-tree map: [`docs/repository_layout.md`](docs/repository_layout.md)
+- Source-tree map: [`docs/source/repository_layout.md`](docs/source/repository_layout.md)
 
 ## What CoreJack is
 
@@ -19,7 +19,7 @@ through a thin per-core *adapter*, and across every supported FPGA board through
 a thin board *wrapper*. The user-facing selection is just
 `CORE=<core> BOARD=<board>`. The fabric is a production-style AXI4 crossbar with
 APB peripherals, `riscv-dbg`, CLINT, PLIC, and banked SRAM — *ASIC-aware*, not
-FPGA-only (but not silicon-validated). See [`docs/about.md`](docs/about.md).
+FPGA-only (but not silicon-validated). See [`docs/source/about.md`](docs/source/about.md).
 
 ## Environment and setup
 
@@ -32,7 +32,7 @@ make bender && make deps           # fetch external HDL dependencies (do this fi
 `sourceme.sh` activates a project-local `.venv` (Python 3.10+, default
 `python3.13`) and prepends repo-local tools from `.tools/` (Verilator, Verible,
 RISC-V toolchain) to `PATH` when present. Different flows need different host
-tools — use `FLOW=sim|fpga|debug`. See [`docs/tooling.md`](docs/tooling.md).
+tools — use `FLOW=sim|fpga|debug`. See [`docs/source/tooling.md`](docs/source/tooling.md).
 
 ## Core / board selection model
 
@@ -54,7 +54,7 @@ make smoke                         # cocotb+Verilator APB smoke; no RISC-V toolc
 make sim-run-sw SW_APP=hello_world # build a bare-metal app and run it in sim (needs toolchain)
 make axi-smoke                     # full fabric/platform simulation regression set
 make sw-build SW_APP=<app>         # build software only
-make support-matrix                # regenerate docs/support_matrix.md from descriptors
+make support-matrix                # regenerate docs/source/support_matrix.md from descriptors
 
 # FPGA / debug (needs Vivado; debug needs OpenOCD + riscv gdb)
 make fpga-bit CORE=<core> BOARD=<board>
@@ -98,7 +98,7 @@ check that repository (not `setup-verilator`, and not upstream
   descriptor resolution, lint/check, scaffolding, and host runtime only — it
   **never** generates RTL.
 - **Style:** CoreJack-owned RTL follows the lowRISC/OpenTitan SV style — see
-  [`docs/coding_style.md`](docs/coding_style.md). One module per file (filename
+  [`docs/source/coding_style.md`](docs/source/coding_style.md). One module per file (filename
   matches the module name); `logic` over `wire`/`reg`; `always_ff`/`always_comb`
   (never plain `always`); `UpperCamelCase` for parameters/localparams/enum
   members; `ALL_CAPS_WITH_UNDERSCORES` reserved for `` `define `` macros only;
@@ -111,8 +111,8 @@ check that repository (not `setup-verilator`, and not upstream
   tool-verible`). Still, flag any construct likely to lint poorly (inferred
   latches, incomplete sensitivity, implicit nets).
 - Changing a descriptor's support status requires regenerating
-  `docs/support_matrix.md` and committing it with the change; promote status
-  only after [`docs/core_acceptance_checklist.md`](docs/core_acceptance_checklist.md)
+  `docs/source/support_matrix.md` and committing it with the change; promote status
+  only after [`docs/source/core_acceptance_checklist.md`](docs/source/core_acceptance_checklist.md)
   passes.
 - Git, versioning (VLNV lockstep across `.core` files), and dependency policy
   are in [`CONTRIBUTING.md`](CONTRIBUTING.md). Update
@@ -123,7 +123,7 @@ check that repository (not `setup-verilator`, and not upstream
 
 - System fabric is the PULP `axi_xbar` crossbar (48-bit addr / 64-bit data).
   RV32 cores reach it via split OBI → `soc_obi_to_axi`; CVA6 is AXI-native.
-  See [`docs/axi4_fabric.md`](docs/axi4_fabric.md).
+  See [`docs/source/axi4_fabric.md`](docs/source/axi4_fabric.md).
 - **Single-beat AXI invariant:** all fabric traffic is `len == 0`, enforced by
   `rtl/bus/soc_axi_protocol_checker.sv`; the iDMA backend sits behind a burst
   splitter. Keep new initiators/targets single-beat unless the fabric is
@@ -137,9 +137,9 @@ check that repository (not `setup-verilator`, and not upstream
   **`mem_ss_pkg::MemNumBanksDefault`** — `soc_top.MemNumBanks` defaults to it and
   `sw/Makefile` reads it back via `validate_target.py --mem-num-banks` to split
   the `bank_<n>.hex` preload, so don't write the number anywhere else. See
-  [`docs/mem_ss_redesign.md`](docs/mem_ss_redesign.md).
+  [`docs/source/mem_ss_redesign.md`](docs/source/mem_ss_redesign.md).
 - **CV32E40X is intentionally excluded** from default regressions — see
-  [`docs/cv32e40x_boot_issue.md`](docs/cv32e40x_boot_issue.md). Do not re-enable
+  [`docs/source/cv32e40x_boot_issue.md`](docs/source/cv32e40x_boot_issue.md). Do not re-enable
   it in regression sets without resolving that.
 - External IP is fetched, not vendored-in-tree: PULP `axi`, `apb`,
   `common_cells`, `idma`, `clint`, `obi`, `apb_uart`, `riscv-dbg` via Bender;

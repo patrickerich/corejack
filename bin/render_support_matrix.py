@@ -11,7 +11,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CORE_DIR = REPO_ROOT / "cfg" / "cores"
 BOARD_DIR = REPO_ROOT / "cfg" / "boards"
-OUT_PATH = REPO_ROOT / "docs" / "support_matrix.md"
+OUT_PATH = REPO_ROOT / "docs" / "source" / "support_matrix.md"
 
 
 def display_path(path: Path) -> str:
@@ -240,7 +240,7 @@ def render() -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="fail if docs/support_matrix.md is stale")
+    parser.add_argument("--check", action="store_true", help="fail if docs/source/support_matrix.md is stale")
     parser.add_argument("--out", type=Path, default=OUT_PATH)
     args = parser.parse_args()
 

@@ -126,21 +126,19 @@ Software and validation flow:
   for the supported core/board pairs.
 - Keep the UART SRAM loader path as the supported FPGA load flow for the
   non-debug cores (SERV, PicoRV32, CVW/Wally).
-- **Re-evaluate what CI covers.** `.github/workflows/smoke.yml` runs the fast
-  descriptor checks plus `make smoke`, and nothing else: no core-specific
-  simulation reaches CI at all - not `hello_world` on any core, not
-  `debug-sim`, not `cva6-reset-sim`. The constraint is the RISC-V toolchain,
-  which CI does not install, so every flow going through `sim-run-sw` is out of
-  reach; `make smoke` is the one simulation that runs without it. Everything
-  else lives in `make axi-smoke`, a local pre-PR gate that depends on
-  contributor discipline rather than enforcement.
+- **Extend what CI covers beyond the current regression.** CI now installs a
+  prebuilt RISC-V toolchain from the `toolchain-v1` release and runs the full
+  `make axi-smoke` set: `.github/workflows/smoke.yml` guards every PR in about
+  a minute, and `.github/workflows/regression.yml` runs the seven focused
+  simulations plus `hello_world` on all seven supported cores, split across
+  runners so the wall time is about six minutes. `axi-smoke` is therefore
+  enforced rather than left to contributor discipline.
 
-  The tractable direction is not running everything in CI but caching a
-  *prebuilt* RISC-V toolchain - the same policy already applied to Verilator,
-  and for the same reason - so a single representative core's `hello_world`
-  and `debug-sim` fit inside the existing 20-minute budget. Worth revisiting
-  when a regression escapes to `main` that `axi-smoke` would have caught, or
-  when the contributor set grows beyond people who run it by habit.
+  What still only runs locally: the other bare-metal apps (`self_check`,
+  `plic_smoke`, `dma_smoke`, `timer_uart_smoke`), Zephyr, and everything
+  needing hardware or Vivado. Adding apps is cheap - another matrix axis - so
+  the question is which of them earn a place on the PR path rather than
+  whether it is possible.
 
 ## Platform Architecture Direction
 

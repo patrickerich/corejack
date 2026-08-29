@@ -7,7 +7,7 @@ projects.
 
 ## Project Orientation
 
-- [Top-level README](../README.md) - purpose, quick start, current status,
+- [Top-level README](../../README.md) - purpose, quick start, current status,
   and pointers back into this index.
 - [About CoreJack](about.md) - motivation, target audience, what makes
   CoreJack different, and a factual comparison against Chipyard, LiteX,
@@ -73,3 +73,11 @@ projects.
 
 - [CV32E40X boot issue](cv32e40x_boot_issue.md) - current reason CV32E40X is
   not part of the supported regression set.
+
+```{toctree}
+:hidden:
+:glob:
+:maxdepth: 2
+
+*
+```

@@ -94,7 +94,7 @@ if [[ "${skip_build}" == "0" ]]; then
   #   musl    - only reachable from the separate `musl:` target in upstream's
   #             Makefile.in; `newlib:` depends on gcc/binutils/newlib/gdb alone.
   #             git.musl-libc.org was unreachable on 2026-08-29.
-  # See docs/tooling.md for the full reasoning.
+  # See docs/source/tooling.md for the full reasoning.
   skip_submodules=(dejagnu musl)
   skip_args=()
   for sm in "${skip_submodules[@]}"; do
@@ -275,11 +275,21 @@ if [[ "${keep_dist}" == "1" ]]; then
   echo "  $(du -h "${tarball}" | cut -f1)  ${tarball}"
   cat "${tarball}.sha256"
   echo
+  floor="$(find "${prefix}/libexec" -name 'cc1' -print -quit | xargs objdump -T 2>/dev/null \
+    | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1)"
   echo "Host ABI floor -- a runner older than this cannot use the tarball:"
-  printf '  glibc '
-  find "${prefix}/libexec" -name 'cc1' -print -quit | xargs objdump -T 2>/dev/null \
-    | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tail -1
-  echo "  Build inside an older-glibc container to lower this floor."
+  echo "  glibc ${floor:-unknown}"
+  # Only advise the container when the floor is actually too high to publish.
+  # `make toolchain-riscv-container` builds against Ubuntu 22.04 (glibc 2.35),
+  # which every current GitHub runner satisfies; printing the advice after such
+  # a build would be telling the user to do what they just did.
+  if [[ -n "${floor}" ]] \
+     && [[ "$(printf '%s\nGLIBC_2.35\n' "${floor}" | sort -V | tail -1)" != "GLIBC_2.35" ]] \
+     && [[ "${floor}" != "GLIBC_2.35" ]]; then
+    echo "  Above the glibc 2.35 that CI runners provide. Rebuild with:"
+    echo "    make toolchain-riscv-container"
+  fi
+  echo "  The tarball also needs libmpc.so.3 and libmpfr.so.6 on the host."
 else
   rm -f "${tarball}" "${tarball}.sha256"
   rmdir "${dist_dir}" 2>/dev/null || true

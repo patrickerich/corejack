@@ -70,7 +70,7 @@ cfg/cores/<core>.yaml
 ```
 
 The current reference descriptor is
-[`cfg/cores/ibex.yaml`](../cfg/cores/ibex.yaml).
+[`cfg/cores/ibex.yaml`](../../cfg/cores/ibex.yaml).
 
 Suggested fields:
 
@@ -214,7 +214,7 @@ cfg/boards/<board>.yaml
 ```
 
 The current reference descriptor is
-[`cfg/boards/axku5.yaml`](../cfg/boards/axku5.yaml).
+[`cfg/boards/axku5.yaml`](../../cfg/boards/axku5.yaml).
 
 Suggested fields:
 
@@ -273,7 +273,7 @@ contain SoC policy that belongs in the generic platform integration.
 
 The expected smoke-test UART text is deliberately *not* a board field. It is a
 property of the firmware and of the software load path, identical across boards,
-so it lives once in [`cfg/validation/uart_banners.yaml`](../cfg/validation/uart_banners.yaml)
+so it lives once in [`cfg/validation/uart_banners.yaml`](../../cfg/validation/uart_banners.yaml)
 and is resolved by `bin/validate_target.py --uart-banner`:
 
 ```bash

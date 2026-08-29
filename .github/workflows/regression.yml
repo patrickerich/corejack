@@ -4,7 +4,7 @@ name: regression
 # simulations run back to back -- 25 minutes on four cores. Here the seven
 # focused simulations take one runner and the seven-core sweep takes one runner
 # each, so wall time is the slowest job rather than the sum. See
-# docs/simulation.md for what each simulation covers and why 14 simulations
+# docs/source/simulation.md for what each simulation covers and why 14 simulations
 # produce 35 tests.
 #
 # `smoke.yml` stays the fast gate on every PR (about a minute). This is the
@@ -108,7 +108,7 @@ jobs:
 
   # `hello_world` on each core in AXI_SMOKE_CORES, one runner apiece.
   # CV32E40X is absent because it is excluded there -- see
-  # docs/cv32e40x_boot_issue.md.
+  # docs/source/cv32e40x_boot_issue.md.
   cores:
     needs: core-list
     runs-on: ubuntu-latest

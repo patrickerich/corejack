@@ -24,7 +24,7 @@ the pre-isolation RTL produces identical numbers and passes, so it cannot tell
 a working axi_isolate stage from its absence. What it does cover is that a real
 CVA6 survives ndmreset without stalling the fabric or failing to restart, which
 is worth having and did not exist before. Constructing the condition needs a
-hook that stalls the target while the reset lands; see docs/open_items.md.
+hook that stalls the target while the reset lands; see docs/source/open_items.md.
 """
 
 import cocotb

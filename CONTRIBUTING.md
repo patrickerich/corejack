@@ -59,7 +59,7 @@ The scaffold creates a descriptor, wrapper, XDC placeholder, and board FuseSoC
 core. It intentionally leaves board-specific pin constraints and clocking for
 manual review.
 
-See [`docs/board_porting.md`](docs/board_porting.md).
+See [`docs/source/board_porting.md`](docs/source/board_porting.md).
 
 ## Adding A Core
 
@@ -80,7 +80,7 @@ Generated cores start as `planned`. The generated adapter is only a placeholder;
 replace it with a real protocol adapter before trying to promote simulation or
 FPGA support.
 
-See [`docs/core_porting.md`](docs/core_porting.md).
+See [`docs/source/core_porting.md`](docs/source/core_porting.md).
 
 ## Support Status Promotion
 
@@ -96,10 +96,10 @@ make support-matrix
 make support-matrix-check
 ```
 
-Commit the regenerated [`docs/support_matrix.md`](docs/support_matrix.md) with
+Commit the regenerated [`docs/source/support_matrix.md`](docs/source/support_matrix.md) with
 the descriptor change.
 
-Use [`docs/core_acceptance_checklist.md`](docs/core_acceptance_checklist.md) as
+Use [`docs/source/core_acceptance_checklist.md`](docs/source/core_acceptance_checklist.md) as
 the promotion gate for simulation, FPGA, debug, and Zephyr status.
 
 ## FPGA And Hardware Work
@@ -118,7 +118,7 @@ make fpga-run-sw CORE=<core> BOARD=axku5 SW_APP=hello_world
 ```
 
 For cores without OpenOCD/GDB debug support, use the UART SRAM loader flow
-documented in [`docs/uart_sram_loader.md`](docs/uart_sram_loader.md).
+documented in [`docs/source/uart_sram_loader.md`](docs/source/uart_sram_loader.md).
 
 ## Documentation
 
@@ -130,13 +130,13 @@ Use `logs/open_items.md` or another ignored file under `logs/` for local
 planning notes. Promote stable, generally useful plans into committed
 documentation such as `docs/` or `README.md`.
 
-Start from [`docs/README.md`](docs/README.md) when adding or updating
+Start from [`docs/source/index.md`](docs/source/index.md) when adding or updating
 documentation.
 
 ### Architecture diagrams
 
 The SoC architecture diagrams live in
-[`docs/media/corejack_soc.drawio`](docs/media/corejack_soc.drawio); each
+[`docs/source/media/corejack_soc.drawio`](docs/source/media/corejack_soc.drawio); each
 tab is also exported as an SVG sibling (`corejack_soc_<slug>.svg`) that
 several docs embed inline. If you edit the `.drawio`, re-export with:
 
@@ -152,7 +152,7 @@ name, not the page index).
 ## Coding Style
 
 CoreJack-owned RTL should follow the lowRISC/OpenTitan SystemVerilog coding
-style as the default intent. See [`docs/coding_style.md`](docs/coding_style.md).
+style as the default intent. See [`docs/source/coding_style.md`](docs/source/coding_style.md).
 
 Do not reformat third-party, vendored, Bender-managed, or generated dependency
 code just to match local style. Keep style cleanup scoped to CoreJack-owned
@@ -210,9 +210,9 @@ A few notes on the git commands above:
 
 For the rationale behind the FuseSoC version constraint (and why it can't be
 inherited from an environment variable), see
-[`docs/dependency_management.md`](docs/dependency_management.md). For how the
+[`docs/source/dependency_management.md`](docs/source/dependency_management.md). For how the
 bitstream manifest records build identity per-build, see
-[`docs/fpga_sw_flow.md`](docs/fpga_sw_flow.md).
+[`docs/source/fpga_sw_flow.md`](docs/source/fpga_sw_flow.md).
 
 ## Dependency Policy
 

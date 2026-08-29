@@ -15,6 +15,10 @@ RISCV_GNU_TOOLCHAIN_COMMIT ?= 96e1c125620ec403962c8536ecbbde20878c5e44
 RISCV_MULTILIB_GENERATOR ?= rv32i-ilp32--;rv32imc-ilp32--;rv32imcb-ilp32--;rv64imc-lp64--;rv64gc-lp64d--
 RISCV_TOOLCHAIN_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
 RISCV_TOOLCHAIN_DIST_DIR ?= $(TOOLS_DIR)/dist
+# The documentation build lives in docs/Makefile, the standard Sphinx layout.
+# These are thin wrappers over it, the same way sw-build wraps $(MAKE) -C sw;
+# anything without a wrapper is reachable directly, e.g. make -C docs linkcheck.
+DOCS_PORT  ?= 8000
 TOOLCHAIN_BUILDER_IMAGE ?= corejack-toolchain-builder
 TOOLCHAIN_BUILDER_FILE ?= bin/toolchain-builder.Containerfile
 PODMAN ?= podman
@@ -111,7 +115,7 @@ FLOW           ?= all
 AXI_SMOKE_CORES ?= ibex cv32e40p cv32e40s cva6 serv picorv32 cvw
 
 DRAWIO         ?= drawio
-DRAWIO_SRC     ?= docs/media/corejack_soc.drawio
+DRAWIO_SRC     ?= docs/source/media/corejack_soc.drawio
 DRAWIO_SVG_DIR ?= docs/media
 
 ifeq ($(ALLOW_PLANNED),1)
@@ -144,7 +148,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender docs docs-serve docs-preview docs-clean toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -152,6 +156,9 @@ help:
 	@printf '  %-18s %s\n' 'toolchain-riscv' 'build+package+install local RISC-V GNU multilib toolchain into TOOLS_DIR'
 	@printf '  %-18s %s\n' 'toolchain-riscv-dist' 'same, but keep the tarball+sha256 in RISCV_TOOLCHAIN_DIST_DIR for upload'
 	@printf '  %-18s %s\n' 'toolchain-riscv-container' 'build the toolchain inside Ubuntu 22.04 (podman) for a portable artifact'
+	@printf '  %-18s %s\n' 'docs' 'build the Sphinx documentation into docs/_build/html'
+	@printf '  %-18s %s\n' 'docs-serve' 'build the docs and serve them on http://localhost:$$(DOCS_PORT)'
+	@printf '  %-18s %s\n' 'docs-preview' 'rebuild-on-save docs server with live browser reload'
 	@printf '  %-18s %s\n' 'tool-verilator' 'build optional local Verilator into TOOLS_DIR'
 	@printf '  %-18s %s\n' 'tool-verible' 'install optional local Verible lint/format tools into TOOLS_DIR'
 	@printf '  %-18s %s\n' 'zephyr-init' 'initialize/update project-local Zephyr workspace'
@@ -173,10 +180,10 @@ help:
 	@printf '  %-18s %s\n' 'deps-cva6' 'fetch CVA6 core dependency'
 	@printf '  %-18s %s\n' 'new-board' 'create descriptor/wrapper/XDC/FuseSoC scaffold for BOARD'
 	@printf '  %-18s %s\n' 'new-core' 'create planned descriptor/adapter/FuseSoC scaffold for CORE'
-	@printf '  %-18s %s\n' 'support-matrix' 'generate docs/support_matrix.md from descriptors'
+	@printf '  %-18s %s\n' 'support-matrix' 'generate docs/source/support_matrix.md from descriptors'
 	@printf '  %-18s %s\n' 'version-check' 'verify all .core files agree on a single VLNV version'
 	@printf '  %-18s %s\n' 'bump-version' 'rewrite every CoreJack VLNV version (set VERSION=X.Y.Z)'
-	@printf '  %-18s %s\n' 'drawio-svg' 'export each docs/media/corejack_soc.drawio tab to its own SVG'
+	@printf '  %-18s %s\n' 'drawio-svg' 'export each docs/source/media/corejack_soc.drawio tab to its own SVG'
 	@printf '  %-18s %s\n' 'python-tests' 'run pytest coverage for Python utility scripts'
 	@printf '  %-18s %s\n' 'flist' 'generate Bender flist at build/flist.f'
 	@printf '  %-18s %s\n' 'list-targets' 'list descriptor-backed CORE and BOARD selections'
@@ -292,7 +299,7 @@ toolchain-riscv-dist:
 
 # Containerised build. The native targets above are unchanged and remain the
 # right choice for a local-only toolchain; this one exists to produce an
-# artifact that also runs on older CI runners. See docs/tooling.md.
+# artifact that also runs on older CI runners. See docs/source/tooling.md.
 #
 # No "does the image exist" check: podman build is already idempotent. With an
 # unchanged Containerfile it hits its layer cache and returns in ~1s, and when
@@ -313,6 +320,18 @@ toolchain-riscv-container: toolchain-builder-image
 	@$(PODMAN) run --rm --userns=keep-id -e HOME=/tmp \
 	   -v "$(CURDIR):/repo:z" -w /repo $(TOOLCHAIN_BUILDER_IMAGE) \
 	   make toolchain-riscv-dist RISCV_TOOLCHAIN_JOBS=$(RISCV_TOOLCHAIN_JOBS)
+
+docs:
+	@$(MAKE) -C docs html
+
+docs-serve:
+	@$(MAKE) -C docs serve PORT=$(DOCS_PORT)
+
+docs-preview:
+	@$(MAKE) -C docs preview PORT=$(DOCS_PORT)
+
+docs-clean:
+	@$(MAKE) -C docs clean
 
 tool-verilator:
 	@VERILATOR_REF="$(VERILATOR_VERSION)" \
@@ -679,7 +698,7 @@ plic-sim: deps-base
 # System-level memory-bandwidth benchmark: a CPU streaming loop against a
 # concurrent iDMA copy, timed with the mcycle CSR so the figures are unaffected
 # by the baud-throttled UART. This is the instrument that sizes the fabric's
-# outstanding depths - see docs/axi4_fabric.md for the reference numbers.
+# outstanding depths - see docs/source/axi4_fabric.md for the reference numbers.
 # Needs a core with the standard counters (ibex, cv32e40*, cva6).
 mem-bw-bench:
 	@$(MAKE) sim-run-sw SW_APP=mem_bw_smoke SIM_TIMEOUT_CYCLES="$(MEM_BW_TIMEOUT_CYCLES)"
@@ -772,7 +791,7 @@ smoke: deps-base
 		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 plan:
-	@sed -n '1,240p' docs/roadmap.md
+	@sed -n '1,240p' docs/source/roadmap.md
 
 clean:
 	@rm -rf build sw/build tb/sim_build tb/results.xml deps

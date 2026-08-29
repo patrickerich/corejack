@@ -6,7 +6,7 @@
 # runner satisfies, so an artifact built here runs everywhere we care about --
 # including back on the development host, since glibc is backward compatible.
 #
-# Used via `make toolchain-riscv-container`; see docs/tooling.md.
+# Used via `make toolchain-riscv-container`; see docs/source/tooling.md.
 
 # Pinned by digest, not by tag: `22.04` is rebuilt for security updates and so
 # names different bytes over time. Same discipline as pinning the toolchain to a
