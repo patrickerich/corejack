@@ -31,7 +31,7 @@ prints over the platform APB UART.
 
 For the full positioning story, target users, and a factual comparison
 against Chipyard, LiteX, Rocket Chip, OpenTitan, and Cheshire/Carfield,
-see [`docs/about.md`](docs/about.md).
+see [`docs/source/about.md`](docs/source/about.md).
 
 ## Project Status
 
@@ -58,12 +58,12 @@ Validated baseline:
   capability; see the support matrix)
 
 CV32E40X is intentionally excluded from default regressions; see
-[`docs/cv32e40x_boot_issue.md`](docs/cv32e40x_boot_issue.md).
+[`docs/source/cv32e40x_boot_issue.md`](docs/source/cv32e40x_boot_issue.md).
 
 The descriptor-derived per-core/board status table lives in
-[`docs/support_matrix.md`](docs/support_matrix.md); regenerate it with
+[`docs/source/support_matrix.md`](docs/source/support_matrix.md); regenerate it with
 `make support-matrix`. For the active direction across cores, boards, and
-software, see [`docs/roadmap.md`](docs/roadmap.md).
+software, see [`docs/source/roadmap.md`](docs/source/roadmap.md).
 
 ## Getting Started
 
@@ -99,7 +99,7 @@ make toolchain-riscv     # bare-metal multilib GCC/Newlib/GDB into TOOLS_DIR/ris
 make tool-verible        # pinned Verible lint/format tools into TOOLS_DIR/verible/
 ```
 
-See [`docs/tooling.md`](docs/tooling.md) for the full setup, pinned
+See [`docs/source/tooling.md`](docs/source/tooling.md) for the full setup, pinned
 versions, and observed validation versions.
 
 ### Quick Start
@@ -121,7 +121,7 @@ make sim-run-sw SW_APP=hello_world
 
 For the full simulation flow - the cocotb + Verilator setup, the available
 simulation targets, and waveform dumping - see
-[`docs/simulation.md`](docs/simulation.md).
+[`docs/source/simulation.md`](docs/source/simulation.md).
 
 For FPGA bring-up, build a bitstream, program the board, and load software
 through OpenOCD/GDB:
@@ -135,14 +135,14 @@ make fpga-run-sw SW_APP=hello_world GDB_TIMEOUT=10      # terminal 2
 
 For cores without a usable RISC-V debug interface (SERV, PicoRV32, CVW), use
 the UART SRAM loader instead of OpenOCD/GDB; see
-[`docs/uart_sram_loader.md`](docs/uart_sram_loader.md).
+[`docs/source/uart_sram_loader.md`](docs/source/uart_sram_loader.md).
 
 Check the descriptor matrix for a board with
 `make target-check BOARD=axku5`.
 
 ## Documentation
 
-The full documentation index is in [`docs/README.md`](docs/README.md). It
+The full documentation index is in [`docs/source/index.md`](docs/source/index.md). It
 groups documentation by:
 
 - project orientation - support matrix, repository layout, roadmap,

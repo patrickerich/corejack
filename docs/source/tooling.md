@@ -134,16 +134,65 @@ script additionally warns on stderr if the source tree has drifted from the
 pin.
 
 Finally, the run reports the artifact's host ABI floor (the minimum glibc a
-machine needs to execute it). A toolchain built on a modern distribution will
-not run on older runners; build inside an older-glibc container to lower that
-floor before publishing.
+machine needs to execute it), and says so only when that floor is too high to
+publish.
 
-### dejagnu submodule is intentionally skipped
+### Building the artifact in a container
 
-The `riscv-gnu-toolchain` repository pulls in `dejagnu` as a submodule. dejagnu
-is the GNU test framework used by the `make check` test suite of binutils,
-gcc, and gdb - it is **not** required for `make newlib`, which is the target
-CoreJack actually builds.
+```bash
+make toolchain-riscv-container     # build + package + install, in Ubuntu 22.04
+```
+
+An artifact built natively links against the host's glibc and then refuses to
+start on a CI runner with an older one - built on RHEL/AlmaLinux 10 it required
+`GLIBC_2.38`, which no current GitHub runner provides. Building against Ubuntu
+22.04 (glibc 2.35) instead brings the floor to `GLIBC_2.34`, low enough for
+every runner and still fine on a newer development host, since glibc is
+backward compatible.
+
+Nothing about the packaging changes - the target runs the same
+`make toolchain-riscv-dist` inside the container, with the repository
+bind-mounted so the build tree and the tarball land on the host as usual. The
+result was validated by compiling all 13 `sw/c` sources across all five
+multilibs with both toolchains: the objects are byte-identical, so a different
+host compiler (gcc 11.4 rather than 14.3.1) changes the ABI floor and nothing
+else.
+
+The recipe is [`bin/toolchain-builder.Containerfile`](../../bin/toolchain-builder.Containerfile).
+It runs under **podman**, rootless - no daemon and no `sudo`, and it is the
+supported container tool on RHEL-family hosts. Four details in it are
+load-bearing:
+
+| Detail | Why |
+| --- | --- |
+| base image pinned by **digest**, not by the `22.04` tag | the tag is rebuilt for security updates and so names different bytes over time; the same discipline as pinning the toolchain to a commit |
+| `gettext` in the package list | not in upstream's documented prerequisites, but without `msgfmt` binutils and gcc fail their install step on missing `po/*.gmo` |
+| `--userns=keep-id` on the run | rootless podman maps only the invoking user's uid and *primary* gid, so a repository owned by any other group appears as `nobody` inside and GCC's `install-headers-tar` cannot restore ownership |
+| the repository bind-mounted from the host | the build tree reaches ~33 GB; inside container storage that lands on the wrong partition, and the clone would not persist between runs |
+
+The published tarball still needs `libmpc.so.3` and `libmpfr.so.6` on the
+machine that runs it. Both arrive with any C compiler, so runner images have
+them, but CI installs them explicitly rather than relying on that.
+
+To bump the base image deliberately:
+
+```bash
+podman pull docker.io/library/ubuntu:22.04
+podman image inspect docker.io/library/ubuntu:22.04 --format '{{index .RepoDigests 0}}'
+```
+
+then edit the `FROM` line and rebuild.
+
+### Some submodules are intentionally skipped
+
+`riscv-gnu-toolchain` registers submodules for every target it can build, not
+just the one CoreJack uses. `make newlib` reaches only binutils, gcc, newlib
+and gdb; the rest belong to other top-level targets. Two are skipped outright,
+because fetching them buys nothing and puts the build at the mercy of hosts
+that are not GitHub.
+
+**dejagnu** is the GNU test framework used by the `make check` test suite of
+binutils, gcc, and gdb - **not** required for `make newlib`.
 
 `dejagnu`'s upstream lives at `git.savannah.gnu.org` and periodically prunes
 unadvertised commits. When that happens, a recursive submodule fetch fails
@@ -155,17 +204,32 @@ fatal: Fetched in submodule path 'dejagnu', but it did not contain <sha>.
        Direct fetching of that commit failed.
 ```
 
-To keep the toolchain build robust against this kind of upstream churn,
-`bin/build_riscv_toolchain.sh` explicitly skips dejagnu using
-`submodule.dejagnu.update=none`, after deinitializing any half-broken dejagnu
-state left by an earlier attempt. The script prints a `note:` line during the
-submodule step so this is visible while building.
+**musl** is reachable only from upstream's separate `musl:` target, never from
+`newlib:`. Its host `git.musl-libc.org` was unreachable on 2026-08-29 and the
+clone timed out after 22 minutes of otherwise successful work:
 
-This skip is safe because CoreJack does not run the upstream toolchain test
-suite - it only builds the cross-compiler, binutils, gdb, and newlib. If you
-ever want to run `make check` yourself, point `submodule.dejagnu.url` at a
-working mirror and re-init the submodule manually; this is outside the
-standard CoreJack flow.
+```text
+fatal: unable to access 'https://git.musl-libc.org/git/musl/':
+       Failed to connect to git.musl-libc.org port 443 after 133828 ms
+```
+
+To keep the toolchain build robust against this kind of upstream churn,
+`bin/build_riscv_toolchain.sh` carries a `skip_submodules` list - currently
+`dejagnu` and `musl` - deinitializing each and passing
+`submodule.<name>.update=none`, after clearing any half-broken state left by an
+earlier attempt. The script prints a `note:` line per skipped submodule during
+the submodule step so this is visible while building.
+
+These skips are safe because CoreJack builds only the cross-compiler,
+binutils, gdb, and newlib, and never runs the upstream test suite or targets a
+Linux userland. If you ever want `make check` yourself, point
+`submodule.dejagnu.url` at a working mirror and re-init it manually; that is
+outside the standard CoreJack flow.
+
+The remaining submodules - `llvm`, `qemu`, `spike`, `pk`, `uclibc-ng`, `glibc`
+- are still cloned even though `make newlib` does not build them, and account
+for most of the ~12 GB source tree. Trimming those is an open optimisation, not
+a correctness issue.
 
 LLVM/Clang is a plausible future toolchain backend, but GCC/Newlib remains the
 default for now. The current priority is a reliable bare-metal flow with

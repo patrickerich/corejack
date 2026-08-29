@@ -21,7 +21,7 @@
 // egress reorder-buffer depth). This measures the redesigned subsystem's actual
 // throughput ceiling, which - unlike the old single-cycle design - is bounded by
 // the per-port outstanding depth and the per-bank slice-pipeline rate (see
-// docs/mem_ss_redesign.md section 5). All traffic is 64-bit; the subsystem's
+// docs/source/mem_ss_redesign.md section 5). All traffic is 64-bit; the subsystem's
 // 32-bit port group is unused here (NumPorts32 = 0).
 module mem_ss_bench_dut
   import mem_ss_pkg::*;

@@ -199,7 +199,7 @@ module corejack_cvw_ahb_adapter #(
     // this port for the time/timeh CSRs (rdtime), but the platform's vendored
     // PULP CLINT does not export its mtime counter, so rdtime reads 0 on CVW.
     // Software must use the memory-mapped mtime at 0x0200_bff8 instead. See
-    // docs/open_items.md.
+    // docs/source/open_items.md.
     .MTIME_CLINT   (64'h0),
     .HRDATA        (hrdata),
     .HREADY        (hready),

@@ -16,7 +16,7 @@
 // that allows one transaction at a time turns the whole of that latency into
 // throughput cost, capping a 64-bit port at ~0.11 accesses/cycle against the
 // ~1.0 soc_mem_ss itself sustains. Depth is what hides the latency, not a
-// shorter pipeline - see docs/axi4_fabric.md.
+// shorter pipeline - see docs/source/axi4_fabric.md.
 //
 // Structure per engine, made simple by soc_mem_ss returning responses to a
 // port strictly in order (so no reorder buffer is needed, unlike

@@ -106,7 +106,7 @@ compatible_cores:
 ```
 
 The expected smoke-test UART text is not a board field: it is shared by all
-boards and lives in [`cfg/validation/uart_banners.yaml`](../cfg/validation/uart_banners.yaml).
+boards and lives in [`cfg/validation/uart_banners.yaml`](../../cfg/validation/uart_banners.yaml).
 A new board needs no entry there.
 
 For each core that should build on the board, also add the board name to that

@@ -2,7 +2,7 @@
 //
 // soc_mem_ss (redesign): banked, interleaved memory subsystem.
 //
-// See docs/mem_ss_redesign.md for the full specification. Summary:
+// See docs/source/mem_ss_redesign.md for the full specification. Summary:
 //   - NumBanks interleaved 64-bit SRAM slices, each wrapped in an elastic
 //     soc_mem_bank pipe (timing break + backpressure, never drops).
 //   - NumPorts32 32-bit + NumPorts64 64-bit symmetric initiator ports, each a

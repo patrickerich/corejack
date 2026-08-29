@@ -99,7 +99,7 @@ version.
 For the user-facing bump-and-tag workflow, including the conventions for
 unprefixed VLNV versions vs. `v`-prefixed git tags and why release tags must
 be annotated, see the **Versioning And Tagging** section in
-[`CONTRIBUTING.md`](../CONTRIBUTING.md).
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 For build-time provenance of an individual bitstream (commit SHA, dirty-tree
 flag, and `git describe`), see the `.corejack_bitstream_manifest` produced by
