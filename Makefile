@@ -126,6 +126,13 @@ OPENOCD_CFG ?= rtl/platform/fpga/scripts/openocd-$(JTAG_ADAPTER).cfg
 FUSESOC_CORE_FLAGS ?= $(FUSESOC_CORE_FLAG)
 FUSESOC_FLAGS ?= $(FUSESOC_CORE_FLAGS) $(FUSESOC_BOARD_FLAG)
 FUSESOC_FLAG_ARGS := $(foreach flag,$(FUSESOC_FLAGS),--flag $(flag))
+# Edalize builds the verilated model with a plain `make -f Vtop.mk`, i.e. serial.
+# Measured: a full axi-smoke took the same 148s per core on 4 CPUs as on 16,
+# because nothing was ever parallel. Pass -j through so the model build uses the
+# machine it is on -- 4 on a CI runner, all cores locally.
+SIM_BUILD_JOBS   ?= $(shell nproc 2>/dev/null || echo 4)
+SIM_MAKE_OPTIONS ?= --make_options=-j$(SIM_BUILD_JOBS)
+
 SIM_TRACE_FUSESOC_FLAGS :=
 ifeq ($(SIM_WAVES),1)
 ifeq ($(SIM_WAVE_FORMAT),fst)
@@ -604,7 +611,7 @@ sim-run-sw: deps-core sw-build
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
 		COREJACK_TIMEOUT_CYCLES='$(SIM_TIMEOUT_CYCLES)' \
 		CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform --run_options="$$run_options"
+		fusesoc --cores-root . run --clean --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) --run_options="$$run_options"
 
 cva6-reset-sim: deps-base deps-cva6
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -616,7 +623,7 @@ cva6-reset-sim: deps-base deps-cva6
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target cva6-reset-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target cva6-reset-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 debug-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -628,7 +635,7 @@ debug-sim: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target debug-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target debug-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 axi-adapter-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -640,7 +647,7 @@ axi-adapter-sim: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target axi-adapter-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target axi-adapter-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 uart-loader-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -652,7 +659,7 @@ uart-loader-sim: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target uart-loader-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target uart-loader-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 plic-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -664,7 +671,7 @@ plic-sim: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target plic-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target plic-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 # System-level memory-bandwidth benchmark: a CPU streaming loop against a
 # concurrent iDMA copy, timed with the mcycle CSR so the figures are unaffected
@@ -684,7 +691,7 @@ mem-ss-bench: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target mem-ss-bench --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target mem-ss-bench --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 axi-addr-map-check:
 	@$(PY) bin/check_axi_addr_map.py
@@ -759,7 +766,7 @@ smoke: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 plan:
 	@sed -n '1,240p' docs/roadmap.md

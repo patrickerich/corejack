@@ -56,8 +56,45 @@ root is `build/sim/fusesoc/<core>/<target>/`, and optional waveforms land in
 `uart-loader-sim`, `plic-sim`, `mem-ss-bench`, `mem-bw-bench`, `debug-sim` and
 `cva6-reset-sim`, then `sim-run-sw` for each core in `AXI_SMOKE_CORES` (default
 `ibex cv32e40p cv32e40s cva6 serv picorv32 cvw`). Unsupported cores are intentionally excluded;
-see [`support_matrix.md`](support_matrix.md). A full run takes roughly 15
-minutes, dominated by the per-core Verilator builds.
+see [`support_matrix.md`](support_matrix.md).
+
+### What a full `axi-smoke` actually costs
+
+The unit of cost is the **simulation**, not the test. Each simulation builds its
+own Verilator model; a model is never shared between simulations, because each
+one differs in either its toplevel, its cocotb module, or its compile-time core
+select (`-DCOREJACK_CORE_*`). A full run is 14 simulations, so 14 Verilator
+builds:
+
+| Simulation | Testbench | Core in the DUT | cocotb tests |
+| --- | --- | --- | --- |
+| `axi-addr-map-check` | *(a Python script, not a simulation)* | - | - |
+| `axi-adapter-sim` | `test_axi_adapters` | ibex | 17 |
+| `uart-loader-sim` | `test_uart_sram_loader` | ibex | 1 |
+| `plic-sim` | `test_plic` | ibex | 5 |
+| `mem-ss-bench` | `test_mem_ss_bench` | ibex | 1 |
+| `mem-bw-bench` | `test_soc_sw` (`mem_bw_smoke` app) | ibex | 1 |
+| `debug-sim` | `test_debug_integration` | ibex | 2 |
+| `cva6-reset-sim` | `test_cva6_reset_isolation` | CVA6 | 1 |
+| core sweep, 7x | `test_soc_sw` (`hello_world`) | one per `AXI_SMOKE_CORES` entry | 1 each |
+
+That is **14 simulations and 35 tests**. The counts differ because a testbench
+file holds one or more `@cocotb.test()` functions and they all share the one
+model that simulation built - `test_axi_adapters.py` alone contributes 17. Tests
+are therefore nearly free to add; simulations are not.
+
+Measured on four cores (`taskset -c 0-3`, matching a GitHub-hosted runner), all
+35 passing:
+
+```
+the seven focused simulations   467s
+the seven-core sweep           1030s   (123-174s each)
+                        total  25m14s
+```
+
+Roughly two thirds of that is the core sweep. On a workstation with more cores
+the wall time falls, but not proportionally - see `SIM_BUILD_JOBS` under
+[Other Knobs](#other-knobs) for why.
 
 A typical first run, with no RISC-V toolchain required:
 
@@ -134,6 +171,13 @@ All trace artifacts stay under `build/` and are covered by `.gitignore`
   lists the available apps under `sw/c/`.
 - `CORE` / `BOARD` select the descriptor-driven target; `AXI_SMOKE_CORES`
   overrides the core set covered by `make axi-smoke`.
+- `SIM_BUILD_JOBS` (default `nproc`) sets the `-j` passed to the Verilator
+  model build, via fusesoc's `--make_options`. Edalize otherwise compiles the
+  generated C++ with a plain serial `make`: before this was wired up, one core's
+  `sim-run-sw` took the same 148s on 4 CPUs as on 16, because nothing was ever
+  parallel. With `-j4` that drops to 120s. The gain is bounded at roughly 20%
+  because Verilator's own SystemVerilog elaboration and the simulation run are
+  both single-threaded and unaffected.
 
 The `test_soc_sw.py` flow also honours optional cocotb environment variables for
 focused, in-test logging and expectations. The general-purpose ones are:
