@@ -15,6 +15,9 @@ RISCV_GNU_TOOLCHAIN_COMMIT ?= 96e1c125620ec403962c8536ecbbde20878c5e44
 RISCV_MULTILIB_GENERATOR ?= rv32i-ilp32--;rv32imc-ilp32--;rv32imcb-ilp32--;rv64imc-lp64--;rv64gc-lp64d--
 RISCV_TOOLCHAIN_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
 RISCV_TOOLCHAIN_DIST_DIR ?= $(TOOLS_DIR)/dist
+TOOLCHAIN_BUILDER_IMAGE ?= corejack-toolchain-builder
+TOOLCHAIN_BUILDER_FILE ?= bin/toolchain-builder.Containerfile
+PODMAN ?= podman
 # Set to 1 to re-package an already-built toolchain instead of rebuilding.
 TOOLCHAIN_SKIP_BUILD ?= 0
 VERILATOR_VERSION ?= v5.050
@@ -134,13 +137,14 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender toolchain-riscv toolchain-riscv-dist tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
 	@printf '  %-18s %s\n' 'bender' 'fetch pinned bender binary into TOOLS_DIR'
 	@printf '  %-18s %s\n' 'toolchain-riscv' 'build+package+install local RISC-V GNU multilib toolchain into TOOLS_DIR'
 	@printf '  %-18s %s\n' 'toolchain-riscv-dist' 'same, but keep the tarball+sha256 in RISCV_TOOLCHAIN_DIST_DIR for upload'
+	@printf '  %-18s %s\n' 'toolchain-riscv-container' 'build the toolchain inside Ubuntu 22.04 (podman) for a portable artifact'
 	@printf '  %-18s %s\n' 'tool-verilator' 'build optional local Verilator into TOOLS_DIR'
 	@printf '  %-18s %s\n' 'tool-verible' 'install optional local Verible lint/format tools into TOOLS_DIR'
 	@printf '  %-18s %s\n' 'zephyr-init' 'initialize/update project-local Zephyr workspace'
@@ -278,6 +282,30 @@ toolchain-riscv:
 
 toolchain-riscv-dist:
 	@$(RISCV_TOOLCHAIN_ENV) bin/build_riscv_toolchain.sh --keep $(RISCV_TOOLCHAIN_ARGS)
+
+# Containerised build. The native targets above are unchanged and remain the
+# right choice for a local-only toolchain; this one exists to produce an
+# artifact that also runs on older CI runners. See docs/tooling.md.
+#
+# No "does the image exist" check: podman build is already idempotent. With an
+# unchanged Containerfile it hits its layer cache and returns in ~1s, and when
+# the file changes it rebuilds -- which a guard would defeat.
+toolchain-builder-image:
+	@$(PODMAN) build -t $(TOOLCHAIN_BUILDER_IMAGE) -f $(TOOLCHAIN_BUILDER_FILE) bin/
+
+# Switching between native and containerised builds requires wiping
+# $(RISCV_GNU_TOOLCHAIN_SRC) first -- a tree configured by one host compiler and
+# re-entered by another carries stale configure results. Note also that this
+# overwrites .tools/riscv and the tarball in $(RISCV_TOOLCHAIN_DIST_DIR); move
+# any artifact you still need aside before running.
+#
+# --userns=keep-id is load-bearing: rootless podman maps only the invoking
+# user's uid and primary gid, so a repo owned by any other group appears as
+# nobody inside and GCC's install-headers-tar fails to restore ownership.
+toolchain-riscv-container: toolchain-builder-image
+	@$(PODMAN) run --rm --userns=keep-id -e HOME=/tmp \
+	   -v "$(CURDIR):/repo:z" -w /repo $(TOOLCHAIN_BUILDER_IMAGE) \
+	   make toolchain-riscv-dist RISCV_TOOLCHAIN_JOBS=$(RISCV_TOOLCHAIN_JOBS)
 
 tool-verilator:
 	@VERILATOR_REF="$(VERILATOR_VERSION)" \
