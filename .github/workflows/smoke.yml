@@ -38,6 +38,45 @@ jobs:
           make target-check BOARD=axku5
           make axi-addr-map-check
 
+      # Runners already ship these via build-essential, but the toolchain links
+      # against them, so name the dependency rather than rely on the image.
+      - name: Install toolchain runtime libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libmpc3 libmpfr6
+
+      # Keyed on the release tag: publishing toolchain-v2 means bumping the key
+      # and the URL below together.
+      - name: Cache RISC-V toolchain
+        id: riscv-toolchain
+        uses: actions/cache@v4
+        with:
+          path: .tools/riscv
+          key: riscv-toolchain-v1
+
+      - name: Download RISC-V toolchain
+        if: steps.riscv-toolchain.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          curl -fsSL -o toolchain.tar.xz \
+            https://github.com/patrickerich/corejack/releases/download/toolchain-v1/corejack-riscv-toolchain-16.1.0-x86_64.tar.xz
+          echo "14369c17d88f567665dc23fb0f6fba19098595e530e616060aa5d3e9c254231b  toolchain.tar.xz" \
+            | sha256sum -c -
+          mkdir -p .tools
+          tar -C .tools -xf toolchain.tar.xz
+          mv .tools/riscv64-unknown-elf .tools/riscv
+          rm -f toolchain.tar.xz
+
+      - name: Build software
+        shell: bash
+        run: |
+          # The build scripts normally leave this marker; a downloaded toolchain
+          # does not, and fusesoc scans --cores-root . in later steps.
+          touch .tools/FUSESOC_IGNORE
+          source ./sourceme.sh
+          riscv64-unknown-elf-gcc --version | head -1
+          make sw-build SW_APP=hello_world
+
       - name: Setup Verilator
         # Local/dev builds pin Verilator v5.050 (see Makefile), but no v5.050
         # prebuilt exists yet (fetch 404s). Keep CI on v5.048 -- the newest
