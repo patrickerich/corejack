@@ -1,0 +1,77 @@
+name: docs
+
+# Merging a PR into main is a push to main, so this deploys on merge.
+# Direct pushes to main are blocked by branch protection; that does not
+# affect the trigger.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          # sourceme.sh installs the root requirements too, so key on both.
+          cache-dependency-path: |
+            requirements.txt
+            docs/requirements.txt
+
+      # sourceme.sh creates .venv and puts .venv/bin on PATH, which is what
+      # docs/Makefile requires; the build runs with -W, so a broken link or a
+      # page missing from every toctree fails here.
+      - name: Build documentation
+        shell: bash
+        run: |
+          source ./sourceme.sh
+          make -C docs html
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/build/html
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only this job needs write access, and only to Pages.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # Serialise deploys so two quick merges cannot race.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
