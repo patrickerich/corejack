@@ -236,7 +236,7 @@ The ELF load path uses the debug module's system bus access path, so RAM can be
 programmed after the bitstream is already running.
 
 For interactive breakpoints and stepping, see
-[`docs/fpga_debug_stepping.md`](fpga_debug_stepping.md).
+[FPGA OpenOCD/GDB debugging](fpga_debug_stepping.md).
 
 Known-good smoke sequence:
 
@@ -306,5 +306,5 @@ core/board descriptors.
 
 The FPGA build path is the FuseSoC/Vivado flow behind `make fpga-bit`.
 
-See [`docs/core_board_descriptors.md`](core_board_descriptors.md) for the
+See [Core and board descriptors](core_board_descriptors.md) for the
 descriptor direction.

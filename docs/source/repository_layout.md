@@ -55,7 +55,7 @@ and host runtime - nothing that ends up as SystemVerilog.
   `cfg/boards/*.yaml` into Make variables (`FPGA_TOP`, `CORE_TYPE`,
   `MARCH`, `MABI`, `TOOLCHAIN`, `SOC_CLK_HZ`, `UART_BAUD`, ...). The
   authoritative bridge between descriptors and the build flow.
-- `bin/render_support_matrix.py` - regenerates `docs/support_matrix.md`
+- `bin/render_support_matrix.py` - regenerates `docs/source/support_matrix.md`
   from descriptors (`make support-matrix`).
 - `bin/create_core.py`, `bin/create_board.py` - scaffolds behind
   `make new-core` and `make new-board`.

@@ -123,7 +123,9 @@ documented in [`docs/source/uart_sram_loader.md`](docs/source/uart_sram_loader.m
 ## Documentation
 
 Documentation committed to the repository should be standalone project
-documentation. Keep temporary investigation notes, local logs, and private
+documentation: usable by someone who has only this repository, with no private
+debug logs, no machine-specific local paths, and no references to external
+example projects. Keep temporary investigation notes, local logs, and private
 debug timelines in ignored local files such as `logs/`.
 
 Use `logs/open_items.md` or another ignored file under `logs/` for local
