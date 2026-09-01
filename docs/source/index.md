@@ -43,6 +43,8 @@ projects.
 - [AXI4 fabric](axi4_fabric.md) - current system fabric structure.
 - [AXI4 fabric migration](axi4_fabric_migration.md) - historical migration
   notes and design rationale for moving to an AXI4-native fabric.
+- [Memory subsystem redesign](mem_ss_redesign.md) - port-owned,
+  multi-outstanding banked SRAM subsystem and the arbitration it provides.
 
 ## Simulation
 
@@ -76,8 +78,60 @@ projects.
 
 ```{toctree}
 :hidden:
-:glob:
-:maxdepth: 2
+:caption: Project Orientation
 
-*
+about
+support_matrix
+repository_layout
+roadmap
+open_items
+tooling
+dependency_management
+core_board_descriptors
+core_acceptance_checklist
+coding_style
+```
+
+```{toctree}
+:hidden:
+:caption: Adding Hardware
+
+core_porting
+board_porting
+axi4_fabric
+axi4_fabric_migration
+mem_ss_redesign
+```
+
+```{toctree}
+:hidden:
+:caption: Simulation
+
+simulation
+```
+
+```{toctree}
+:hidden:
+:caption: FPGA And Debug
+
+fpga_sw_flow
+fpga_debug_stepping
+fpga_hardware_smoke
+riscv_dbg_integration
+uart_sram_loader
+External JTAG wiring <jtag_wiring>
+```
+
+```{toctree}
+:hidden:
+:caption: Software
+
+zephyr_bringup
+```
+
+```{toctree}
+:hidden:
+:caption: Core-Specific Notes
+
+CV32E40X boot issue <cv32e40x_boot_issue>
 ```
