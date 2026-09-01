@@ -131,7 +131,10 @@ planning notes. Promote stable, generally useful plans into committed
 documentation such as `docs/` or `README.md`.
 
 Start from [`docs/source/index.md`](docs/source/index.md) when adding or updating
-documentation.
+documentation. A new page must be listed in one of that file's captioned
+`toctree` blocks — the caption becomes its group heading in the rendered
+sidebar. `make -C docs html` builds with `-W`, so a page left out of every
+`toctree` fails the build rather than disappearing silently.
 
 ### Architecture diagrams
 
