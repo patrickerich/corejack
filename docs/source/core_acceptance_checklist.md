@@ -66,7 +66,7 @@ Expected result:
 ## AXI Fabric Compatibility
 
 Every supported core must be compatible with the central AXI fabric described in
-[`docs/axi4_fabric.md`](axi4_fabric.md). For the current RV32 cores this means
+[AXI4 fabric](axi4_fabric.md). For the current RV32 cores this means
 the core adapter keeps the core-facing instruction/data protocol local and lets
 `soc_top` route shared RAM, UART, and debug traffic through the common AXI path.
 
@@ -299,13 +299,13 @@ make support-matrix
 
 When a core is promoted, update the relevant standalone documentation:
 
-- `docs/support_matrix.md` by running `make support-matrix` (this is the
+- `docs/source/support_matrix.md` by running `make support-matrix` (this is the
   authoritative per-core/board status table; the top-level README and
-  `docs/roadmap.md` link to it rather than duplicating it).
-- `docs/roadmap.md` if the per-core note needs to change.
-- `docs/core_board_descriptors.md` if descriptor semantics changed.
-- `docs/fpga_hardware_smoke.md` if board-level hardware expectations changed.
-- `docs/fpga_debug_stepping.md` if debug procedure or commands changed.
+  `docs/source/roadmap.md` link to it rather than duplicating it).
+- `docs/source/roadmap.md` if the per-core note needs to change.
+- `docs/source/core_board_descriptors.md` if descriptor semantics changed.
+- `docs/source/fpga_hardware_smoke.md` if board-level hardware expectations changed.
+- `docs/source/fpga_debug_stepping.md` if debug procedure or commands changed.
 
 Detailed investigation notes should stay in ignored local logs, not in
 version-controlled documentation.

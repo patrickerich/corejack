@@ -216,7 +216,7 @@ def render() -> str:
     lines = [
         "# CoreJack Support Matrix",
         "",
-        "This file is generated from `cfg/cores/*.yaml` and `cfg/boards/*.yaml`.",
+        "This page is generated from `cfg/cores/*.yaml` and `cfg/boards/*.yaml`.",
         "Regenerate it with:",
         "",
         "```bash",

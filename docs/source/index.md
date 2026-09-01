@@ -1,14 +1,17 @@
 # CoreJack Documentation
 
-This directory holds the project documentation beyond the top-level
-quick-start README. Documentation here should be usable on its own: avoid
-private debug logs, temporary local paths, and references to external example
-projects.
+CoreJack is a starter SoC platform that treats the RISC-V core as the
+variable: one generic `soc_top` is reused across every supported core through a
+thin per-core adapter, and across every supported FPGA board through a thin
+board wrapper. Picking a target is just `CORE=<core> BOARD=<board>`.
+
+These pages cover the platform in depth - architecture, porting guides,
+simulation, FPGA bring-up, and debug. The sections below group them by task.
 
 ## Project Orientation
 
 - [Top-level README](../../README.md) - purpose, quick start, current status,
-  and pointers back into this index.
+  and pointers back into this documentation.
 - [About CoreJack](about.md) - motivation, target audience, what makes
   CoreJack different, and a factual comparison against Chipyard, LiteX,
   Rocket Chip Generator, OpenTitan, and Cheshire/Carfield.
