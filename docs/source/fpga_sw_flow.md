@@ -289,9 +289,8 @@ The long-term core boundary is the `rtl/cores/` adapter layer, not the board
 wrapper. A core adapter should translate from a concrete core's native ports to
 the platform-visible instruction/data/debug/interrupt contract. The board wrapper
 should remain limited to clock/reset, FPGA primitives, constraints, and physical
-pin wiring. The AXKU5 wrapper exposes a `CoreType` parameter and passes it into
-`soc_top`; the validated FPGA configuration currently leaves that parameter at
-the descriptor-selected Ibex default.
+pin wiring. Each board wrapper exposes a `CoreType` parameter and passes it into
+`soc_top`; the FPGA build sets it from the selected core descriptor.
 
 The user-facing Make variables are `CORE` and `BOARD`. The Makefile
 validates those selections and derives the FPGA build settings from the
