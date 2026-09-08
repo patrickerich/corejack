@@ -261,7 +261,7 @@ $(BENDER_BIN):
 		url="https://github.com/pulp-platform/bender/releases/download/v$(BENDER_VERSION)/$$asset"; \
 	fi; \
 	echo "Downloading $$url"; \
-	curl -fsSL "$$url" -o "$$tmp/bender.tgz"; \
+	curl -fsSL --retry 5 --retry-max-time 60 "$$url" -o "$$tmp/bender.tgz"; \
 	printf '%s  %s\n' "$$sha256" "$$tmp/bender.tgz" | sha256sum -c -; \
 	mkdir -p "$$tmp/unpack" "$(BENDER_DIR)"; \
 	tar -xzf "$$tmp/bender.tgz" -C "$$tmp/unpack"; \
