@@ -15,8 +15,9 @@ Add an entry when you choose not to fix something now; remove it once resolved.
   working `axi_isolate` stage from its absence — verified by running it against
   the pre-isolation RTL, which passes identically. Constructing the condition
   needs a hook that stalls the *target* while the reset lands, for example
-  forcing `mem_init_gnt[0]` low to hold the xbar RAM read engine, then
-  releasing it after `core_rst_ni` drops. That would also cover the untested
+  forcing `mem_init_gnt[5]` low to hold CVA6's dedicated RAM read engine (or
+  `mem_init_gnt[0]` for the crossbar leg), then releasing it after
+  `core_rst_ni` drops. That would also cover the untested
   case of a slow target (the APB UART) still being outstanding at reset. See
   the reset-ownership section in
   [`riscv_dbg_integration.md`](riscv_dbg_integration.md).

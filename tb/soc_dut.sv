@@ -70,14 +70,20 @@ module soc_dut;
   logic dbg_cva6_axi_w_ready;
   logic dbg_cva6_axi_ar_valid;
   logic dbg_cva6_axi_ar_ready;
-  // Fabric side of the CVA6 leg, i.e. the crossbar's slave port 0. These sit
-  // on the far side of any core-reset isolation stage, so a response the
-  // fabric has accepted but nothing retires shows up here as valid held with
-  // ready low. Probing the core side (cva6_axi_*) would not see it.
+  // Fabric side of the two CVA6 legs: the crossbar's slave port 0 (non-RAM
+  // traffic, dbg_cva6_fab_*) and the dedicated RAM bridge (dbg_cva6_ram_*).
+  // These sit on the far side of the core-reset isolation stage, so a
+  // response the fabric has accepted but nothing retires shows up here as
+  // valid held with ready low. Probing the core side (cva6_axi_*) would not
+  // see it.
   logic dbg_cva6_fab_r_valid;
   logic dbg_cva6_fab_r_ready;
   logic dbg_cva6_fab_b_valid;
   logic dbg_cva6_fab_b_ready;
+  logic dbg_cva6_ram_r_valid;
+  logic dbg_cva6_ram_r_ready;
+  logic dbg_cva6_ram_b_valid;
+  logic dbg_cva6_ram_b_ready;
   logic [63:0] dbg_cva6_frontend_npc;
   logic [63:0] dbg_cva6_frontend_vaddr;
   logic [63:0] dbg_cva6_frontend_data;
@@ -236,6 +242,14 @@ module soc_dut;
   assign dbg_cva6_fab_r_ready  = i_soc_top.gen_platform.core_axi_req[0].r_ready;
   assign dbg_cva6_fab_b_valid  = i_soc_top.gen_platform.core_axi_rsp[0].b_valid;
   assign dbg_cva6_fab_b_ready  = i_soc_top.gen_platform.core_axi_req[0].b_ready;
+  assign dbg_cva6_ram_r_valid  =
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[1].r_valid;
+  assign dbg_cva6_ram_r_ready  =
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[1].r_ready;
+  assign dbg_cva6_ram_b_valid  =
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[1].b_valid;
+  assign dbg_cva6_ram_b_ready  =
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[1].b_ready;
 `else
   assign dbg_cva6_debug_mode   = 1'b0;
   assign dbg_cva6_set_debug_pc = 1'b0;
@@ -258,6 +272,10 @@ module soc_dut;
   assign dbg_cva6_fab_r_ready  = 1'b0;
   assign dbg_cva6_fab_b_valid  = 1'b0;
   assign dbg_cva6_fab_b_ready  = 1'b0;
+  assign dbg_cva6_ram_r_valid  = 1'b0;
+  assign dbg_cva6_ram_r_ready  = 1'b0;
+  assign dbg_cva6_ram_b_valid  = 1'b0;
+  assign dbg_cva6_ram_b_ready  = 1'b0;
 `endif
 `endif
 endmodule

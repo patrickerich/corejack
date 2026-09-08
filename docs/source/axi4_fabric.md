@@ -1,29 +1,37 @@
 # AXI4 Fabric
 
 The CoreJack platform uses AXI4 as the central SoC fabric. Core sockets may use
-their native protocol at the core boundary, but shared memory, UART, and debug
-traffic are routed through one explicit AXI address-decode path.
+their native protocol at the core boundary, but UART, CLINT, PLIC, DMA
+configuration, and debug traffic are routed through one explicit AXI
+address-decode path. RAM traffic from the memory-heavy initiators takes a
+dedicated port into the banked memory subsystem instead; see the
+[platform rule](#platform-rule-direct-memory-ports-and-the-system-bus).
 
 ## Architecture
 
 Current RV32 cores expose separate instruction and data OBI-style interfaces.
 The debug module exposes a system bus access path for GDB/OpenOCD memory loads.
-The iDMA system DMA (`rtl/platform/soc_idma.sv`) adds a fourth, non-CPU
-initiator. Inside `soc_top`, these become AXI initiators:
+Inside `soc_top`, these become the three AXI initiators of the system crossbar:
 
-- instruction OBI through `soc_obi_to_axi`
-- data OBI through `soc_obi_to_axi`
+- instruction OBI through `soc_obi_to_axi` (non-RAM fetches only; RAM-window
+  fetches take a native `soc_mem_ss` port, see below)
+- data OBI through `soc_obi_to_axi` (non-RAM accesses only, likewise)
 - debug SBA OBI through `soc_obi_to_axi`
-- the iDMA AXI manager (PULP iDMA: `idma_reg32_3d` register frontend, ND
-  midend, `idma_backend_rw_axi`, joined read/write managers, then an
-  `axi_burst_splitter` so the fabric only ever sees single-beat transfers,
-  and `axi_cut` stages that register the DMA leg)
 
-The four AXI initiators enter a PULP `axi_xbar` system crossbar. The crossbar
+The iDMA system DMA (`rtl/platform/soc_idma.sv`: `idma_reg32_3d` register
+frontend, ND midend, `idma_backend_rw_axi`, joined read/write managers, then
+an `axi_burst_splitter` so the platform only ever sees single-beat transfers,
+and `axi_cut` stages that register the DMA leg) is **not** a crossbar
+initiator. Its AXI memory manager drives its own `soc_axi_to_mem` into
+dedicated `soc_mem_ss` ports; only its configuration window is reached through
+the crossbar.
+
+The three AXI initiators enter a PULP `axi_xbar` system crossbar. The crossbar
 decodes each initiator's address independently and routes the request to one of
 the fabric targets:
 
-- RAM through `soc_axi_to_mem`
+- RAM through `soc_axi_to_mem` (debug SBA and any other fabric-routed RAM
+  access)
 - UART through `soc_axi_to_apb`
 - debug module register/ROM window through `soc_axi_to_dm`
 - CLINT through `soc_axi_to_reg`
@@ -31,17 +39,18 @@ the fabric targets:
   accelerator socket's APB CSR leg (`corejack_idma_socket_adapter` converts
   to the `idma_reg32_3d` register interface internally)
 - the PLIC (`rtl/platform/soc_plic.sv`) through a second `soc_axi_to_reg`;
-  it aggregates the platform interrupt sources (UART today, the iDMA
-  completion interrupt when it lands) onto each core's machine external
+  it aggregates the platform interrupt sources (UART and the iDMA
+  completion interrupt) onto each core's machine external
   interrupt line, with the standard RISC-V PLIC register layout (see
   [Platform Interrupts](#platform-interrupts))
 
 The crossbar runs with `LatencyMode = CUT_ALL_AX` (registered AW/AR channels
-at both boundaries): with a fully combinational crossbar, the valid-dependent
-readies of the target adapters and the iDMA backend's internally coupled
-streams compose into structural combinational loops (Vivado DRC LUTLP-1).
-Together with the `axi_cut` stages inside `soc_idma`, every loop candidate is
-registered; CPU request paths keep one added cycle of address latency only.
+at both boundaries). The setting dates from when the iDMA was a crossbar
+initiator: with a fully combinational crossbar, the valid-dependent readies of
+the target adapters and the iDMA backend's internally coupled streams composed
+into structural combinational loops (Vivado DRC LUTLP-1). Together with the
+`axi_cut` stages inside `soc_idma`, every loop candidate is registered; CPU
+request paths through the crossbar pay one added cycle of address latency.
 
 Because address decode is per initiator and arbitration is per target (inside
 the crossbar's per-master-port multiplexers), initiators targeting different
@@ -61,8 +70,12 @@ therefore carry a wider ID than the initiator side (`AxiIdWidth + $clog2(N)` for
 `N` initiators); `soc_bus_pkg` defines the matching `soc_axi_mst_*` types and
 the target adapters are parameterized to accept them.
 
-CVA6 is integrated as a native AXI core: its initiator port enters the crossbar
-directly instead of going through an OBI-to-AXI adapter.
+CVA6 is integrated as a native AXI core and follows the same dual-port shape as
+the RV32 routers: behind the reset-isolation stage, an `axi_demux` decodes each
+AW/AR address and sends RAM-window transactions to a dedicated `soc_axi_to_mem`
+on `soc_mem_ss` 64-bit ports 5/6, and everything else to crossbar slave port 0.
+The demux stalls a new request whose AXI ID is still in flight on the other
+leg, so same-ID transactions stay ordered across the two paths.
 
 The board wrapper does not own this policy. Board wrappers only adapt clocks,
 resets, FPGA primitives, and physical IO pins.
@@ -128,9 +141,10 @@ direct mode still works for software that writes `mtvec[0] = 0`.
 The shared SRAM path is 64-bit wide. This is the baseline for future RV64 cores
 and AXI-native memory integration.
 
-RV32 cores keep a 32-bit core-facing contract. The local width adaptation uses
-the byte address to select the low or high 32-bit lane of a 64-bit SRAM word,
-and carries that lane selection until the response returns.
+RV32 cores keep a 32-bit core-facing contract. The width adaptation uses the
+byte address to select the low or high 32-bit lane of a 64-bit SRAM word and
+carries that lane selection until the response returns; `soc_mem_ss` does this
+on its native 32-bit ports and `soc_obi_to_axi` on the crossbar path.
 
 Simulation preload files use one 64-bit word per line.
 
@@ -157,26 +171,26 @@ initiator added later.
 The current platform use case is:
 
 - single-beat transfers per initiator
-- multiple outstanding transactions across the crossbar (one accepted transfer
-  at a time within each target adapter, but distinct initiators/targets in
-  flight concurrently)
+- multiple outstanding transactions across the crossbar (the APB, DM, and
+  register adapters accept one transfer at a time; the RAM bridges are
+  pipelined; distinct initiators/targets are in flight concurrently)
 - 32-bit core-side instruction/data access for current RV32 cores
 - 64-bit AXI/memory data width inside the platform
 
 This is sufficient for the currently supported flows: the OBI-style RV32
 cores (Ibex, CV32E40P, CV32E40S) and the small core-specific adapters used
-by SERV, PicoRV32, and CVW/Wally all reach RAM, UART, CLINT, and debug
-through the same shared crossbar, and CVA6 enters that crossbar as a native
-single-beat AXI initiator. AXI-native initiators with bursts should still be
-introduced deliberately: the per-target adapters and the single-beat protocol
-checker assume `len == 0` today, so adding bursts means revisiting those, not
-extending the small adapters ad hoc.
+by SERV, PicoRV32, and CVW/Wally reach UART, CLINT, PLIC, and debug through
+the same shared crossbar and RAM through their native memory ports, and CVA6
+does the same as a native single-beat AXI initiator. AXI-native initiators
+with bursts should still be introduced deliberately: the per-target adapters
+and the single-beat protocol checker assume `len == 0` today, so adding bursts
+means revisiting those, not extending the small adapters ad hoc.
 
 ### Memory throughput is no longer fabric-limited
 
 The shared SRAM is banked (see `MemNumBanks` on `soc_top`, default 8, and
 `soc_mem_ss`'s per-bank round-robin arbiter). Three independent initiators reach
-the fabric - core instruction fetch, core data access, and debug SBA - and each
+the crossbar - core instruction fetch, core data access, and debug SBA - and each
 can target a different bank. Previously they could not run in parallel against
 the banks: the old `soc_axi_arbiter` was single-outstanding, accepting at most
 one transaction at a time for the whole fabric, so the bank fan-out behind it
@@ -194,18 +208,44 @@ deadlocked under simultaneous read+write - a case the old serializing arbiter
 never produced. `axi-adapter-sim` drives this exact collision against the RAM,
 APB, and DM targets.
 
-Since this was written, the memory subsystem itself was redesigned to be
-port-owned (`soc_mem_ss` with per-port ingress/egress logic). The CPU data and
-instruction RAM accesses now use **native 32-bit `soc_mem_ss` ports** and the
-iDMA uses **dedicated 64-bit read/write ports**, all bypassing the crossbar, so
-those initiators reach the banks directly with per-port multi-outstanding,
-in-order delivery. The crossbar's RAM path (`soc_axi_to_mem`, split into read
-and write engines) now mainly carries debug SBA and any other fabric-routed RAM
-traffic. The bank count has since been raised to **8**, matching the seven ports
-that drive the subsystem, and the per-port and per-bank outstanding depths were
-sized so `soc_mem_ss` sustains ~1 access/cycle on both. See
-[`roadmap.md`](roadmap.md) for the coupling between `MemNumBanks` and the
-port count.
+The memory subsystem itself is port-owned (`soc_mem_ss` with per-port
+ingress/egress logic), and the memory-heavy initiators do not go through the
+crossbar to reach it. The RV32 CPU data and instruction RAM accesses use
+**native 32-bit `soc_mem_ss` ports** (0 and 1), the iDMA uses **dedicated
+64-bit read/write ports** (3 and 4), and CVA6's RAM-window AXI traffic uses
+**dedicated 64-bit read/write ports** (5 and 6) behind its own
+`soc_axi_to_mem`. Each reaches the banks directly with per-port
+multi-outstanding, in-order delivery. The crossbar's RAM path (`soc_axi_to_mem`
+on ports 0 and 1, split into read and write engines) carries debug SBA and any
+other fabric-routed RAM traffic. The bank count is **8** against the nine
+ports that drive the subsystem (at most seven are active for any one core,
+since the RV32 and CVA6 paths use disjoint ports), and the per-port and
+per-bank outstanding depths are sized so `soc_mem_ss` sustains ~1 access/cycle
+on both. See [`roadmap.md`](roadmap.md) for the coupling between `MemNumBanks`
+and the port count.
+
+### Platform rule: direct memory ports and the system bus
+
+The two paths are one layered design, not competing strategies, and the rule
+is uniform across cores:
+
+- **RAM-window traffic uses a direct `soc_mem_ss` port.** An initiator-side
+  request router decides per transaction: the RV32 instruction and data
+  routers in `soc_top`, and the `axi_demux` on CVA6's AXI port.
+- **Everything else uses the system bus.** UART, CLINT, PLIC, the iDMA
+  configuration window, the debug module window, and decode misses go
+  through the crossbar.
+- **The crossbar keeps its RAM target.** It serves debug SBA, and it is what
+  lets a future single-port initiator reach the whole map with one AXI master
+  before it earns a dedicated memory port.
+
+The split has one ordering consequence to preserve. A CPU store to a DMA
+buffer travels on the direct port; the CSR write that starts the iDMA travels
+on the crossbar. Those paths are independent, so the handoff is only ordered
+because the RV32 routers are single-outstanding (the store's response returns
+before the CSR write is issued) and because CVA6's `axi_demux` stalls a request
+whose ID is still in flight on the other leg. Raising the routers' outstanding
+depth needs a fence or an equivalent ID-tracking rule first.
 
 ### The bridge has to be pipelined for that to be usable
 
@@ -234,8 +274,8 @@ Reference figures from `make mem-bw-bench` (a 24 KiB iDMA copy, timed with the
 
 That is ~85% of the one-word-per-cycle ceiling. The crossbar leg is given
 `MaxOutstanding = MaxMstTrans` instead, since the crossbar never presents more
-than that to one master port; the iDMA leg is not behind the crossbar and keeps
-the deeper default.
+than that to one master port; the iDMA and CVA6 legs are not behind the
+crossbar and keep the deeper depth of 8.
 
 ## Acceptance
 
@@ -276,7 +316,11 @@ make fpga-accept BOARD=<board> UART_DEV=/dev/ttyUSBx
 Debug-capable cores use OpenOCD/GDB in that gate. Supported cores without a
 RISC-V debug interface use the UART SRAM loader. The crossbar fabric has passed
 this gate on both boards (AXKU5 and Arty A7-100T) across all seven supported
-cores, and closes timing at the 25 MHz default on both.
+cores, and closes timing at the 25 MHz default on both. The CVA6 direct RAM
+path (`axi_demux` plus its own `soc_axi_to_mem`) is newer than that run: it is
+validated by `hello_world` simulation and `cva6-reset-sim`, and the next
+`make fpga-accept` on each board is what promotes it to hardware-validated
+(check Vivado's LUTLP-1 DRC on the new leg, which has no spill registers).
 
 ## Future Work
 
@@ -293,8 +337,9 @@ closure:
 - raise the crossbar's `MaxMstTrans`/`MaxSlvTrans` when a fabric-routed
   high-bandwidth initiator appears; it, rather than `soc_axi_to_mem`, is now
   what bounds the crossbar's RAM legs
-- revisit `MemNumBanks` again if the port count grows past 8 (the bank-count
-  vs port-count coupling; see [`roadmap.md`](roadmap.md))
+- revisit `MemNumBanks` if a workload shows bank pressure; nine ports now
+  drive the subsystem against 8 banks, with at most seven active per core
+  (the bank-count vs port-count coupling; see [`roadmap.md`](roadmap.md))
 
 FPGA timing closure with the crossbar on the fabric path is validated at the
 25 MHz default on both boards: all fourteen combinations in the default FPGA

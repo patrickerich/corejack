@@ -124,13 +124,14 @@ The fabric must accept at most the number of outstanding debug-window accesses
 that the downstream bridge can track and must return exactly one response per
 accepted request.
 
-The current platform routes instruction, data, and SBA initiators through
-OBI-to-AXI adapters into the `axi_xbar` system crossbar (per-initiator address
-decode, per-target round-robin arbitration, multiple outstanding requests),
-which reaches the debug module through the AXI-to-DM bridge. The crossbar
-replaced the earlier single-outstanding shared arbiter, so SBA traffic no
-longer serializes against instruction and data accesses headed to other
-targets.
+The current platform routes the non-RAM instruction, data, and SBA traffic
+through OBI-to-AXI adapters into the `axi_xbar` system crossbar (per-initiator
+address decode, per-target round-robin arbitration, multiple outstanding
+requests), which reaches the debug module through the AXI-to-DM bridge. The
+crossbar replaced the earlier single-outstanding shared arbiter, so SBA traffic
+no longer serializes against instruction and data accesses headed to other
+targets. RAM-window instruction and data accesses bypass the crossbar on
+native `soc_mem_ss` ports; SBA reaches RAM through the crossbar's RAM target.
 
 ## SBA Integration
 
@@ -149,8 +150,9 @@ what allows GDB/OpenOCD to load an ELF into RAM before releasing the hart.
 In the current CoreJack integration:
 
 - SBA is a third AXI fabric initiator after OBI-to-AXI adaptation.
-- SBA can access RAM, UART, debug memory, and invalid addresses through the
-  same explicit AXI decode path used by core data/instruction traffic.
+- SBA can access RAM, UART, CLINT, PLIC, the DMA window, debug memory, and
+  invalid addresses through the same explicit AXI decode path used by core
+  non-RAM traffic; it is the initiator the crossbar's RAM target exists for.
 - The SRAM and fabric reset are driven by platform reset, not by `ndmreset`.
 
 ## Reset Requirements
@@ -190,6 +192,9 @@ an `axi_isolate` stage on `rst_ni` in the CVA6 path, which blocks new
 transactions while the core is down and — with its response readies forced high
 for the duration — retires the outstanding ones without the core. The window is
 held until the drain completes rather than merely while `core_rst_ni` is low.
+The stage sits ahead of CVA6's request router (`axi_demux`), so both of its
+fabric-side legs - crossbar slave port 0 and the dedicated RAM bridge - drain
+under it; `cva6-reset-sim` watches both.
 
 Measured behaviour, from `make cva6-reset-sim`: with CVA6 actively fetching,
 forcing `ndmreset` produces **no fabric-side response activity at all**. The

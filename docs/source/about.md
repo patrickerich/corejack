@@ -56,9 +56,9 @@ flow would expect, not FPGA-only shortcuts.
    growing, and `make new-core` scaffolds the descriptor, FuseSoC
    file, and adapter stub for a new candidate core. Each core keeps
    its native bus contract (OBI, AXI, AHB-Lite, or a custom
-   single-port memory interface) inside its adapter; everything
-   reaches shared memory and peripherals through the same AXI4
-   fabric.
+   single-port memory interface) inside its adapter; every core
+   reaches the peripherals through the same AXI4 fabric and the shared
+   SRAM through a direct port into the banked memory subsystem.
 2. **ASIC-aware, not FPGA-first.** The platform uses production
    PULP-Platform IP (`axi`, `apb`, `obi`, `apb_uart`, `clint`,
    `riscv-dbg`) and a real AXI4 interconnect rather than a
@@ -132,8 +132,8 @@ Being honest about scope avoids future surprises:
   and broader regression coverage are explicit follow-up work — see
   [`zephyr_bringup.md`](zephyr_bringup.md).
 - **You want a large peripheral library.** CoreJack ships exactly what
-  the platform needs (APB UART, CLINT, banked SRAM, debug, and the iDMA
-  system DMA). LiteX is
+  the platform needs (APB UART, CLINT, PLIC, banked SRAM, debug, and the
+  iDMA system DMA). LiteX is
   much better suited if peripheral variety is the point.
 - **You want generator-driven RTL.** CoreJack favours explicit,
   human-authored SystemVerilog over generators. Chipyard wins on that

@@ -9,7 +9,9 @@ ports); promoted to the canonical `soc_mem_ss` name, replacing the original
 bank-owned design in place. Verified standalone and in the SoC simulation
 regressions; the `mem-ss-bench` throughput benchmark targets the new subsystem.
 Running at 8 banks with the outstanding depths sized so neither a port nor a bank
-caps below ~1 access/cycle.**
+caps below ~1 access/cycle. `soc_top` drives it with two native 32-bit CPU ports
+and seven 64-bit ports (xbar read/write, UART loader, iDMA read/write, CVA6
+read/write).**
 
 ## 1. Requirements (as specified)
 
@@ -59,9 +61,9 @@ C1 (R4/R5/R7). Addresses are always **32-bit**. Ports come in **two types** — 
 C2 (R12). Start with **always in-order** delivery, with a per-port
    **`allows_ooo`** flag as a future hook (no OOO delivery built yet).
 
-C3 (R8). Outstanding/buffer depth is **parameterizable, default 2**. Each port
-   has **both** an in-order **ingress** (request) buffer and an in-order
-   **egress** (response) buffer.
+C3 (R8). Outstanding/buffer depth is **parameterizable** (originally default 2;
+   the shipping defaults are in Section 4). Each port has **both** an in-order
+   **ingress** (request) buffer and an in-order **egress** (response) buffer.
 
 C4/C5 (R10/R11). Full two-way handshaking on both channels. Every request — read
    or write — returns a response (read data, write ack, or error). A
@@ -97,8 +99,9 @@ Request channel (initiator -> subsystem), `req`/`gnt`:
 Response channel (subsystem -> initiator), `rvalid`/`rready`:
 - `rvalid`, `rready`, `rdata` (32/64), `err` (1 = out-of-range)
 
-Static per-port attribute: `allows_ooo` (future; when set, the egress reorder
-buffer is replaced by a plain FIFO and responses may return out of order).
+A static per-port `allows_ooo` attribute is reserved but **not implemented**:
+when added, it would replace the egress reorder buffer with a plain FIFO so
+responses may return out of order. Every port is in-order today.
 
 ## 4. Internal architecture
 
@@ -204,7 +207,8 @@ swap):
 
 - `soc_mem_bank.sv` - one per bank. An **elastic** pipeline: input buffer ->
   registered-read SRAM slice -> output buffer, where the buffers are
-  parameterizable FIFOs (default depth 1) that backpressure both ways, and a read
+  parameterizable FIFOs (module default depth 1; `soc_mem_ss` instantiates them
+  at `SliceInDepth`/`SliceOutDepth`) that backpressure both ways, and a read
   is applied only when the output FIFO has room. Carries per-request metadata
   `{port_id, slot_id, lane, we}` from input to output so the response can be
   routed to the owning port's reorder-buffer slot and lane-selected. Latency may
@@ -308,6 +312,12 @@ for out-of-range addresses.
   covers the simulation and FPGA paths with one mechanism because both take the
   `soc_top` default. `bin/tests/test_descriptor_tools.py` guards against a
   literal creeping back into either consumer.
+- **CVA6 moved onto dedicated ports.** `soc_top` now drives seven 64-bit ports:
+  CVA6's RAM-window AXI traffic is routed off its core port by an `axi_demux`
+  into its own `soc_axi_to_mem` on ports 5/6, so every core reaches RAM through
+  a direct port and the crossbar's RAM target serves debug SBA. The RV32 path
+  ties ports 5/6 off, as the CVA6 path ties off the 32-bit ports. `NumBanks`
+  stays at 8 against nine ports (at most seven active per core).
 
 ## 9. Follow-ups
 
