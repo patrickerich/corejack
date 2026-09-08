@@ -71,7 +71,7 @@ trap cleanup EXIT
 mkdir -p "${prefix}" "${repo_dir}/.tools"
 touch "${repo_dir}/.tools/FUSESOC_IGNORE"
 
-curl -fsSL "${archive_url}" -o "${tmp}/verible.tar.gz"
+curl -fsSL --retry 5 --retry-max-time 60 "${archive_url}" -o "${tmp}/verible.tar.gz"
 printf '%s  %s\n' "${archive_sha256}" "${tmp}/verible.tar.gz" | sha256sum -c -
 mkdir -p "${tmp}/unpack"
 tar -xzf "${tmp}/verible.tar.gz" -C "${tmp}/unpack"

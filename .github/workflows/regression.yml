@@ -83,7 +83,7 @@ jobs:
         if: steps.riscv-toolchain.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          curl -fsSL -o toolchain.tar.xz \
+          curl -fsSL --retry 5 --retry-max-time 60 -o toolchain.tar.xz \
             https://github.com/patrickerich/corejack/releases/download/toolchain-v1/corejack-riscv-toolchain-16.1.0-x86_64.tar.xz
           echo "14369c17d88f567665dc23fb0f6fba19098595e530e616060aa5d3e9c254231b  toolchain.tar.xz" \
             | sha256sum -c -
@@ -145,7 +145,7 @@ jobs:
         if: steps.riscv-toolchain.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          curl -fsSL -o toolchain.tar.xz \
+          curl -fsSL --retry 5 --retry-max-time 60 -o toolchain.tar.xz \
             https://github.com/patrickerich/corejack/releases/download/toolchain-v1/corejack-riscv-toolchain-16.1.0-x86_64.tar.xz
           echo "14369c17d88f567665dc23fb0f6fba19098595e530e616060aa5d3e9c254231b  toolchain.tar.xz" \
             | sha256sum -c -
