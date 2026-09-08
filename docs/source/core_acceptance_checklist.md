@@ -68,7 +68,8 @@ Expected result:
 Every supported core must be compatible with the central AXI fabric described in
 [AXI4 fabric](axi4_fabric.md). For the current RV32 cores this means
 the core adapter keeps the core-facing instruction/data protocol local and lets
-`soc_top` route shared RAM, UART, and debug traffic through the common AXI path.
+`soc_top` route RAM traffic to the native memory ports and UART, CLINT, PLIC,
+and debug traffic through the common AXI path.
 
 Before promoting a core beyond experimental status, run:
 
@@ -234,14 +235,16 @@ Zephyr/timer testing exposed additional vector/interrupt behavior that does not
 match the other supported cores. Keep it out of default regressions until the
 upstream behavior is clarified or fixed.
 
-CV32E40S reports a reset-status debug state through `debug_havereset_o`. The
-adapter must pass this state into `dm_top.unavailable_i`; otherwise OpenOCD can
-observe the hart as available before the core has completed its reset-status
-transition. The acceptance test must include normal `monitor reset halt`,
-`load`, breakpoint, continue, and `stepi` behavior.
+CV32E40S reports a sticky reset-status flag through `debug_havereset_o`. The
+adapter does not forward it: `dm_top.unavailable_i` is tied low, and reset
+acknowledgement comes from the `ndmreset_ack` pulse `soc_top` derives from the
+core reset synchroniser. The acceptance test must include normal
+`monitor reset halt`, `load`, breakpoint, continue, and `stepi` behavior.
 
-CVA6 is integrated through the AXI-native core path and uses a 64-bit software
-ABI. Its debug entry addresses are configured through the local CVA6 CoreJack
+CVA6 is integrated through the AXI-native core path (RAM window on dedicated
+`soc_mem_ss` ports via `axi_demux`, everything else via the crossbar) and uses
+a 64-bit software ABI. Its debug entry addresses are configured through the
+local CVA6 CoreJack
 configuration package and must remain aligned with the shared `riscv-dbg` debug
 ROM map. The acceptance test must include OpenOCD target examination as
 `XLEN=64`, SRAM loading through SBA, UART output, and at least a reset-path

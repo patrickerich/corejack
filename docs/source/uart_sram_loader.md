@@ -114,10 +114,10 @@ APB UART in the middle of the release response.
 ## SRAM Write Path
 
 The loader connects to `soc_mem_ss` through a generic 64-bit port, identical to
-every other port. In `soc_top` the five 64-bit ports are the xbar RAM read
-engine (0) and write engine (1), the UART SRAM loader (2), and the iDMA read (3)
-and write (4) engines; the two native 32-bit ports carry the CPU data and
-instruction RAM accesses.
+every other port. In `soc_top` the seven 64-bit ports are the xbar RAM read
+engine (0) and write engine (1), the UART SRAM loader (2), the iDMA read (3)
+and write (4) engines, and the CVA6 read (5) and write (6) engines; the two
+native 32-bit ports carry the RV32 CPU data and instruction RAM accesses.
 
 The loader accepts absolute SoC addresses. For the current memory map, the SRAM
 base is:
@@ -140,7 +140,12 @@ The initial protocol is byte-oriented and intentionally small:
 | `W` (`0x57`) | `addr[31:0]`, `len[15:0]`, then `len` data bytes, little-endian | ACK (`0x06`) after all bytes are written | write bytes to SRAM |
 | `G` (`0x47`) | none | ACK (`0x06`) | release loader and start the core |
 
-Invalid commands return NAK (`0x15`) and leave the loader active.
+Invalid commands return NAK (`0x15`) and leave the loader active. Two more
+cases are handled the same way: a `W` with a zero length is ACKed immediately
+with no memory write, and a host that goes silent in the middle of a `W`
+sequence for `IdleTimeoutCycles` (default one second at the loader clock) gets
+a NAK and the loader returns to idle, still active, so the host can retry the
+whole load.
 
 Example byte stream for writing two bytes, `0xa5` and `0x5a`, to
 `0x80000003`:

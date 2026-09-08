@@ -20,9 +20,11 @@ Platform pieces:
 
 - The generic `soc_top` has a smoke-simulation target and a cocotb
   software-simulation flow that runs compiled C tests.
-- The central AXI4 fabric routes core instruction, core data, debug SBA,
-  and iDMA traffic into the shared SRAM, APB UART, debug module, CLINT,
-  and DMA-configuration targets. See [`axi4_fabric.md`](axi4_fabric.md).
+- The central AXI4 fabric routes core instruction, core data, and debug SBA
+  traffic to the APB UART, debug module, CLINT, PLIC, and DMA-configuration
+  targets, plus SBA's RAM access. RAM traffic from the CPUs and the iDMA
+  takes dedicated `soc_mem_ss` ports instead. See
+  [`axi4_fabric.md`](axi4_fabric.md).
 - The iDMA system DMA moves memory-to-memory data as the platform's first
   non-CPU initiator; `dma_smoke` validates it in simulation and on both
   boards' hardware.
@@ -33,13 +35,13 @@ Platform pieces:
   delivery end to end. See [`axi4_fabric.md`](axi4_fabric.md).
 - The banked, interleaved 64-bit SRAM (`soc_mem_ss`) uses per-bank fair
   round-robin arbitration and is port-owned: two native 32-bit CPU ports
-  (data, instruction) plus five 64-bit ports (xbar RAM read/write engines,
-  UART SRAM loader, iDMA read/write), each with loss-free, in-order,
-  multi-outstanding access across 8 interleaved banks. The outstanding depths
-  are sized so neither a port nor a bank caps below ~1 access/cycle
-  (`mem-ss-bench`: 0.98 for one port, 3.91 across four). The simulation preload
-  loads each bank's interleaved hex image via `$readmemh` inside
-  `soc_mem_bank`.
+  (data, instruction) plus seven 64-bit ports (xbar RAM read/write engines,
+  UART SRAM loader, iDMA read/write, CVA6 read/write), each with loss-free,
+  in-order, multi-outstanding access across 8 interleaved banks. The
+  outstanding depths are sized so neither a port nor a bank caps below
+  ~1 access/cycle (`mem-ss-bench`: 0.98 for one port, 3.91 across four). The
+  simulation preload loads each bank's interleaved hex image via `$readmemh`
+  inside `soc_mem_bank`.
 - `riscv-dbg` (`dmi_jtag` + `dm_top`) and CLINT are integrated in `soc_top`.
 - Bitstreams close timing at the conservative `25 MHz` default with the
   `axi_xbar` crossbar on both boards; all fourteen combinations in the default
@@ -79,12 +81,16 @@ The authoritative descriptor-derived matrix lives in
 - **CV32E40P** - simulation, FPGA, OpenOCD/GDB load/run with
   halt/breakpoint/step debug validated. Zephyr initial.
 - **CV32E40S** - simulation, FPGA, OpenOCD/GDB load/run with single-step
-  validated. The adapter passes core reset-status state into
-  `dm_top.unavailable_i`; see
+  validated. The adapter ties `dm_top.unavailable_i` low and does not forward
+  the core's sticky `debug_havereset_o`; see
   [`core_acceptance_checklist.md`](core_acceptance_checklist.md). Zephyr
   initial.
-- **CVA6** - native AXI core path; simulation, FPGA, OpenOCD/GDB
-  load/run/single-step validated. Zephyr initial (RV64).
+- **CVA6** - native AXI core path with the same dual-port memory integration
+  as the RV32 cores (RAM window on dedicated `soc_mem_ss` ports, everything
+  else via the crossbar); simulation, FPGA, OpenOCD/GDB load/run/single-step
+  validated on the earlier crossbar-only integration. The dedicated RAM path
+  is simulation-validated and awaits the next FPGA acceptance run. Zephyr
+  initial (RV64).
 - **CV32E40X** - demoted from the supported set. Instruction-fetch and
   vector behavior diverge from the other cores and are tracked upstream
   in [`cv32e40x_boot_issue.md`](cv32e40x_boot_issue.md). It is intentionally
@@ -143,8 +149,10 @@ Software and validation flow:
 ## Platform Architecture Direction
 
 - Treat AXI4 as the central SoC fabric. Core-native buses are allowed at
-  the core adapter boundary but must reach RAM, UART, CLINT, debug, and
-  other shared peripherals through the shared AXI fabric.
+  the core adapter boundary but must reach UART, CLINT, PLIC, debug, and
+  other shared peripherals through the shared AXI fabric; RAM-window
+  traffic uses a direct `soc_mem_ss` port (see the platform rule in
+  [`axi4_fabric.md`](axi4_fabric.md)).
 - Keep the memory subsystem modular and multi-initiator aware. The
   `soc_mem_ss` per-bank fair round-robin arbiter is generic in `NumBanks`,
   `NumPorts32`, and `NumPorts64`, and `soc_top.MemNumBanks` is a parameter
@@ -152,9 +160,8 @@ Software and validation flow:
   the bank count further when a workload warrants it.
 - Widen the AXI fabric. **Done (sim- and hardware-validated):** the
   single-outstanding `soc_axi_arbiter` + `soc_axi_demux` pair has been replaced
-  by a PULP `axi_xbar` system crossbar, so the then-three initiators (core
-  instruction, core data, debug SBA - since joined by the iDMA as a
-  fourth) decode per initiator and arbitrate per
+  by a PULP `axi_xbar` system crossbar, so the three initiators (core
+  instruction, core data, debug SBA) decode per initiator and arbitrate per
   target with multiple outstanding requests, instead of serializing upstream of
   the banked memory. This paid off with the *existing* initiator set - it was
   not blocked on AXI-native burst initiators arriving. Validated by the full
@@ -170,11 +177,11 @@ Software and validation flow:
   **peripheral subsystem** (a single APB peripheral bus behind one `soc_axi_to_apb`
   bridge, carrying UART today and CLINT-wrap / DM-regs-wrap / accel CSR /
   future SPI/I2C/GPIO/timers in the end state). Memory-heavy initiators
-  (the CPU instruction and data paths via their native `soc_mem_ss` ports,
-  the iDMA via dedicated ports, plus future accelerators and caches) get
-  **two ports**: a system AXI master for CSR/control that lands on the xbar,
-  and a dedicated `soc_mem_ss` port for the data path that bypasses the xbar
-  entirely. This is
+  (the RV32 CPU instruction and data paths via their native `soc_mem_ss`
+  ports, CVA6 and the iDMA via dedicated 64-bit ports, plus future
+  accelerators and caches) get **two ports**: a system AXI master for
+  CSR/control that lands on the xbar, and a dedicated `soc_mem_ss` port for
+  the data path that bypasses the xbar entirely. This is
   the canonical pattern at CoreJack's scale - Cheshire, Carfield, and
   similar PULP-based platforms use the same shape, and it is what
   `accel_socket_if`'s split `mem_axi_*` / `csr_apb_*` ports already
@@ -201,14 +208,12 @@ Software and validation flow:
   promotion gate for `integration.sim`, `integration.fpga`, and
   `integration.debug`.
 
-Planned next FPGA board target:
-
-- **Digilent Arty A7-100T** (Xilinx Artix-7 `xc7a100tcsg324-1`) - a
-  lower-cost reference target to complement the current AXKU5 baseline and
-  to validate that the generic `soc_top` integration works on a smaller,
-  non-UltraScale+ FPGA family. Bring-up will use the same `make new-board`
-  scaffold and the standard descriptor / wrapper / XDC / board FuseSoC core
-  structure documented in [`board_porting.md`](board_porting.md).
+The second board, the **Digilent Arty A7-100T** (Xilinx Artix-7
+`xc7a100tcsg324-1`), is done: a lower-cost reference target that validated
+the generic `soc_top` integration on a smaller, non-UltraScale+ FPGA family
+through the standard descriptor / wrapper / XDC / board FuseSoC core structure
+documented in [`board_porting.md`](board_porting.md). No further board is
+scheduled.
 
 ## System IP And Accelerator Expansion
 
@@ -219,7 +224,7 @@ tenant. `corejack_idma_socket_adapter` wraps the unchanged `soc_idma`
 engine and presents exactly the socket boundary - clock/reset and the
 power-intent pins (driven to the static active state until a platform
 power controller exists, asserted in the adapter), the AXI memory
-manager into the crossbar, the APB CSR leg (the engine-side
+manager into its dedicated `soc_mem_ss` ports, the APB CSR leg (the engine-side
 `apb_to_reg_v2` conversion lives inside the adapter, so the iDMA's
 register offsets are unchanged), and the completion interrupt on PLIC
 source 2 (a sticky flag, W1C at DMA window offset `0xF00`). The
@@ -251,9 +256,10 @@ The first system IP has landed:
   `plic_smoke` app (ibex, cv32e40p, and cva6 in simulation).
 - **DMA engine - integrated, first socket tenant**: PULP `iDMA`
   (`rtl/platform/soc_idma.sv`) - the `idma_reg32_3d` register frontend, ND
-  midend, and `idma_backend_rw_axi` behind a burst splitter, entering the
-  crossbar as the fourth initiator with a register window at `DmaBaseAddr`.
-  Cheshire integrates the same engine in the same shape. It plugs into the
+  midend, and `idma_backend_rw_axi` behind a burst splitter, with its data
+  path on dedicated `soc_mem_ss` ports and a register window at `DmaBaseAddr`
+  reached through the crossbar. Cheshire integrates the same engine in the
+  same shape. It plugs into the
   platform through `accel_socket_if` via `corejack_idma_socket_adapter`
   (APB CSR leg, completion interrupt on PLIC source 2; see above). Software
   drives it through `sw/c/common/dma.{c,h}` and the `dma_smoke` app
@@ -290,12 +296,13 @@ in the *Multi-Initiator Architecture (planned)* tab of
 the layers of the interconnect itself.)
 
 - **Single-port (xbar-only)**: the initiator has one AXI master port
-  that lands on `axi_xbar` (the system bus). Through the xbar's two
-  slave paths (`soc_axi_to_mem` for RAM and `soc_axi_to_apb` for the
-  APB peripheral subsystem) it reaches the **entire** memory map -
-  RAM, UART, CLINT, debug-module registers, accelerator CSR windows,
-  and any future peripheral on the APB subsystem. Debug SBA is the
-  current example. Future debug/trace controllers, security blocks,
+  that lands on `axi_xbar` (the system bus). Through the xbar's target
+  ports (`soc_axi_to_mem` for RAM and the APB/DM/register bridges for
+  the peripherals today; one `soc_axi_to_apb` into the APB peripheral
+  subsystem in the end state) it reaches the **entire** memory map -
+  RAM, UART, CLINT, PLIC, debug-module registers, accelerator CSR
+  windows, and any future peripheral on the APB subsystem. Debug SBA is
+  the current example. Future debug/trace controllers, security blocks,
   interrupt aggregators, and any other low-traffic master fit here
   too. The integration cost is just one AXI master port on the xbar.
 
@@ -308,9 +315,9 @@ the layers of the interconnect itself.)
   framed from the memory's side - ingress entering the memory subsystem,
   egress leaving it - which is the opposite end from this initiator-side
   decode.) Worth doing when the initiator's data bandwidth would
-  saturate the xbar's RAM-fallback path: the CPU instruction and data paths
-  already use this pattern (native 32-bit ports), the iDMA uses dedicated
-  64-bit ports, and accelerator data flows are the next candidates.
+  saturate the xbar's RAM-fallback path: the RV32 CPU instruction and data
+  paths already use this pattern (native 32-bit ports), CVA6 and the iDMA use
+  dedicated 64-bit ports, and accelerator data flows are the next candidates.
   `accel_socket_if` already anticipates this shape with split
   `mem_axi_*` and `csr_apb_*` ports.
 
@@ -332,10 +339,11 @@ mistakes.
 
 ### Memory subsystem follow-up
 
-**Done.** `MemNumBanks` is now **8**, matching the seven ports that drive the
+**Done.** `MemNumBanks` is now **8** against the nine ports that drive the
 subsystem (CPU instruction + CPU data native 32-bit ports, the xbar RAM read +
-write engines, the UART loader, and the iDMA read + write), and the outstanding
-depths were raised so neither a port nor a bank is the throughput limiter.
+write engines, the UART loader, the iDMA read + write, and the CVA6 read +
+write; at most seven are active for any one core), and the outstanding depths
+were raised so neither a port nor a bank is the throughput limiter.
 
 The bank count followed the **`MemNumBanks ≈ port count`** target rather than the
 textbook `B ≈ 2·N` heuristic, because that heuristic assumes pathologically

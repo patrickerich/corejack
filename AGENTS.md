@@ -123,15 +123,19 @@ check that repository (not `setup-verilator`, and not upstream
 
 - System fabric is the PULP `axi_xbar` crossbar (48-bit addr / 64-bit data).
   RV32 cores reach it via split OBI → `soc_obi_to_axi`; CVA6 is AXI-native.
+  The crossbar carries non-RAM traffic plus debug SBA; every core's RAM-window
+  traffic takes a direct `soc_mem_ss` port (RV32 via the instruction/data
+  request routers, CVA6 via an `axi_demux`), and so does the iDMA data path.
   See [`docs/source/axi4_fabric.md`](docs/source/axi4_fabric.md).
 - **Single-beat AXI invariant:** all fabric traffic is `len == 0`, enforced by
   `rtl/bus/soc_axi_protocol_checker.sv`; the iDMA backend sits behind a burst
   splitter. Keep new initiators/targets single-beat unless the fabric is
   reworked.
 - **`soc_mem_ss` is port-owned and multi-outstanding.** Each port — two native
-  32-bit CPU ports (data, instruction) plus five 64-bit ports (xbar RAM
-  read/write engines, UART SRAM loader, iDMA read/write) — gets loss-free,
-  in-order, multi-outstanding access with per-bank fair round-robin across
+  32-bit CPU ports (data, instruction) plus seven 64-bit ports (xbar RAM
+  read/write engines, UART SRAM loader, iDMA read/write, CVA6 read/write) —
+  gets loss-free, in-order, multi-outstanding access with per-bank fair
+  round-robin across
   `MemNumBanks = 8` banks, and the outstanding depths are sized so neither a port
   nor a bank caps below ~1 access/cycle. The bank count has one home,
   **`mem_ss_pkg::MemNumBanksDefault`** — `soc_top.MemNumBanks` defaults to it and

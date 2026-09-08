@@ -299,7 +299,7 @@ Two board fields are optional:
   the default 1 MiB (e.g. the Artix-7 100T at 256 KiB). When unset, the `soc_top`
   1 MiB default applies. It drives both the board wrapper's `RamWords` and the
   board-RAM-sized bare-metal linker (`sw/common/link.ld.in`). It must be a
-  multiple of **8 x `mem_ss_pkg::MemNumBanksDefault`** (512 bytes at the current
+  multiple of **8 x `mem_ss_pkg::MemNumBanksDefault`** (64 bytes at the current
   8 banks): `soc_top` derives `WordsPerBank` with truncating division, so a size
   that does not divide evenly across the banks would advertise a RAM window
   larger than the memory actually instantiated. `board-check` enforces this.

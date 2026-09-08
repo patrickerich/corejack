@@ -94,7 +94,7 @@ adapter:
   file: rtl/cores/corejack_mycore_socket_adapter.sv
 
 platform:
-  core_type: 5
+  core_type: 8
   integration: socket_region
 
 wrapper:
@@ -132,13 +132,15 @@ compatible_boards:
   - axku5
 ```
 
-Also add a unique enum value to `rtl/pkg/platform_pkg.sv`:
+Also add a unique enum value to `rtl/pkg/platform_pkg.sv`, in UpperCamelCase
+like the existing members (values 0 to 7 are taken by the shipped cores):
 
 ```systemverilog
-CORE_MYCORE = 5
+CoreMycore = 8
 ```
 
-The descriptor `platform.core_type` value must match this enum value.
+The descriptor `platform.core_type` value must match this enum value; the
+`make new-core` scaffold picks the next free value and adds the member for you.
 
 Set `platform.integration` to the platform path used by the core:
 

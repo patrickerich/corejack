@@ -17,12 +17,13 @@ module soc_top #(
   parameter int unsigned UartLoaderBaud = 115_200,
   parameter string MemInitPath = "",
   parameter mem_ss_pkg::mem_impl_e MemImpl = mem_ss_pkg::MemImplModel,
-  // SRAM banking is a designer's choice. The default of 8 matches the seven
-  // ports that drive soc_mem_ss (two native 32-bit CPU ports plus five 64-bit
-  // ports), so concurrent streams rarely collide on a bank; soc_mem_ss is
-  // generic over NumBanks. The value itself lives in mem_ss_pkg because the
-  // software build reads it from there to split the bank_<n>.hex preload
-  // images - override this parameter and the images stop matching.
+  // SRAM banking is a designer's choice. The default of 8 is sized against the
+  // ports that drive soc_mem_ss (two native 32-bit CPU ports plus seven 64-bit
+  // ports; at most seven are active for any one core because the RV32 and CVA6
+  // paths use disjoint ports), so concurrent streams rarely collide on a bank;
+  // soc_mem_ss is generic over NumBanks. The value itself lives in mem_ss_pkg
+  // because the software build reads it from there to split the bank_<n>.hex
+  // preload images - override this parameter and the images stop matching.
   parameter int unsigned MemNumBanks = mem_ss_pkg::MemNumBanksDefault
 ) (
   input  logic clk_i,
@@ -108,15 +109,17 @@ module soc_top #(
     localparam logic [31:0] DmHaltAddr = DebugBaseAddr + 32'h0000_0800;
     localparam logic [31:0] DmExceptionAddr = DebugBaseAddr + 32'h0000_0810;
     localparam logic [31:0] DmRomBaseSelect = 32'h0000_1000;
-    // soc_mem_ss has two symmetric port groups. The five 64-bit ports are:
+    // soc_mem_ss has two symmetric port groups. The seven 64-bit ports are:
     // 0 = xbar RAM read engine, 1 = xbar RAM write engine (independent so a read
     // and a write hit different banks the same cycle), 2 = optional UART SRAM
-    // loader, 3/4 = iDMA dedicated read/write engines. The two 32-bit ports are
-    // the RV32 core's data (0) and instruction (1) direct RAM ports, routed off
-    // the data/instruction OBI and connected natively (no 32->64 bridge), so the
-    // memory subsystem performs the lane select. Only the RV32 core path drives
-    // the 32-bit ports; the CVA6 path leaves the core OBI idle.
-    localparam int unsigned MemInitPorts = 5;   // 64-bit ports only
+    // loader, 3/4 = iDMA dedicated read/write engines, 5/6 = CVA6 dedicated
+    // read/write engines (its RAM-window AXI traffic, routed off the core port
+    // ahead of the xbar). The two 32-bit ports are the RV32 core's data (0) and
+    // instruction (1) direct RAM ports, routed off the data/instruction OBI and
+    // connected natively (no 32->64 bridge), so the memory subsystem performs
+    // the lane select. Each core path drives only its own ports: the RV32 path
+    // leaves 64-bit ports 5/6 idle, the CVA6 path leaves the 32-bit ports idle.
+    localparam int unsigned MemInitPorts = 7;   // 64-bit ports only
     localparam int unsigned MemPorts32   = 2;   // native 32-bit CPU ports
     localparam logic [31:0] DmaSize = 32'h0000_1000;
     // The PLIC window spans the full standard layout (context block at
@@ -126,9 +129,11 @@ module soc_top #(
     // ID 1: UART. ID 2: iDMA completion interrupt, driven from the accelerator
     // socket (i_dma_socket.irq_o; see plic_irq_sources below).
     localparam int unsigned PlicNumSources = 2;
-    // Three xbar initiators: core instruction, core data, debug SBA. The iDMA
-    // is no longer an xbar initiator - its data path has dedicated soc_mem_ss
-    // ports (see i_dma_axi_to_mem); only its CSR leg uses the fabric (APB).
+    // Three xbar initiators: core instruction, core data, debug SBA (CVA6
+    // takes slot 0 for its non-RAM traffic and leaves slot 1 idle). The iDMA
+    // is not an xbar initiator - its data path has dedicated soc_mem_ss ports
+    // (see i_dma_axi_to_mem); only its CSR leg uses the fabric (APB). CVA6's
+    // RAM traffic likewise bypasses the xbar (see i_cva6_axi_to_mem).
     localparam int unsigned CoreAxiPorts = 3;
     localparam int unsigned FabricAxiPorts = 6;
     // System crossbar configuration. Replaces the former single-outstanding
@@ -394,7 +399,7 @@ module soc_top #(
       assign data_axi_rsp    = '0;
 
       // CVA6 is the only core that is itself the AXI initiator, so a core-only
-      // reset can orphan a transaction the crossbar has already accepted. The
+      // reset can orphan a transaction the fabric has already accepted. The
       // RV32 path cannot: its bus-side blocks (OBI buffers, obi-to-axi bridges)
       // sit on rst_ni and own the fabric transaction, and the buffers' core-side
       // s_rready_i is tied high so responses always retire. This is the AXI
@@ -407,11 +412,15 @@ module soc_top #(
       // merely while core_rst_ni is low, so a slow response cannot land on a
       // freshly released core. uart_loader_active also gates core_rst_ni, but
       // the loader only serves cores without a debug interface (serv, picorv32,
-      // cvw) and never CVA6, so ~core_rst_ni covers that path.
-      logic         cva6_isolate;
-      logic         cva6_isolated;
-      logic         cva6_isolate_q;
-      soc_axi_req_t cva6_iso_req;
+      // cvw) and never CVA6, so ~core_rst_ni covers that path. The stage sits
+      // ahead of the request router below, so both the xbar leg and the direct
+      // RAM leg drain under it.
+      logic          cva6_isolate;
+      logic          cva6_isolated;
+      logic          cva6_isolate_q;
+      soc_axi_req_t  cva6_iso_req;
+      soc_axi_req_t  cva6_iso_mst_req;
+      soc_axi_resp_t cva6_iso_mst_rsp;
 
       assign cva6_isolate = ~core_rst_ni | ndmreset_pending_q |
                             (cva6_isolate_q & ~cva6_isolated);
@@ -457,8 +466,8 @@ module soc_top #(
         .rst_ni,
         .slv_req_i  (cva6_iso_req),
         .slv_resp_o (cva6_axi_rsp),
-        .mst_req_o  (core_axi_req[0]),
-        .mst_resp_i (core_axi_rsp[0]),
+        .mst_req_o  (cva6_iso_mst_req),
+        .mst_resp_i (cva6_iso_mst_rsp),
         .isolate_i  (cva6_isolate),
         .isolated_o (cva6_isolated)
       );
@@ -484,6 +493,115 @@ module soc_top #(
           end
         end
       end
+`endif
+
+      // ----------------------------------------------------------------------
+      // CVA6 request router: the AXI analogue of the RV32 instruction/data
+      // routers. A per-transaction address decode on AW and AR steers
+      // RAM-window traffic to a dedicated soc_axi_to_mem on soc_mem_ss 64-bit
+      // ports 5/6, bypassing the xbar, and everything else (UART, CLINT, PLIC,
+      // DMA CSR, debug ROM, decode misses) to xbar slave port 0. axi_demux
+      // routes W beats in AW order and merges B/R back, and it stalls a new
+      // AW/AR whose ID is still in flight on the other leg, so same-ID
+      // transactions stay ordered across the two paths - the property the
+      // single-outstanding RV32 routers get by construction. Route index
+      // 1 = RAM leg, 0 = xbar leg, so the select is just the decode bit.
+      // ----------------------------------------------------------------------
+      // In-flight bound on the RAM leg: the router's per-ID counter and the
+      // bridge's per-engine depth are the same number so neither throttles
+      // below the other.
+      localparam int unsigned Cva6RamOutstanding = 8;
+      // Widened like the xbar rules so base + size cannot wrap in 32 bits.
+      localparam axi_addr_t Cva6RamStart = axi_addr_t'(RamBaseAddr);
+      localparam axi_addr_t Cva6RamEnd   = axi_addr_t'(RamBaseAddr) + axi_addr_t'(RamSize);
+
+      soc_axi_req_t  [1:0] cva6_route_req;
+      soc_axi_resp_t [1:0] cva6_route_rsp;
+      logic                cva6_aw_is_ram;
+      logic                cva6_ar_is_ram;
+
+      assign cva6_aw_is_ram = (cva6_iso_mst_req.aw.addr >= Cva6RamStart) &&
+                              (cva6_iso_mst_req.aw.addr <  Cva6RamEnd);
+      assign cva6_ar_is_ram = (cva6_iso_mst_req.ar.addr >= Cva6RamStart) &&
+                              (cva6_iso_mst_req.ar.addr <  Cva6RamEnd);
+
+      axi_demux #(
+        .AxiIdWidth  (soc_bus_pkg::AxiIdWidth),
+        .AtopSupport (1'b0),
+        .aw_chan_t   (soc_axi_aw_chan_t),
+        .w_chan_t    (soc_axi_w_chan_t),
+        .b_chan_t    (soc_axi_b_chan_t),
+        .ar_chan_t   (soc_axi_ar_chan_t),
+        .r_chan_t    (soc_axi_r_chan_t),
+        .axi_req_t   (soc_axi_req_t),
+        .axi_resp_t  (soc_axi_resp_t),
+        .NoMstPorts  (2),
+        .MaxTrans    (Cva6RamOutstanding),
+        .AxiLookBits (soc_bus_pkg::AxiIdWidth),
+        .UniqueIds   (1'b0),
+        // No spill registers: the RV32 direct path is unregistered too, and
+        // the combinational loop the xbar's CUT_ALL_AX breaks involves the
+        // iDMA backend, which is not on this leg.
+        .SpillAw     (1'b0),
+        .SpillW      (1'b0),
+        .SpillB      (1'b0),
+        .SpillAr     (1'b0),
+        .SpillR      (1'b0)
+      ) i_cva6_router (
+        .clk_i,
+        .rst_ni,
+        .test_i          (1'b0),
+        .slv_req_i       (cva6_iso_mst_req),
+        .slv_aw_select_i (cva6_aw_is_ram),
+        .slv_ar_select_i (cva6_ar_is_ram),
+        .slv_resp_o      (cva6_iso_mst_rsp),
+        .mst_reqs_o      (cva6_route_req),
+        .mst_resps_i     (cva6_route_rsp)
+      );
+
+      assign core_axi_req[0]   = cva6_route_req[0];
+      assign cva6_route_rsp[0] = core_axi_rsp[0];
+
+      // Dedicated CVA6 RAM path, the same shape as the iDMA leg: read engine
+      // -> init port 5, write engine -> init port 6.
+      soc_axi_to_mem #(
+        .AddrWidth      (32),
+        .DataWidth      (MemDataWidth),
+        .MaxOutstanding (Cva6RamOutstanding)
+      ) i_cva6_axi_to_mem (
+        .clk_i,
+        .rst_ni,
+        .s_axi_req_i     (cva6_route_req[1]),
+        .s_axi_rsp_o     (cva6_route_rsp[1]),
+        .mem_rd_req_o    (mem_init_req[5]),
+        .mem_rd_we_o     (mem_init_we[5]),
+        .mem_rd_addr_o   (mem_init_addr[5]),
+        .mem_rd_wdata_o  (mem_init_wdata[5]),
+        .mem_rd_be_o     (mem_init_be[5]),
+        .mem_rd_gnt_i    (mem_init_gnt[5]),
+        .mem_rd_rvalid_i (mem_init_rvalid[5]),
+        .mem_rd_rready_o (mem_axi_rready[5]),
+        .mem_rd_rdata_i  (mem_init_rdata[5]),
+        .mem_rd_err_i    (mem_init_err[5]),
+        .mem_wr_req_o    (mem_init_req[6]),
+        .mem_wr_we_o     (mem_init_we[6]),
+        .mem_wr_addr_o   (mem_init_addr[6]),
+        .mem_wr_wdata_o  (mem_init_wdata[6]),
+        .mem_wr_be_o     (mem_init_be[6]),
+        .mem_wr_gnt_i    (mem_init_gnt[6]),
+        .mem_wr_rvalid_i (mem_init_rvalid[6]),
+        .mem_wr_rready_o (mem_axi_rready[6]),
+        .mem_wr_err_i    (mem_init_err[6])
+      );
+
+`ifndef SYNTHESIS
+      // The per-initiator xbar checkers do not see the RAM leg; guard it too.
+      soc_axi_protocol_checker i_cva6_ram_axi_checker (
+        .clk_i,
+        .rst_ni,
+        .req_i (cva6_route_req[1]),
+        .rsp_i (cva6_route_rsp[1])
+      );
 `endif
 
       assign core_instr_req    = 1'b0;
@@ -541,6 +659,21 @@ module soc_top #(
       assign instr_axi_rsp   = core_axi_rsp[0];
       assign data_axi_rsp    = core_axi_rsp[1];
       assign cva6_axi_rsp    = '0;
+
+      // CVA6's dedicated RAM ports (64-bit 5/6) stay idle on the RV32 path;
+      // rready is held high so the ports can never back up.
+      assign mem_init_req[5]   = 1'b0;
+      assign mem_init_we[5]    = 1'b0;
+      assign mem_init_addr[5]  = '0;
+      assign mem_init_wdata[5] = '0;
+      assign mem_init_be[5]    = '0;
+      assign mem_axi_rready[5] = 1'b1;
+      assign mem_init_req[6]   = 1'b0;
+      assign mem_init_we[6]    = 1'b0;
+      assign mem_init_addr[6]  = '0;
+      assign mem_init_wdata[6] = '0;
+      assign mem_init_be[6]    = '0;
+      assign mem_axi_rready[6] = 1'b1;
 
       corejack_core_region #(
         .CoreType        (CoreType),
@@ -899,7 +1032,10 @@ module soc_top #(
     // System crossbar: the three initiators (core instruction, core data,
     // debug SBA) decode per port and arbitrate per target. Decode misses land
     // on the xbar's built-in error slave (no explicit default master port).
-    // The iDMA is not here - its data path has dedicated soc_mem_ss ports.
+    // Neither the iDMA data path nor CVA6's RAM traffic comes through here -
+    // both have dedicated soc_mem_ss ports; slot 0 carries CVA6's non-RAM
+    // traffic. The RAM target below therefore serves debug SBA and any
+    // fabric-routed RAM access.
     axi_xbar #(
       .Cfg           (FabricXbarCfg),
       .ATOPs         (1'b0),
@@ -935,7 +1071,8 @@ module soc_top #(
       .DataWidth     (MemDataWidth),
       // The crossbar never presents more than MaxMstTrans transactions to one
       // master port, so depth beyond that is unreachable on this leg. The iDMA
-      // leg keeps the deeper default because it is not behind the crossbar.
+      // and CVA6 legs keep the deeper depth because they are not behind the
+      // crossbar.
       .MaxOutstanding (FabricXbarCfg.MaxMstTrans),
       .axi_req_t     (soc_axi_mst_req_t),
       .axi_resp_t    (soc_axi_mst_resp_t),
@@ -1139,7 +1276,7 @@ module soc_top #(
       .addr32_i(mem32_addr), .wdata32_i(mem32_wdata), .be32_i(mem32_be),
       .rvalid32_o(mem32_rvalid), .rready32_i(mem32_rready),
       .rdata32_o(mem32_rdata), .err32_o(mem32_err),
-      // 64-bit ports (xbar R/W, loader, iDMA R/W).
+      // 64-bit ports (xbar R/W, loader, iDMA R/W, CVA6 R/W).
       .req64_i(mem_init_req), .gnt64_o(mem_init_gnt), .we64_i(mem_init_we),
       .addr64_i(mem_init_addr), .wdata64_i(mem_init_wdata), .be64_i(mem_init_be),
       .rvalid64_o(mem_init_rvalid), .rready64_i(mem_axi_rready),

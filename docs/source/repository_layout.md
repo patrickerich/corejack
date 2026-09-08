@@ -6,13 +6,16 @@ specific area, follow the linked documentation.
 ## RTL
 
 - `rtl/top/soc_top.sv` - generic SoC top: core region, AXI4 fabric, debug,
-  APB UART, CLINT, banked SRAM, and the optional UART SRAM loader.
+  APB UART, CLINT, PLIC, iDMA socket, banked SRAM, and the optional UART SRAM
+  loader.
 - `rtl/pkg/platform_pkg.sv` - shared enums (`core_type_e`, memory map style,
   memory technology, interconnect style).
 - `rtl/pkg/soc_bus_pkg.sv` - central PULP bus typedefs (`APB`, `AXI`, `OBI`,
   register interface) used as the default typed interfaces.
 - `rtl/pkg/mem_ss_pkg.sv` - memory subsystem types.
-- `rtl/interfaces/` - core and accelerator socket interface contracts.
+- `rtl/interfaces/` - the accelerator socket contract (`accel_socket_if`, in
+  use by the iDMA) and an aspirational core socket sketch (`core_socket_if`,
+  not wired in).
 - `rtl/cores/` - core adapters and the multi-core `corejack_core_region`.
   Adapters exist for Ibex, CV32E40P, CV32E40S, CV32E40X, CVA6, SERV, PicoRV32,
   and CVW/Wally, plus small per-core shims and renamed third-party overrides
@@ -28,8 +31,10 @@ specific area, follow the linked documentation.
   models/wrappers for behavioral and Xilinx targets.
 - `rtl/platform/soc_uart_sram_loader.sv` - side-path UART SRAM loader.
 - `rtl/platform/soc_idma.sv` - PULP iDMA system DMA wrapper (register
-  frontend, ND midend, AXI backend, burst splitter, fabric cut); enters the
-  crossbar as the fourth initiator with a config window at `DmaBaseAddr`.
+  frontend, ND midend, AXI backend, burst splitter, fabric cuts), and
+  `rtl/platform/corejack_idma_socket_adapter.sv`, its accelerator-socket
+  tenant: data path on dedicated `soc_mem_ss` ports, config window at
+  `DmaBaseAddr` through the crossbar.
 - `rtl/platform/fpga/boards/<board>/` - per-board wrapper and XDC.
   Currently: `axku5/` and `arty_a7_100t/` (one wrapper module plus one
   constraints file each).

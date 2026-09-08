@@ -1,10 +1,12 @@
 """CVA6 AXI reset isolation.
 
 CVA6 is the only core that is itself the AXI initiator, so an ndmreset can
-reset it while the crossbar and its targets keep running. Without an isolation
-stage that outlives the core reset, a response the fabric has already accepted
-is orphaned: nothing retires it, so it sits on the crossbar's slave port with
-valid held and ready low, and can later land on the freshly restarted core.
+reset it while the fabric keeps running. Without an isolation stage that
+outlives the core reset, a response the fabric has already accepted is
+orphaned: nothing retires it, so it sits on the fabric-side port with valid
+held and ready low, and can later land on the freshly restarted core. CVA6 has
+two fabric-side legs - the crossbar's slave port 0 for non-RAM traffic and a
+dedicated soc_axi_to_mem for the RAM window - and both are watched here.
 
 The RV32 cores cannot hit this - their OBI buffers and obi-to-axi bridges sit
 on rst_ni and own the fabric transaction - which is why this needs its own
@@ -100,45 +102,41 @@ async def ndmreset_with_axi_traffic_in_flight_drains_the_fabric(dut):
     # Land the reset on that traffic.
     dut.dbg_force_ndmreset.value = 1
 
-    worst_r_stall = 0
-    worst_b_stall = 0
-    r_stall = 0
-    b_stall = 0
-    r_valid_cycles = 0
-    b_valid_cycles = 0
+    # One (valid, ready) handle pair per response channel per fabric-side leg.
+    legs = {
+        "xbar R": (dut.dbg_cva6_fab_r_valid, dut.dbg_cva6_fab_r_ready),
+        "xbar B": (dut.dbg_cva6_fab_b_valid, dut.dbg_cva6_fab_b_ready),
+        "ram R": (dut.dbg_cva6_ram_r_valid, dut.dbg_cva6_ram_r_ready),
+        "ram B": (dut.dbg_cva6_ram_b_valid, dut.dbg_cva6_ram_b_ready),
+    }
+    worst_stall = {name: 0 for name in legs}
+    stall = {name: 0 for name in legs}
+    valid_cycles = {name: 0 for name in legs}
     for _ in range(OBSERVE_CYCLES):
         await RisingEdge(dut.clk_i)
         await ReadOnly()
 
-        r_valid_cycles += int(dut.dbg_cva6_fab_r_valid.value)
-        b_valid_cycles += int(dut.dbg_cva6_fab_b_valid.value)
-
-        if int(dut.dbg_cva6_fab_r_valid.value) and not int(dut.dbg_cva6_fab_r_ready.value):
-            r_stall += 1
-            worst_r_stall = max(worst_r_stall, r_stall)
-        else:
-            r_stall = 0
-
-        if int(dut.dbg_cva6_fab_b_valid.value) and not int(dut.dbg_cva6_fab_b_ready.value):
-            b_stall += 1
-            worst_b_stall = max(worst_b_stall, b_stall)
-        else:
-            b_stall = 0
+        for name, (valid_h, ready_h) in legs.items():
+            valid = int(valid_h.value)
+            valid_cycles[name] += valid
+            if valid and not int(ready_h.value):
+                stall[name] += 1
+                worst_stall[name] = max(worst_stall[name], stall[name])
+            else:
+                stall[name] = 0
 
     dut._log.info(
-        "post-ndmreset worst stall: R=%d cycles, B=%d cycles (limit %d); "
-        "fabric response activity: r_valid %d cycles, b_valid %d cycles",
-        worst_r_stall, worst_b_stall, DRAIN_LIMIT, r_valid_cycles, b_valid_cycles,
+        "post-ndmreset worst stall (limit %d): %s; fabric response activity: %s",
+        DRAIN_LIMIT,
+        ", ".join(f"{name}={worst_stall[name]}" for name in legs),
+        ", ".join(f"{name} valid {valid_cycles[name]} cycles" for name in legs),
     )
 
-    assert worst_r_stall < DRAIN_LIMIT, (
-        f"fabric read response to CVA6 stalled {worst_r_stall} cycles during "
-        f"ndmreset: the crossbar is holding a response nothing will retire"
-    )
-    assert worst_b_stall < DRAIN_LIMIT, (
-        f"fabric write response to CVA6 stalled {worst_b_stall} cycles during "
-        f"ndmreset: the crossbar is holding a response nothing will retire"
-    )
+    for name in legs:
+        assert worst_stall[name] < DRAIN_LIMIT, (
+            f"{name} response to CVA6 stalled {worst_stall[name]} cycles during "
+            f"ndmreset: the fabric is holding a response nothing will retire"
+        )
 
     # Secondary: the debug path still reaches RAM while the core is held down.
     await RisingEdge(dut.clk_i)
