@@ -185,8 +185,8 @@ targets:
       cocotb_module: test_smoke
       timescale: 1ns/1ps
       verilator_options:
-        - trace_fst ? (--trace-fst)
-        - trace_vcd ? (--trace)
+        - trace_fst ? (--trace-fst --trace-structs)
+        - trace_vcd ? (--trace --trace-structs)
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
         # NOTE: these -Wno-* waivers are GLOBAL (they also cover CoreJack-native
@@ -211,8 +211,8 @@ targets:
       cocotb_module: test_soc_sw
       timescale: 1ns/1ps
       verilator_options:
-        - trace_fst ? (--trace-fst)
-        - trace_vcd ? (--trace)
+        - trace_fst ? (--trace-fst --trace-structs)
+        - trace_vcd ? (--trace --trace-structs)
         # Treat 2-state initialization as an edge so async-reset flops behind
         # gated core clocks (e.g. ibex priv_lvl_q, reset value M != '0) still
         # take their reset value: with the clock gated during reset and rst_ni
@@ -288,8 +288,8 @@ targets:
       cocotb_module: test_debug_integration
       timescale: 1ns/1ps
       verilator_options:
-        - trace_fst ? (--trace-fst)
-        - trace_vcd ? (--trace)
+        - trace_fst ? (--trace-fst --trace-structs)
+        - trace_vcd ? (--trace --trace-structs)
         # See sw-sim: required for async-reset flops behind gated core clocks.
         - --x-initial-edge
         - -DDEBUG_TEST_HOOKS
@@ -332,8 +332,8 @@ targets:
       cocotb_module: test_cva6_reset_isolation
       timescale: 1ns/1ps
       verilator_options:
-        - trace_fst ? (--trace-fst)
-        - trace_vcd ? (--trace)
+        - trace_fst ? (--trace-fst --trace-structs)
+        - trace_vcd ? (--trace --trace-structs)
         # See sw-sim: required for async-reset flops behind gated core clocks.
         - --x-initial-edge
         - -DCOREJACK_CORE_CVA6
@@ -374,8 +374,8 @@ targets:
       cocotb_module: test_axi_adapters
       timescale: 1ns/1ps
       verilator_options:
-        - trace_fst ? (--trace-fst)
-        - trace_vcd ? (--trace)
+        - trace_fst ? (--trace-fst --trace-structs)
+        - trace_vcd ? (--trace --trace-structs)
         - -DASSERTS_OFF
         - -Wno-MODDUP
         - -Wno-REDEFMACRO
@@ -403,8 +403,8 @@ targets:
       cocotb_module: test_uart_sram_loader
       timescale: 1ns/1ps
       verilator_options:
-        - trace_fst ? (--trace-fst)
-        - trace_vcd ? (--trace)
+        - trace_fst ? (--trace-fst --trace-structs)
+        - trace_vcd ? (--trace --trace-structs)
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
     filesets:
@@ -419,8 +419,8 @@ targets:
       cocotb_module: test_plic
       timescale: 1ns/1ps
       verilator_options:
-        - trace_fst ? (--trace-fst)
-        - trace_vcd ? (--trace)
+        - trace_fst ? (--trace-fst --trace-structs)
+        - trace_vcd ? (--trace --trace-structs)
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
         - -Wno-PINMISSING
@@ -440,8 +440,8 @@ targets:
       cocotb_module: test_mem_ss_bench
       timescale: 1ns/1ps
       verilator_options:
-        - trace_fst ? (--trace-fst)
-        - trace_vcd ? (--trace)
+        - trace_fst ? (--trace-fst --trace-structs)
+        - trace_vcd ? (--trace --trace-structs)
         - -Wno-WIDTHEXPAND
         - -Wno-WIDTHTRUNC
         - -Wno-PINMISSING

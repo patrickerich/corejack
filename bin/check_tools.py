@@ -91,6 +91,72 @@ def toolchain_paths(toolchain: str) -> tuple[Path, str]:
     return Path(), "riscv64-unknown-elf-"
 
 
+def find_c_compiler() -> str | None:
+    """Return the compiler that will build the Verilated model, if any."""
+    for env_var in ("CXX", "CC"):
+        candidate = os.environ.get(env_var, "").strip()
+        if candidate:
+            resolved = shutil.which(candidate)
+            if resolved:
+                return resolved
+
+    for candidate in ("g++", "c++", "clang++", "cc", "gcc", "clang"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+
+    return None
+
+
+def check_c_header(name: str, header: str, pkg_config: str, required: bool, note: str = "") -> bool:
+    """Report whether a C/C++ development header is available to the host compiler.
+
+    Deliberately package-manager agnostic: distributions disagree on package
+    names (lz4-devel, liblz4-dev, lz4-dev, ...) and on include directories
+    (multiarch paths on Debian, /usr/local on macOS). Asking the compiler that
+    will actually build the model is the portable question, and it honours
+    CPATH and a CC/CXX override for free. pkg-config is only a fallback for
+    hosts with no compiler on PATH.
+    """
+    found = False
+    detail = ""
+
+    compiler = find_c_compiler()
+    if compiler:
+        language = "c++" if any(tag in Path(compiler).name for tag in ("++", "xx")) else "c"
+        try:
+            probe = subprocess.run(
+                [compiler, "-fsyntax-only", "-x", language, "-"],
+                check=False,
+                text=True,
+                input=f"#include <{header}>\n",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=30,
+            )
+            found = probe.returncode == 0
+        except (OSError, subprocess.SubprocessError) as exc:
+            detail = str(exc)
+        if found:
+            detail = f"found by {Path(compiler).name}"
+
+    if not found and shutil.which("pkg-config"):
+        ok, _ = run_text(["pkg-config", "--exists", pkg_config])
+        if ok:
+            found = True
+            detail = f"found by pkg-config ({pkg_config})"
+
+    status = "OK" if found else ("MISSING" if required else "not found")
+    marker = "!" if required and not found else " "
+    print(f"{marker} {name:22} {status:8} {header}")
+    if detail:
+        print(f"  {'':22} {detail}")
+    if note:
+        print(f"  {'':22} {note}")
+
+    return found or not required
+
+
 def check_tool(tool: Tool, flow: str) -> bool:
     required = flow_requires(tool, flow)
     exe = find_command(tool.command, tool.search_paths)
@@ -218,6 +284,25 @@ def main() -> int:
         all_ok &= check_tool(tool, args.flow)
 
     if args.flow in {"all", "sim"}:
+        # FST waveform prerequisites. These are consumed when the *model* is
+        # compiled, not when Verilator is built: Verilator ships fstcpp, whose
+        # writer includes <lz4.h> and <zlib.h>, and its verilated.mk links
+        # -llz4 -lz unconditionally. A prebuilt Verilator therefore needs them
+        # just as much as a locally built one. Waveform dumping is opt-in, so a
+        # missing header is reported without failing the check.
+        for header_name, header, pkg_config in (
+            ("lz4 headers", "lz4.h", "liblz4"),
+            ("zlib headers", "zlib.h", "zlib"),
+        ):
+            check_c_header(
+                header_name,
+                header,
+                pkg_config,
+                required=False,
+                note="needed only for SIM_WAVES=1 SIM_WAVE_FORMAT=fst (VCD needs neither)",
+            )
+
+    if args.flow in {"all", "sim"}:
         print_section("Optional Verilator Build Prerequisites")
         verilator_build_tools = [
             Tool("git", "git", ("--version",), ()),
@@ -234,7 +319,12 @@ def main() -> int:
         print(
             "  "
             + f"{'system packages':22} "
-            + "zlib/flex runtime development headers may also be required by the host OS"
+            + "flex/bison and zlib development headers may also be required by the host OS"
+        )
+        print(
+            "  "
+            + f"{'':22} "
+            + "see docs/source/tooling.md for the lz4/zlib waveform prerequisites"
         )
 
     print_section("RTL Style")
