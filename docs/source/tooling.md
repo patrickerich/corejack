@@ -255,15 +255,15 @@ TOOLS_DIR/src/verilator/
 TOOLS_DIR/verilator/
 ```
 
-The default pinned Verilator tag is `v5.048`. Override it when invoking the
-target if needed:
+The default pinned Verilator tag is `v5.050`, matching `VERILATOR_VERSION` in
+the `Makefile`. Override it when invoking the target if needed:
 
 ```bash
-make tool-verilator VERILATOR_VERSION=v5.048
+make tool-verilator VERILATOR_VERSION=v5.050
 ```
 
 The default tag is verified against commit
-`d0aa828c217410fffc73d92077b6f4f54830357c` after checkout.
+`848d926ebd4addacacd294dc84e35d9d4ae8078c` after checkout.
 
 `source sourceme.sh` prepends `TOOLS_DIR/verilator/bin` when that local install is
 present. If it is absent, the flow falls back to whichever `verilator` is
@@ -273,6 +273,51 @@ Building Verilator from source requires host build tools such as `git`,
 `autoconf`, `flex`, `bison`, `help2man`, Perl, `make`, and a C++ compiler.
 `make check-tools FLOW=sim` reports the active Verilator and these optional
 source-build prerequisites.
+
+## Waveform Tracing Prerequisites
+
+FST waveform dumping needs the **lz4** and **zlib** development headers on the
+host. Without them a traced build fails while compiling the model:
+
+```text
+fatal error: lz4.h: No such file or directory
+```
+
+Three properties of this dependency are worth being precise about, because
+they are easy to get wrong:
+
+- It is consumed when the **simulation model** is compiled, not when Verilator
+  is built. Verilator ships its own FST writer under `fstcpp`, whose source
+  includes `<lz4.h>` and `<zlib.h>`, and its `verilated.mk` links `-llz4 -lz`
+  unconditionally. Rebuilding or reinstalling Verilator therefore does not fix
+  a missing header, and a distribution-provided Verilator needs the headers
+  just as much as a repo-local one.
+- It applies **only to FST**. `SIM_WAVE_FORMAT=vcd` needs neither library, so
+  VCD is the fallback on a host where the headers cannot be installed. Both
+  formats carry the same events; FST is far smaller (a `cva6-reset-sim` dump
+  is about 150 KiB as FST against about 19 MiB as VCD).
+- It is **not needed for untraced simulation**. The default `SIM_WAVES=0` path,
+  and therefore `make smoke`, `make axi-smoke`, and CI, are unaffected.
+
+Package names differ across distributions, so install whichever pair your host
+uses:
+
+| Distribution family | Packages |
+| --- | --- |
+| Fedora, RHEL, AlmaLinux, Rocky | `lz4-devel` and `zlib-devel` (some releases ship the latter as `zlib-ng-compat-devel`) |
+| Debian, Ubuntu | `liblz4-dev` and `zlib1g-dev` |
+| openSUSE | `liblz4-devel` and `zlib-devel` |
+| Arch | `lz4` and `zlib` |
+| Alpine | `lz4-dev` and `zlib-dev` |
+| macOS (Homebrew) | `lz4` and `zlib` |
+
+`make check-tools FLOW=sim` reports both headers under **Simulation**. The
+check does not consult a package database: it asks the host C++ compiler to
+preprocess `#include <lz4.h>`, falling back to `pkg-config` when no compiler is
+on `PATH`. That keeps it correct across distributions, honours a `CC`/`CXX`
+override and `CPATH`, and finds headers in non-standard prefixes such as
+`/usr/local`. Both are reported as optional, since waveform dumping is opt-in;
+a missing header does not fail the check.
 
 ## Optional Local Verible
 
@@ -320,7 +365,9 @@ These are currently observed local tool versions used to validate this
 repository. They are not all pinned by this repo, so recording them here helps
 reproducibility:
 
-- Verilator: repo-local `5.048`
+- Verilator: repo-local `5.050`
+- lz4 development headers (FST tracing only): `1.9.4`
+- zlib development headers (FST tracing only): `zlib-ng-compat` `2.2.3`
 - Verible: repo-local `v0.0-4053-g89d4d98a`
 - GNU Make: `4.4.1`
 - System Python used by setup: `3.13.13`

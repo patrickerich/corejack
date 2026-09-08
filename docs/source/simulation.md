@@ -148,6 +148,26 @@ for FST, `--trace` for VCD) and the run is directed to the trace file with
 `--trace-file`. When `SIM_WAVE_FILE` is unset, the path is derived per target,
 for example `build/waves/sw-sim-<core>-<app>.fst` or `build/waves/smoke.fst`.
 
+Traced builds also pass `--trace-structs`, so packed structs are dumped as a
+named hierarchy instead of one wide vector. Without it the platform's AXI
+appears as an anonymous bit vector (`core_axi_req`, 747 bits) that is
+impractical to read in a viewer and impossible to bind protocol tooling to;
+with it the same signal becomes a scope per port with `aw_valid`, `ar_valid`
+and the payload fields underneath. FST labels those scopes as structs, VCD as
+modules, since VCD has no struct scope type. The size effect measured on
+`cva6-reset-sim` is small and goes in opposite directions per format: FST grew
+from 147 KiB to 198 KiB, while VCD *shrank* from 18.5 MiB to 14.3 MiB, because
+a flat wide vector has to be re-emitted in full whenever any single bit
+changes.
+
+FST dumping needs the lz4 and zlib development headers on the host, because
+Verilator's FST writer is compiled into the model. A host without them fails
+the traced build with `fatal error: lz4.h: No such file or directory`; use
+`SIM_WAVE_FORMAT=vcd` in the meantime. `make check-tools FLOW=sim` reports
+both headers, and
+[`tooling.md`](tooling.md#waveform-tracing-prerequisites) has the per-platform
+package names. Untraced runs are unaffected.
+
 ```bash
 # FST trace of the smoke run -> build/waves/smoke.fst
 make smoke SIM_WAVES=1
