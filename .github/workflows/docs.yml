@@ -10,12 +10,16 @@ on:
     paths:
       - 'docs/**'
       - '.github/workflows/docs.yml'
+      # Generates docs/source/support_matrix.rst, so it is a docs input too.
+      - 'bin/render_support_matrix.py'
   pull_request:
     branches:
       - main
     paths:
       - 'docs/**'
       - '.github/workflows/docs.yml'
+      # Generates docs/source/support_matrix.rst, so it is a docs input too.
+      - 'bin/render_support_matrix.py'
   workflow_dispatch:
 
 permissions:

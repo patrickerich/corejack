@@ -59,7 +59,7 @@ The scaffold creates a descriptor, wrapper, XDC placeholder, and board FuseSoC
 core. It intentionally leaves board-specific pin constraints and clocking for
 manual review.
 
-See [`docs/source/board_porting.md`](docs/source/board_porting.md).
+See [Board Porting Guide](https://patrickerich.github.io/corejack/board_porting.html).
 
 ## Adding A Core
 
@@ -80,7 +80,7 @@ Generated cores start as `planned`. The generated adapter is only a placeholder;
 replace it with a real protocol adapter before trying to promote simulation or
 FPGA support.
 
-See [`docs/source/core_porting.md`](docs/source/core_porting.md).
+See [Core Porting Guide](https://patrickerich.github.io/corejack/core_porting.html).
 
 ## Support Status Promotion
 
@@ -96,10 +96,10 @@ make support-matrix
 make support-matrix-check
 ```
 
-Commit the regenerated [`docs/source/support_matrix.md`](docs/source/support_matrix.md) with
+Commit the regenerated [CoreJack Support Matrix](https://patrickerich.github.io/corejack/support_matrix.html) with
 the descriptor change.
 
-Use [`docs/source/core_acceptance_checklist.md`](docs/source/core_acceptance_checklist.md) as
+Use [Core Acceptance Checklist](https://patrickerich.github.io/corejack/core_acceptance_checklist.html) as
 the promotion gate for simulation, FPGA, debug, and Zephyr status.
 
 ## FPGA And Hardware Work
@@ -118,7 +118,7 @@ make fpga-run-sw CORE=<core> BOARD=axku5 SW_APP=hello_world
 ```
 
 For cores without OpenOCD/GDB debug support, use the UART SRAM loader flow
-documented in [`docs/source/uart_sram_loader.md`](docs/source/uart_sram_loader.md).
+documented in [UART SRAM Loader](https://patrickerich.github.io/corejack/uart_sram_loader.html).
 
 ## Documentation
 
@@ -132,7 +132,7 @@ Use `logs/open_items.md` or another ignored file under `logs/` for local
 planning notes. Promote stable, generally useful plans into committed
 documentation such as `docs/` or `README.md`.
 
-Start from [`docs/source/index.md`](docs/source/index.md) when adding or updating
+Start from [CoreJack documentation](https://patrickerich.github.io/corejack/) when adding or updating
 documentation. A new page must be listed in one of that file's captioned
 `toctree` blocks — the caption becomes its group heading in the rendered
 sidebar. `make -C docs html` builds with `-W`, so a page left out of every
@@ -157,7 +157,7 @@ name, not the page index).
 ## Coding Style
 
 CoreJack-owned RTL should follow the lowRISC/OpenTitan SystemVerilog coding
-style as the default intent. See [`docs/source/coding_style.md`](docs/source/coding_style.md).
+style as the default intent. See [Coding Style](https://patrickerich.github.io/corejack/coding_style.html).
 
 Do not reformat third-party, vendored, Bender-managed, or generated dependency
 code just to match local style. Keep style cleanup scoped to CoreJack-owned
@@ -215,9 +215,9 @@ A few notes on the git commands above:
 
 For the rationale behind the FuseSoC version constraint (and why it can't be
 inherited from an environment variable), see
-[`docs/source/dependency_management.md`](docs/source/dependency_management.md). For how the
+[Dependency Management](https://patrickerich.github.io/corejack/dependency_management.html). For how the
 bitstream manifest records build identity per-build, see
-[`docs/source/fpga_sw_flow.md`](docs/source/fpga_sw_flow.md).
+[FPGA And Software Flow](https://patrickerich.github.io/corejack/fpga_sw_flow.html).
 
 ## Dependency Policy
 

@@ -180,7 +180,7 @@ help:
 	@printf '  %-18s %s\n' 'deps-cva6' 'fetch CVA6 core dependency'
 	@printf '  %-18s %s\n' 'new-board' 'create descriptor/wrapper/XDC/FuseSoC scaffold for BOARD'
 	@printf '  %-18s %s\n' 'new-core' 'create planned descriptor/adapter/FuseSoC scaffold for CORE'
-	@printf '  %-18s %s\n' 'support-matrix' 'generate docs/source/support_matrix.md from descriptors'
+	@printf '  %-18s %s\n' 'support-matrix' 'generate docs/source/support_matrix.rst from descriptors'
 	@printf '  %-18s %s\n' 'version-check' 'verify all .core files agree on a single VLNV version'
 	@printf '  %-18s %s\n' 'bump-version' 'rewrite every CoreJack VLNV version (set VERSION=X.Y.Z)'
 	@printf '  %-18s %s\n' 'drawio-svg' 'export each docs/source/media/corejack_soc.drawio tab to its own SVG'
@@ -299,7 +299,7 @@ toolchain-riscv-dist:
 
 # Containerised build. The native targets above are unchanged and remain the
 # right choice for a local-only toolchain; this one exists to produce an
-# artifact that also runs on older CI runners. See docs/source/tooling.md.
+# artifact that also runs on older CI runners. See docs/source/tooling.rst.
 #
 # No "does the image exist" check: podman build is already idempotent. With an
 # unchanged Containerfile it hits its layer cache and returns in ~1s, and when
@@ -698,7 +698,7 @@ plic-sim: deps-base
 # System-level memory-bandwidth benchmark: a CPU streaming loop against a
 # concurrent iDMA copy, timed with the mcycle CSR so the figures are unaffected
 # by the baud-throttled UART. This is the instrument that sizes the fabric's
-# outstanding depths - see docs/source/axi4_fabric.md for the reference numbers.
+# outstanding depths - see docs/source/axi4_fabric.rst for the reference numbers.
 # Needs a core with the standard counters (ibex, cv32e40*, cva6).
 mem-bw-bench:
 	@$(MAKE) sim-run-sw SW_APP=mem_bw_smoke SIM_TIMEOUT_CYCLES="$(MEM_BW_TIMEOUT_CYCLES)"
@@ -791,7 +791,7 @@ smoke: deps-base
 		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 plan:
-	@sed -n '1,240p' docs/source/roadmap.md
+	@sed -n '1,240p' docs/source/roadmap.rst
 
 clean:
 	@rm -rf build sw/build tb/sim_build tb/results.xml deps
