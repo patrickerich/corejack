@@ -11,6 +11,11 @@ across the supported core set. Bitstreams build, software loads into SRAM
 through OpenOCD/GDB or the side-path UART SRAM loader, and `hello_world`
 prints over the platform APB UART.
 
+📖 **Full documentation: <https://patrickerich.github.io/corejack/>**
+
+The pages under `docs/source/` are reStructuredText built with Sphinx and are
+meant to be read on the site above, not in the GitHub source view.
+
 ## Why CoreJack
 
 - **Swappable cores under one platform.** Eight RISC-V cores ship today
@@ -30,68 +35,45 @@ prints over the platform APB UART.
   `make new-board` scaffolds.
 
 For the full positioning story, target users, and a factual comparison
-against Chipyard, LiteX, Rocket Chip, OpenTitan, and Cheshire/Carfield,
-see [`docs/source/about.md`](docs/source/about.md).
+against Chipyard, LiteX, Rocket Chip, OpenTitan, and Cheshire/Carfield, see
+[About CoreJack](https://patrickerich.github.io/corejack/about.html).
 
 ## Project Status
 
-Validated baseline:
-
-- FPGA board targets: `axku5` (validated across the supported core set) and
-  `arty_a7_100t` (Arty A7-100T, Artix-7; validated across the supported core
-  set, 256 KiB SRAM)
-- supported cores: Ibex, CV32E40P, CV32E40S, CVA6, SERV, PicoRV32, and
-  CVW/Wally
-- SoC clock: `25 MHz`
-- RAM: banked SRAM at `0x80000000`; UART: APB UART at `0x10000000`,
+- FPGA boards: `axku5` (Alinx AXKU5, Kintex UltraScale+) and `arty_a7_100t`
+  (Digilent Arty A7-100T, Artix-7, 256 KiB SRAM) - both validated across the
+  supported core set
+- Supported cores: Ibex, CV32E40P, CV32E40S, CVA6, SERV, PicoRV32, CVW/Wally
+- SoC clock `25 MHz`; RAM at `0x80000000`; APB UART at `0x10000000`,
   `115200` baud
-- CLINT machine timer at `0x02000000`; Zephyr timer frequency `12.5 MHz`
-- iDMA system DMA: first tenant of the accelerator socket
-  (`accel_socket_if`); config window at `0x01000000` (APB CSR leg),
-  completion interrupt on PLIC source 2, driven from C via
-  `sw/c/common/dma.h` (`dma_smoke` is the validation app)
-- PLIC at `0x0C000000` (standard RISC-V PLIC layout, `soc_plic`): platform
-  interrupts reach every core's machine external interrupt line; driven from
-  C via `sw/c/common/plic.h` (`plic_smoke` is the validation app)
-- debug transport: external JTAG through `riscv-dbg` (`dmi_jtag` + `dm_top`)
-- Zephyr: `initial_supported` on the Zephyr-capable cores (a per-core
-  capability; see the support matrix)
+- iDMA system DMA is the first tenant of the accelerator socket; PLIC at
+  `0x0C000000`; external JTAG debug through `riscv-dbg`
 
 CV32E40X is intentionally excluded from default regressions; see
-[`docs/source/cv32e40x_boot_issue.md`](docs/source/cv32e40x_boot_issue.md).
+[CV32E40X boot issue](https://patrickerich.github.io/corejack/cv32e40x_boot_issue.html).
 
-The descriptor-derived per-core/board status table lives in
-[`docs/source/support_matrix.md`](docs/source/support_matrix.md); regenerate it with
-`make support-matrix`. For the active direction across cores, boards, and
-software, see [`docs/source/roadmap.md`](docs/source/roadmap.md).
+The descriptor-derived per-core/board status table is the
+[support matrix](https://patrickerich.github.io/corejack/support_matrix.html)
+(regenerate with `make support-matrix`). For the active direction across
+cores, boards, and software, see the
+[roadmap](https://patrickerich.github.io/corejack/roadmap.html).
 
 ## Getting Started
 
 ### Tool Prerequisites
 
-Each flow needs a different subset of host tools. Use `make check-tools
+Each flow needs a different subset of host tools. Run `make check-tools
 FLOW=sim|fpga|debug` to see what is missing for the selected flow.
 
-- **Always needed:** Python (3.10+ satisfies the pinned deps; default and
-  CI-validated interpreter is `python3.13`, overridable via the `PYTHON`
-  env var), plus `make`, `git`, and `curl`. `sourceme.sh` creates a
-  project-local `.venv` and installs the pinned FuseSoC, cocotb, west,
-  pytest, and PyYAML packages from `requirements.txt`.
-- **`make smoke`:** Verilator and Bender. Pure SystemVerilog/cocotb test
-  against the `EnablePlatform=0` stub of `soc_top`; **no RISC-V toolchain
-  required.**
-- **`make sim-run-sw`, `axi-smoke`, `fpga-*` software loads:** additionally
-  need a RISC-V GNU toolchain (default prefix `riscv64-unknown-elf-*` with
-  RV32/RV64 multilib).
-- **FPGA build/program:** Vivado (`2025.2.1` is the observed validation
-  version).
-- **FPGA debug (`openocd`, `fpga-run-sw`):** OpenOCD with RISC-V support
-  and `riscv64-unknown-elf-gdb`.
-- **Zephyr (`zephyr-*`):** an initialized west workspace; `make zephyr-init`
-  bootstraps it under `TOOLS_DIR` by default.
+Always needed: Python (3.10+; default and CI-validated interpreter is
+`python3.13`), plus `make`, `git`, and `curl`. `sourceme.sh` creates a
+project-local `.venv` and installs the pinned Python dependencies. Beyond
+that, `make smoke` needs Verilator and Bender only; running software needs a
+RISC-V GNU toolchain; FPGA work needs Vivado; and FPGA debug needs OpenOCD
+plus `riscv64-unknown-elf-gdb`.
 
-Optional project-local installs go under `TOOLS_DIR`, which defaults to the
-ignored `.tools/` directory, and are picked up automatically by `sourceme.sh`:
+Optional project-local tool installs go under `TOOLS_DIR` (default `.tools/`)
+and are picked up automatically by `sourceme.sh`:
 
 ```bash
 make tool-verilator      # pinned Verilator into TOOLS_DIR/verilator/
@@ -99,8 +81,8 @@ make toolchain-riscv     # bare-metal multilib GCC/Newlib/GDB into TOOLS_DIR/ris
 make tool-verible        # pinned Verible lint/format tools into TOOLS_DIR/verible/
 ```
 
-See [`docs/source/tooling.md`](docs/source/tooling.md) for the full setup, pinned
-versions, and observed validation versions.
+See [Tooling](https://patrickerich.github.io/corejack/tooling.html) for the
+full setup, pinned versions, and observed validation versions.
 
 ### Quick Start
 
@@ -119,10 +101,6 @@ make smoke
 make sim-run-sw SW_APP=hello_world
 ```
 
-For the full simulation flow - the cocotb + Verilator setup, the available
-simulation targets, and waveform dumping - see
-[`docs/source/simulation.md`](docs/source/simulation.md).
-
 For FPGA bring-up, build a bitstream, program the board, and load software
 through OpenOCD/GDB:
 
@@ -134,25 +112,24 @@ make fpga-run-sw SW_APP=hello_world GDB_TIMEOUT=10      # terminal 2
 ```
 
 For cores without a usable RISC-V debug interface (SERV, PicoRV32, CVW), use
-the UART SRAM loader instead of OpenOCD/GDB; see
-[`docs/source/uart_sram_loader.md`](docs/source/uart_sram_loader.md).
-
-Check the descriptor matrix for a board with
+the [UART SRAM loader](https://patrickerich.github.io/corejack/uart_sram_loader.html)
+instead of OpenOCD/GDB. Check the descriptor matrix for a board with
 `make target-check BOARD=axku5`.
+
+The full simulation flow - cocotb + Verilator setup, simulation targets, and
+waveform dumping - is documented under
+[Simulation](https://patrickerich.github.io/corejack/simulation.html).
 
 ## Documentation
 
-The full documentation index is in [`docs/source/index.md`](docs/source/index.md). It
-groups documentation by:
+Everything else lives on the documentation site:
+<https://patrickerich.github.io/corejack/>. It covers project orientation
+(support matrix, repository layout, roadmap, tooling, dependency management,
+descriptor schema, coding style, acceptance checklist), adding hardware (core
+and board porting, AXI4 fabric, memory subsystem), simulation, FPGA and debug
+flows, Zephyr bring-up, and core-specific notes.
 
-- project orientation - support matrix, repository layout, roadmap,
-  tooling, dependency management, descriptor schema, coding style, core
-  acceptance checklist;
-- adding hardware - core porting, board porting, AXI4 fabric;
-- FPGA and debug - software flow, hardware smoke, OpenOCD/GDB stepping,
-  `riscv-dbg` integration, UART SRAM loader;
-- software - Zephyr bring-up;
-- core-specific notes.
+Build it locally with `make docs` and read it with `make docs-serve`.
 
 ## License
 

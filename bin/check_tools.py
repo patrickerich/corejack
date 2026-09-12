@@ -324,7 +324,7 @@ def main() -> int:
         print(
             "  "
             + f"{'':22} "
-            + "see docs/source/tooling.md for the lz4/zlib waveform prerequisites"
+            + "see docs/source/tooling.rst for the lz4/zlib waveform prerequisites"
         )
 
     print_section("RTL Style")

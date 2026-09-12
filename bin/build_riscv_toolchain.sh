@@ -94,7 +94,7 @@ if [[ "${skip_build}" == "0" ]]; then
   #   musl    - only reachable from the separate `musl:` target in upstream's
   #             Makefile.in; `newlib:` depends on gcc/binutils/newlib/gdb alone.
   #             git.musl-libc.org was unreachable on 2026-08-29.
-  # See docs/source/tooling.md for the full reasoning.
+  # See docs/source/tooling.rst for the full reasoning.
   skip_submodules=(dejagnu musl)
   skip_args=()
   for sm in "${skip_submodules[@]}"; do
