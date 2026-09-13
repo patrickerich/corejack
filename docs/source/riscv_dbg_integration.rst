@@ -201,6 +201,12 @@ an ``axi_isolate`` stage on ``rst_ni`` in the CVA6 path, which blocks new
 transactions while the core is down and — with its response readies forced high
 for the duration — retires the outstanding ones without the core. The window is
 held until the drain completes rather than merely while ``core_rst_ni`` is low.
+
+One case cannot drain: a write committed on AW whose W beat was never sent.
+``axi_isolate`` waits on ``pending_w`` and does not inject the missing beat, so
+the drain would stall. No regression issues ``ndmreset`` with CVA6 traffic in
+that state today, and a simulation-only watchdog in ``soc_top``
+(``Cva6IsolateTimeout``) is what would surface it.
 The stage sits ahead of CVA6's request router (``axi_demux``), so both of its
 fabric-side legs - crossbar slave port 0 and the dedicated RAM bridge - drain
 under it; ``cva6-reset-sim`` watches both.

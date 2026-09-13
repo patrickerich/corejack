@@ -164,7 +164,8 @@ Platform Architecture Direction
 -  Keep the memory subsystem modular and multi-initiator aware. The
    ``soc_mem_ss`` per-bank fair round-robin arbiter is generic in ``NumBanks``,
    ``NumPorts32``, and ``NumPorts64``, and ``soc_top.MemNumBanks`` is a parameter
-   (default 8, matching the seven ports that drive it) - so the platform can grow
+   (default 8, matching the nine ports that can drive it - two native 32-bit and
+   seven 64-bit) - so the platform can grow
    the bank count further when a workload warrants it.
 -  Widen the AXI fabric. **Done (sim- and hardware-validated):** the
    single-outstanding ``soc_axi_arbiter`` + ``soc_axi_demux`` pair has been replaced

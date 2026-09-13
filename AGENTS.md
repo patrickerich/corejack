@@ -127,10 +127,11 @@ check that repository (not `setup-verilator`, and not upstream
   traffic takes a direct `soc_mem_ss` port (RV32 via the instruction/data
   request routers, CVA6 via an `axi_demux`), and so does the iDMA data path.
   See [AXI4 Fabric](https://patrickerich.github.io/corejack/axi4_fabric.html).
-- **Single-beat AXI invariant:** all fabric traffic is `len == 0`, enforced by
-  `rtl/bus/soc_axi_protocol_checker.sv`; the iDMA backend sits behind a burst
-  splitter. Keep new initiators/targets single-beat unless the fabric is
-  reworked.
+- **Single-beat AXI invariant:** all fabric traffic is `len == 0`, checked in
+  simulation by `rtl/bus/soc_axi_protocol_checker.sv` — the checker body is
+  `` `ifndef SYNTHESIS ``, so nothing enforces this in hardware. The iDMA
+  backend sits behind a burst splitter. Keep new initiators/targets single-beat
+  unless the fabric is reworked.
 - **`soc_mem_ss` is port-owned and multi-outstanding.** Each port — two native
   32-bit CPU ports (data, instruction) plus seven 64-bit ports (xbar RAM
   read/write engines, UART SRAM loader, iDMA read/write, CVA6 read/write) —
