@@ -51,8 +51,10 @@ at both boundaries). The setting dates from when the iDMA was a crossbar
 initiator: with a fully combinational crossbar, the valid-dependent readies of
 the target adapters and the iDMA backend's internally coupled streams composed
 into structural combinational loops (Vivado DRC LUTLP-1). Together with the
-``axi_cut`` stages inside ``soc_idma``, every loop candidate is registered; CPU
-request paths through the crossbar pay one added cycle of address latency.
+``axi_cut`` stages inside ``soc_idma``, every loop candidate is registered.
+``CUT_ALL_AX`` registers AW/AR at the input demux *and* again at the output
+mux, so CPU request paths through the crossbar pay two added cycles of address
+latency on an unstalled path.
 
 Because address decode is per initiator and arbitration is per target (inside
 the crossbar's per-master-port multiplexers), initiators targeting different
@@ -140,8 +142,10 @@ interrupt input in their socket adapters and keep polling - that is a core
 capability limit, not a PLIC one.
 
 Bare-metal interrupt handling uses **vectored mode** as the portable contract:
-Ibex and the CV32E40\* cores implement ``mtvec`` as vectored-only WARL, so
-pointing ``mtvec`` directly at a handler would enter it at ``+4*cause``. Apps set
+Ibex implements ``mtvec`` as vectored-only WARL - its mode field is hardwired to
+``2'b01`` - so pointing ``mtvec`` directly at a handler would enter it at
+``+4*cause``. The CV32E40\* cores accept both direct and vectored mode, which
+makes vectored the one setting every supported core honours. Apps set
 ``mtvec = _vectors | 1`` (the 32-slot table in ``sw/c/common/crt0.S``) and
 override the weak per-cause symbols (``corejack_timer_vector``,
 ``corejack_external_vector``) with ``__attribute__((interrupt))`` handlers. The
@@ -205,20 +209,27 @@ Memory throughput is no longer fabric-limited
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The shared SRAM is banked (see ``MemNumBanks`` on ``soc_top``, default 8, and
-``soc_mem_ss``'s per-bank round-robin arbiter). Three independent initiators reach
-the crossbar - core instruction fetch, core data access, and debug SBA - and each
-can target a different bank. Previously they could not run in parallel against
-the banks: the old ``soc_axi_arbiter`` was single-outstanding, accepting at most
-one transaction at a time for the whole fabric, so the bank fan-out behind it
-saw no contention. The ``axi_xbar`` removed that funnel - per-target arbitration
-with multiple outstanding requests lets distinct initiators reach distinct
-banks concurrently.
+``soc_mem_ss``'s per-bank round-robin arbiter). Historically every initiator
+reached the banks through the fabric and they could not run in parallel: the old
+``soc_axi_arbiter`` was single-outstanding, accepting at most one transaction at
+a time for the whole fabric, so the bank fan-out behind it saw no contention.
+The ``axi_xbar`` removed that funnel - per-target arbitration with multiple
+outstanding requests lets distinct initiators reach distinct banks concurrently.
+
+The memory-heavy paths no longer reach RAM through the crossbar at all. Core
+instruction and data RAM accesses are diverted to direct ``soc_mem_ss`` ports
+ahead of their AXI bridges, as are CVA6's RAM-window traffic and the iDMA data
+path. What still reaches RAM across the crossbar is debug SBA and anything else
+that decodes to the crossbar's RAM target, served by its read/write engines on
+ports 0 and 1.
 
 Because the crossbar can present a read and a write to the same target in the
 same cycle (e.g. an instruction fetch and a data store to RAM, or a debug-SBA
-peripheral read colliding with a core UART write), all the target adapters
-(``soc_axi_to_mem``, ``soc_axi_to_apb``, ``soc_axi_to_dm``, ``soc_axi_to_reg``)
-arbitrate the two sides with a starvation-free round-robin. The earlier
+peripheral read colliding with a core UART write), the single-port target
+adapters (``soc_axi_to_apb``, ``soc_axi_to_dm``, ``soc_axi_to_reg``) arbitrate
+the two sides with a starvation-free round-robin. ``soc_axi_to_mem`` does not
+need to: it drives a separate ``soc_mem_ss`` port per direction, so its read and
+write admission are independent and can proceed in the same cycle. The earlier
 adapters gated each AXI channel's ``ready`` on the other channel's ``valid``, which
 deadlocked under simultaneous read+write - a case the old serializing arbiter
 never produced. ``axi-adapter-sim`` drives this exact collision against the RAM,

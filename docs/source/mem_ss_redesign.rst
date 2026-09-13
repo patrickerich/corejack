@@ -122,9 +122,9 @@ responses may return out of order. Every port is in-order today.
 
 ::
 
-           ingress FIFO      per-bank RR arbiter    slice in/out 1-deep      egress FIFO
-    init ->[req queue]--+--> ( bank 0 )------------> [reg]->slice0->[reg] -+->[rsp queue]-> init
-    (port) in-order, d=2|    ( bank 1 )------------> [reg]->slice1->[reg]  |  in-order, d=2
+           ingress FIFO      per-bank RR arbiter    slice in/out d=2/4      egress reorder buf
+    init ->[req queue]--+--> ( bank 0 )------------> [fifo]->slice0->[fifo]-+->[rsp queue]-> init
+    (port) in-order, d=2|    ( bank 1 )------------> [fifo]->slice1->[fifo] |  in-order, d=8
                         +--> ( ...    )                                    |
                         +--> ( bank 7 )------------> [reg]->slice7->[reg] -+
                         +--> ( error / default responder )-----------------+
@@ -156,17 +156,21 @@ responses may return out of order. Every port is in-order today.
 
 .. _never-drop-r11--by-backpressure-no-credit-counters:
 
-Never-drop (R11) — by backpressure, no credit counters
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Never-drop (R11) — by backpressure and per-bank reservation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Every buffer is elastic: full -> backpressure upstream, and it honours downstream
-backpressure (slave upstream, master downstream). A request is granted only when
-the target bank can accept it **and** the port's egress reorder buffer has a free
-slot; otherwise the port is simply not granted. The non-stallable SRAM read lands
-in the bank's output FIFO (a read is applied only when that FIFO has room).
-Backpressure propagates end to end, so nothing is dropped - requests wait in the
-ingress buffer, responses always have a reserved egress slot. No credit counters;
-the gating is just the buffers' own full/empty.
+backpressure (slave upstream, master downstream). The initiator-facing grant is
+``gnt = !ingress_full``, so acceptance depends only on ingress FIFO space and a
+request can be taken while its target bank is still blocked. Bank eligibility and
+egress reorder-slot allocation happen later, when the ingress head is arbitrated;
+a request is not issued to a bank until it holds a slot. The non-stallable SRAM
+read lands in the bank's output FIFO, and ``soc_mem_bank`` gates issue against a
+reservation count (``out_claims_q``), claiming an output slot when an operation
+issues and releasing it when the response drains - so a read is applied only once
+its result is guaranteed somewhere to land. Backpressure propagates end to end,
+so nothing is dropped: requests wait in the ingress buffer, and every response
+has a reserved egress slot.
 
 .. _in-order-r12--by-the-egress-reorder-buffer:
 

@@ -116,7 +116,7 @@ AXI_SMOKE_CORES ?= ibex cv32e40p cv32e40s cva6 serv picorv32 cvw
 
 DRAWIO         ?= drawio
 DRAWIO_SRC     ?= docs/source/media/corejack_soc.drawio
-DRAWIO_SVG_DIR ?= docs/media
+DRAWIO_SVG_DIR ?= docs/source/media
 
 ifeq ($(ALLOW_PLANNED),1)
 VALIDATE_PLANNED_ARG := --allow-planned
