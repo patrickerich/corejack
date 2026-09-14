@@ -303,7 +303,12 @@ per 64-bit word                     9.08 cycles  **1.18 cycles**
 CPU/DMA overlap (1000 = serialized) 1114         **1853**
 =================================== ============ ================
 
-That is ~85% of the one-word-per-cycle ceiling. The crossbar leg is given
+That is ~85% of the one-word-per-cycle ceiling. A waveform of that run accounts
+for the remaining 544 cycles. 135 are the CSR launch and ``DONE_ID`` polling
+inside the timed window, and ~25 are pipeline start and finish latency. The
+other 384 come from the depth of 8 itself: admit-to-response takes nine cycles
+on the model SRAM, so each engine stalls one cycle in nine at the cap.
+``soc_mem_ss`` never stalled the copy. The crossbar leg is given
 ``MaxOutstanding = MaxMstTrans`` instead, since the crossbar never presents more
 than that to one master port; the iDMA and CVA6 legs are not behind the
 crossbar and keep the deeper depth of 8.

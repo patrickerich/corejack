@@ -383,9 +383,10 @@ Two things are intentionally **not** done:
    DUT, the Zephyr devicetree, and the bitstream manifest. Best designed when
    there is a second value worth supporting (for example, one board staying at 8
    while a benchmark configuration opts into 16).
--  **Initiator-side outstanding requests.** The fabric side of this is now done:
+-  **Initiator-side outstanding requests.** The fabric side of this is largely done:
    ``soc_axi_to_mem`` is pipelined and ``soc_idma``'s ``NumAxInFlight`` matches it, so
-   the iDMA reaches ~85% of the one-word-per-cycle ceiling (see
+   the iDMA reaches ~85% of the one-word-per-cycle ceiling. Most of the rest is
+   the bridge's depth of 8, one short of its round trip (see
    :doc:`axi4_fabric`). What remains is the **CPU** side, and it
    is a core limit rather than a fabric one: Ibex's instruction-fetch unit has a
    lower-level outstanding-fetch option its top-level parameter list does not
