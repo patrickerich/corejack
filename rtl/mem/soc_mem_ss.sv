@@ -2,13 +2,13 @@
 //
 // soc_mem_ss (redesign): banked, interleaved memory subsystem.
 //
-// See docs/source/mem_ss_redesign.md for the full specification. Summary:
+// See docs/source/mem_ss_redesign.rst for the full specification. Summary:
 //   - NumBanks interleaved 64-bit SRAM slices, each wrapped in an elastic
 //     soc_mem_bank pipe (timing break + backpressure, never drops).
 //   - NumPorts32 32-bit + NumPorts64 64-bit symmetric initiator ports, each a
 //     soc_mem_port (ingress FIFO + egress reorder buffer + lane/decode/error).
-//   - Per-bank fair round-robin arbitration (rr_arb_tree), so no initiator is
-//     starved (R9/R13).
+//   - Fair round-robin arbitration (rr_arb_tree) on both crossbars, so no
+//     initiator is starved (R9/R13).
 //   - A request crossbar routes each port's decoded head to its target bank's
 //     arbiter; a response crossbar routes each bank's result back to the owning
 //     port's reorder-buffer slot, arbitrating per port so two banks finishing
@@ -207,24 +207,42 @@ module soc_mem_ss
     end
   end
 
-  // --- Response crossbar: per port, pick the lowest-index bank targeting it ---
+  // --- Response crossbar: per port, fair round-robin over the banks holding a
+  // result for it. A bank's head result names exactly one owning port, so at
+  // most one port can take a given bank per cycle. The reorder-buffer fill has
+  // no ready, so each port's arbiter grants unconditionally (gnt_i tied high).
+  localparam int unsigned FillW = SlotW + MemDataWidth;
+  logic [NumPorts-1:0][NumBanks-1:0] fill_gnt;  // per-port, per-bank grant
+
+  for (genvar p = 0; p < NumPorts; p++) begin : gen_rsp
+    logic [NumBanks-1:0]            req_p;
+    logic [NumBanks-1:0][FillW-1:0] data_p;
+    logic [FillW-1:0]               won_fill;
+
+    for (genvar b = 0; b < NumBanks; b++) begin : gen_req
+      assign req_p[b]  = bank_out_valid[b] &&
+                         (bank_out_meta[b][MetaW-1 -: PortIdW] == PortIdW'(p));
+      assign data_p[b] = {bank_out_meta[b][SlotW-1:0], bank_out_rdata[b]};
+    end
+
+    rr_arb_tree #(
+      .NumIn(NumBanks), .DataWidth(FillW), .LockIn(1'b0), .FairArb(1'b1)
+    ) i_arb (
+      .clk_i, .rst_ni, .flush_i(1'b0), .rr_i('0),
+      .req_i(req_p), .gnt_o(fill_gnt[p]), .data_i(data_p),
+      .req_o(p_fill_valid[p]), .gnt_i(1'b1),
+      .data_o(won_fill), .idx_o()
+    );
+
+    assign {p_fill_slot[p], p_fill_rdata[p]} = won_fill;
+  end
+
+  // Bank pop = the (single) port whose response arbiter granted it.
   always_comb begin
-    p_fill_valid   = '0;
-    p_fill_slot    = '0;
-    p_fill_rdata   = '0;
     bank_out_ready = '0;
-    for (int unsigned p = 0; p < NumPorts; p++) begin
-      for (int unsigned b = 0; b < NumBanks; b++) begin
-        logic [PortIdW-1:0] mport;
-        logic [SlotW-1:0]   mslot;
-        mport = bank_out_meta[b][MetaW-1 -: PortIdW];
-        mslot = bank_out_meta[b][SlotW-1:0];
-        if (bank_out_valid[b] && (mport == PortIdW'(p)) && !p_fill_valid[p]) begin
-          p_fill_valid[p]   = 1'b1;
-          p_fill_slot[p]    = mslot;
-          p_fill_rdata[p]   = bank_out_rdata[b];
-          bank_out_ready[b] = 1'b1;
-        end
+    for (int unsigned b = 0; b < NumBanks; b++) begin
+      for (int unsigned p = 0; p < NumPorts; p++) begin
+        if (fill_gnt[p][b]) bank_out_ready[b] = 1'b1;
       end
     end
   end

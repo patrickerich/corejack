@@ -192,6 +192,9 @@ No starvation (R13)
 
 Per-bank round-robin advances its pointer past the winner each grant, so every
 contending port is served within at most ``NumPorts`` arbitration rounds per bank.
+The response crossbar is round-robin too: each port rotates over the banks
+holding a result for it, so a completed result waits at most ``NumBanks - 1``
+cycles for its port, and no bank is held stalled behind another bank's results.
 
 .. _5-consequences-to-note-not-open-questions:
 
@@ -262,7 +265,7 @@ swap):
    arbiter per bank** (reuse ``common_cells/rr_arb_tree``) over the ports whose
    ingress head targets that bank and hold egress credit; a request crossbar
    (port head -> target bank) and a response crossbar (bank output -> owning port,
-   <=1 per port per cycle by construction).
+   <=1 per port per cycle by construction, fair round-robin across banks).
 
 Reuse from ``common_cells``: ``fifo_v3`` (buffers), ``rr_arb_tree`` (fair RR).
 
@@ -360,6 +363,12 @@ for out-of-range addresses.
    a direct port and the crossbar's RAM target serves debug SBA. The RV32 path
    ties ports 5/6 off, as the CVA6 path ties off the 32-bit ports. ``NumBanks``
    stays at 8 against nine ports (at most seven active per core).
+-  **Response crossbar made fair (R9/R13).** Each port used to take the
+   lowest-index bank holding a result for it, so a higher-index bank could stay
+   stalled behind lower banks' results. Each port now selects through its own
+   ``rr_arb_tree`` over the banks. Throughput is unchanged (``mem-ss-bench`` and
+   ``mem-bw-bench`` give identical figures); the change is for R9/R13 compliance.
+   Re-verified by ``tb/tb_mem_ss.sv`` on both slice models.
 
 .. _9-follow-ups:
 
