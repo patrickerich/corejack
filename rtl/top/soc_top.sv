@@ -164,20 +164,9 @@ module soc_top #(
     localparam int unsigned MemBytesPerWord = MemDataWidth / 8;
     localparam int unsigned MemWords = RamWords / 2;
     // In-flight bound for the soc_axi_to_mem bridges on the direct RAM legs
-    // (iDMA and CVA6). A transaction counts from AXI accept to AXI response,
-    // which is the SRAM read latency plus six cycles of bridge and soc_mem_ss
-    // pipeline at soc_mem_ss's default depths. Admission sees the registered
-    // count, so the bound must be one more than that round trip; one short,
-    // each engine stalls one cycle per round trip (8 transfers in 9 cycles at a
-    // bound of 8 on the Xilinx slice). tb/tb_axi_to_mem.sv measures this on both
-    // slice models. One further entry leaves room for one-cycle latency jitter
-    // (at the exact bound the iDMA hit it about once per 256-beat burst). It
-    // saved 22 cycles of mem-bw-bench's 24 KiB copy on CVA6 (model slice) and 1
-    // on Ibex (Xilinx slice). Only the bridges' 4-bit id FIFOs grow with the
-    // bound: the request and response FIFOs stay MemBridgeQueueDepth deep and
-    // backpressure into soc_mem_ss, which keeps the wide payload storage small.
-    localparam int unsigned MemBridgeOutstanding = mem_read_latency(MemImpl) + 8;
-    localparam int unsigned MemBridgeQueueDepth  = 2;
+    // (iDMA and CVA6); mem_ss_pkg records how it is derived. Their request and
+    // response FIFOs are mem_ss_pkg::MemBridgeQueueDepth deep.
+    localparam int unsigned MemBridgeOutstanding = mem_bridge_outstanding(MemImpl);
     localparam dm::hartinfo_t HartInfo = '{
       zero1:      '0,
       nscratch:   4'd2,

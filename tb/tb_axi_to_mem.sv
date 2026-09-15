@@ -24,22 +24,31 @@
 // valid and stable payload while stalled) run throughout. A phase that does
 // not drain within its budget fails the run.
 //
-// Built standalone with Verilator (--binary --timing --assert). Defines:
-//   TB_MAX_OUT, TB_REQ_DEPTH, TB_RSP_DEPTH - bridge parameters under test;
+// Run with `make sv-tb TB=tb_axi_to_mem` (Verilator --binary --timing); the
+// run exits nonzero on failure. Defines:
+//   TB_MAX_OUT, TB_REQ_DEPTH, TB_RSP_DEPTH - override the bridge parameters,
+//                                            which default to soc_top's sizing
+//                                            (mem_ss_pkg) for sweeps;
 //   MEMIMPL_XILINX                         - select the Xilinx SRAM slice.
 
 `ifndef TB_MAX_OUT
-`define TB_MAX_OUT 8
+`define TB_MAX_OUT mem_ss_pkg::mem_bridge_outstanding(MemImpl)
 `endif
 `ifndef TB_REQ_DEPTH
-`define TB_REQ_DEPTH `TB_MAX_OUT
+`define TB_REQ_DEPTH mem_ss_pkg::MemBridgeQueueDepth
 `endif
 `ifndef TB_RSP_DEPTH
-`define TB_RSP_DEPTH `TB_MAX_OUT
+`define TB_RSP_DEPTH mem_ss_pkg::MemBridgeQueueDepth
 `endif
 
 module tb_axi_to_mem;
   import soc_bus_pkg::*;
+
+`ifdef MEMIMPL_XILINX
+  localparam mem_ss_pkg::mem_impl_e MemImpl = mem_ss_pkg::MemImplXilinx;
+`else
+  localparam mem_ss_pkg::mem_impl_e MemImpl = mem_ss_pkg::MemImplModel;
+`endif
 
   localparam int unsigned MaxOut       = `TB_MAX_OUT;
   localparam int unsigned ReqDepth     = `TB_REQ_DEPTH;
@@ -59,12 +68,6 @@ module tb_axi_to_mem;
   localparam int unsigned DstWords = 512;
 
   localparam int unsigned RandomOps = 6000;
-
-`ifdef MEMIMPL_XILINX
-  localparam mem_ss_pkg::mem_impl_e MemImpl = mem_ss_pkg::MemImplXilinx;
-`else
-  localparam mem_ss_pkg::mem_impl_e MemImpl = mem_ss_pkg::MemImplModel;
-`endif
 
   logic clk, rst_n;
   initial clk = 1'b0;
@@ -377,8 +380,7 @@ module tb_axi_to_mem;
       if (t > budget) begin
         $error("%s: did not drain in %0d cycles (ar_q %0d aw_q %0d r_exp %0d b_exp %0d)",
                name, budget, ar_q.size(), aw_q.size(), r_exp.size(), b_exp.size());
-        $display("TB_AXI_TO_MEM: FAIL (%s timeout)", name);
-        $finish;
+        $fatal(1, "TB_AXI_TO_MEM: FAIL (%s timeout)", name);
       end
     end
     repeat (4) @(posedge clk);
@@ -478,7 +480,7 @@ module tb_axi_to_mem;
     end
 
     if (errors == 0) $display("TB_AXI_TO_MEM: PASS");
-    else             $display("TB_AXI_TO_MEM: FAIL (%0d errors)", errors);
+    else             $fatal(1, "TB_AXI_TO_MEM: FAIL (%0d errors)", errors);
     $finish;
   end
 endmodule

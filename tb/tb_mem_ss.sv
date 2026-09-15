@@ -13,8 +13,8 @@
 //     starved its scoreboard would never drain and the run would time out.
 //
 // Each port owns a disjoint 64-bit-word region so there are no cross-port RAW
-// hazards and the reference model is exact. Built standalone with Verilator
-// (--binary --timing) plus the common_cells and slice-model dependencies.
+// hazards and the reference model is exact. Run with `make sv-tb TB=tb_mem_ss`
+// (Verilator --binary --timing); the run exits nonzero on failure.
 module tb_mem_ss;
   localparam int unsigned NumPorts32   = 2;
   localparam int unsigned NumPorts64   = 2;
@@ -292,7 +292,7 @@ module tb_mem_ss;
     end
 
     if (errors == 0) $display("TB_MEM_SS: PASS (all %0d accesses checked)", total_exp);
-    else             $display("TB_MEM_SS: FAIL (%0d errors)", errors);
+    else             $fatal(1, "TB_MEM_SS: FAIL (%0d errors)", errors);
     $finish;
   end
 endmodule

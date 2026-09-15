@@ -142,7 +142,7 @@ Software and validation flow:
 -  **Extend what CI covers beyond the current regression.** CI now installs a
    prebuilt RISC-V toolchain from the ``toolchain-v1`` release and runs the full
    ``make axi-smoke`` set: ``.github/workflows/smoke.yml`` guards every PR in about
-   a minute, and ``.github/workflows/regression.yml`` runs the seven focused
+   a minute, and ``.github/workflows/regression.yml`` runs the ten focused
    simulations plus ``hello_world`` on all seven supported cores, split across
    runners so the wall time is about six minutes. ``axi-smoke`` is therefore
    enforced rather than left to contributor discipline.

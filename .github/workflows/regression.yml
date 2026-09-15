@@ -1,11 +1,11 @@
 name: regression
 
-# The full `make axi-smoke` gate, split across machines. Locally it is 14
-# simulations run back to back -- 25 minutes on four cores. Here the seven
+# The full `make axi-smoke` gate, split across machines. Locally it is 17
+# simulations run back to back -- about 25 minutes on four cores. Here the ten
 # focused simulations take one runner and the seven-core sweep takes one runner
 # each, so wall time is the slowest job rather than the sum. See
-# docs/source/simulation.rst for what each simulation covers and why 14 simulations
-# produce 35 tests.
+# docs/source/simulation.rst for what each simulation covers and why 17
+# simulations produce 35 cocotb tests.
 #
 # `smoke.yml` stays the fast gate on every PR (about a minute). This is the
 # heavier one, and runs only on PRs that touch the RTL, testbenches, software,
@@ -51,7 +51,7 @@ jobs:
           echo "cores=$(printf '%s' "$list" | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
           echo "matrix: $list"
 
-  # The seven focused simulations plus the address-map check: everything
+  # The ten focused simulations plus the address-map check: everything
   # `make axi-smoke` runs before its per-core sweep.
   focused:
     runs-on: ubuntu-latest
@@ -104,7 +104,7 @@ jobs:
           touch .tools/FUSESOC_IGNORE
           source ./sourceme.sh
           make axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim \
-               mem-ss-bench mem-bw-bench debug-sim cva6-reset-sim
+               mem-ss-bench sv-tb-smoke mem-bw-bench debug-sim cva6-reset-sim
 
   # `hello_world` on each core in AXI_SMOKE_CORES, one runner apiece.
   # CV32E40X is absent because it is excluded there -- see
