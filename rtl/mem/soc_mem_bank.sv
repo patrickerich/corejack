@@ -47,10 +47,9 @@ module soc_mem_bank
   localparam int unsigned ReqWidth = 1 + AddrWidth + DataWidth + BeWidth + MetaWidth;
   localparam int unsigned RspWidth = DataWidth + MetaWidth;
   localparam int unsigned ClaimW   = $clog2(OutDepth + 1);
-  // SRAM slice registered-read latency: the model is 1 cycle, the Xilinx
-  // byte-cell pipelines through two registers (2 cycles). Valid + metadata are
-  // delayed to match so the response carries the right request.
-  localparam int unsigned ReadLat  = (MemImpl == MemImplXilinx) ? 2 : 1;
+  // SRAM slice registered-read latency (mem_ss_pkg::mem_read_latency). Valid +
+  // metadata are delayed to match so the response carries the right request.
+  localparam int unsigned ReadLat  = mem_read_latency(MemImpl);
 
   // --- Input FIFO (timing break + elasticity on the request side) ---
   logic                in_full, in_empty;

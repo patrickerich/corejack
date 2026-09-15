@@ -26,10 +26,17 @@
 //   id   FIFO : accepted AXI request -> AXI response     (pop on AXI handshake)
 //   rsp  FIFO : memory response      -> AXI response     (pop on AXI handshake)
 //
-// Never-drop: a request is admitted only while a response slot is reserved for
-// it (the outstanding counter below), and mem_*_rready_o additionally
-// backpressures the memory whenever the response FIFO is full. Same discipline
-// as soc_mem_port - buffers' own full/empty, no credit accounting.
+// Only the id FIFO and the outstanding counter have to span MaxOutstanding.
+// The request and response FIFOs may be shallower (ReqDepth, RspDepth): a full
+// request FIFO holds off admission, and a full response FIFO drops
+// mem_*_rready_o so the response waits in soc_mem_ss's reorder buffer. That
+// keeps the wide payload storage small while the narrow id FIFO carries the
+// in-flight depth.
+//
+// Never-drop: a request is admitted only while the outstanding counter has
+// room, and mem_*_rready_o backpressures the memory whenever the response
+// FIFO is full. Same discipline as soc_mem_port - buffers' own full/empty, no
+// credit accounting.
 //
 // Splitting the engines also removes the former lone-AW deadlock workaround:
 // the read engine never waits on the write engine, so a read-to-write coupled
@@ -46,6 +53,13 @@ module soc_axi_to_mem
   // cover the round trip; the crossbar leg is bounded by the xbar's
   // MaxMstTrans regardless, so a smaller value there costs nothing.
   parameter int unsigned MaxOutstanding = 8,
+  // Request (address / write payload) and response FIFO depths. The defaults
+  // keep every FIFO at MaxOutstanding, so a response this engine waits for is
+  // never stalled. Shallower depths backpressure instead (see the header).
+  // Keep both >= 2: a depth-1 fifo_v3 blocks its push while full, which alone
+  // halves the rate.
+  parameter int unsigned ReqDepth = MaxOutstanding,
+  parameter int unsigned RspDepth = MaxOutstanding,
   // AXI slave-port types. Default to the platform initiator-side types; the
   // platform overrides these with the wider master-side types behind the xbar.
   parameter type axi_req_t     = soc_bus_pkg::soc_axi_req_t,
@@ -91,6 +105,9 @@ module soc_axi_to_mem
   localparam int unsigned RdAddrW = AddrWidth;
   localparam int unsigned WrReqW = AddrWidth + DataWidth + StrbW;
   localparam int unsigned RdRspW = DataWidth + 1;
+  // fifo_v3 usage_o widths (only read by the simulation checks below).
+  localparam int unsigned ReqUsageW = (ReqDepth > 1) ? $clog2(ReqDepth) : 1;
+  localparam int unsigned RspUsageW = (RspDepth > 1) ? $clog2(RspDepth) : 1;
 
   // ---------------------------------------------------------------------------
   // Read engine: AR/R channels -> read init port.
@@ -103,6 +120,8 @@ module soc_axi_to_mem
   logic [RdAddrW-1:0]  rd_addr_head;
   logic [IdW-1:0]      rd_id_head;
   logic [RdRspW-1:0]   rd_rsp_head;
+  logic [ReqUsageW-1:0] rd_addr_usage;
+  logic [RspUsageW-1:0] rd_rsp_usage;
   logic                rd_r_fire;
   logic                rd_rsp_push;
   // Requests issued to memory but not yet answered. Responses are only taken
@@ -112,15 +131,15 @@ module soc_axi_to_mem
   // sampling rvalid in its wait state.
   logic [CntW-1:0]     rd_pending_q;
 
-  // Admit an AR only while a response slot is reserved for it. Bounding total
-  // in-flight to MaxOutstanding is what makes the response FIFO unable to
-  // overflow, so no request can be dropped once accepted.
+  // Admit an AR only while the outstanding counter, the address FIFO and the
+  // id FIFO all have room. The response FIFO cannot overflow either way:
+  // mem_rd_rready_o drops while it is full, so no accepted request is dropped.
   assign rd_admit = s_axi_req_i.ar_valid && (rd_outstanding_q < CntW'(MaxOutstanding))
                     && !rd_addr_full && !rd_id_full;
 
-  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(RdAddrW), .DEPTH(MaxOutstanding)) i_rd_addr_fifo (
+  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(RdAddrW), .DEPTH(ReqDepth)) i_rd_addr_fifo (
     .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
-    .full_o(rd_addr_full), .empty_o(rd_addr_empty), .usage_o(),
+    .full_o(rd_addr_full), .empty_o(rd_addr_empty), .usage_o(rd_addr_usage),
     .data_i(AddrWidth'(s_axi_req_i.ar.addr)), .push_i(rd_admit),
     .data_o(rd_addr_head), .pop_i(rd_addr_pop)
   );
@@ -143,9 +162,9 @@ module soc_axi_to_mem
   // Accept memory responses while there is room to hold them.
   assign mem_rd_rready_o = !rd_rsp_full;
 
-  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(RdRspW), .DEPTH(MaxOutstanding)) i_rd_rsp_fifo (
+  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(RdRspW), .DEPTH(RspDepth)) i_rd_rsp_fifo (
     .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
-    .full_o(rd_rsp_full), .empty_o(rd_rsp_empty), .usage_o(),
+    .full_o(rd_rsp_full), .empty_o(rd_rsp_empty), .usage_o(rd_rsp_usage),
     .data_i({mem_rd_err_i, mem_rd_rdata_i}),
     .push_i(rd_rsp_push),
     .data_o(rd_rsp_head), .pop_i(rd_r_fire)
@@ -180,6 +199,8 @@ module soc_axi_to_mem
   logic [WrReqW-1:0]  wr_req_head;
   logic [IdW-1:0]     wr_id_head;
   logic               wr_rsp_head;
+  logic [ReqUsageW-1:0] wr_req_usage;
+  logic [RspUsageW-1:0] wr_rsp_usage;
   logic               wr_b_fire;
   logic               wr_rsp_push;
   logic [CntW-1:0]    wr_pending_q;  // see rd_pending_q
@@ -188,9 +209,9 @@ module soc_axi_to_mem
                     && (wr_outstanding_q < CntW'(MaxOutstanding))
                     && !wr_req_full && !wr_id_full;
 
-  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(WrReqW), .DEPTH(MaxOutstanding)) i_wr_req_fifo (
+  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(WrReqW), .DEPTH(ReqDepth)) i_wr_req_fifo (
     .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
-    .full_o(wr_req_full), .empty_o(wr_req_empty), .usage_o(),
+    .full_o(wr_req_full), .empty_o(wr_req_empty), .usage_o(wr_req_usage),
     .data_i({AddrWidth'(s_axi_req_i.aw.addr), DataWidth'(s_axi_req_i.w.data),
              s_axi_req_i.w.strb[StrbW-1:0]}),
     .push_i(wr_admit), .data_o(wr_req_head), .pop_i(wr_req_pop)
@@ -210,9 +231,9 @@ module soc_axi_to_mem
 
   assign mem_wr_rready_o = !wr_rsp_full;
 
-  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(1), .DEPTH(MaxOutstanding)) i_wr_rsp_fifo (
+  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(1), .DEPTH(RspDepth)) i_wr_rsp_fifo (
     .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
-    .full_o(wr_rsp_full), .empty_o(wr_rsp_empty), .usage_o(),
+    .full_o(wr_rsp_full), .empty_o(wr_rsp_empty), .usage_o(wr_rsp_usage),
     .data_i(mem_wr_err_i), .push_i(wr_rsp_push),
     .data_o(wr_rsp_head), .pop_i(wr_b_fire)
   );
@@ -265,10 +286,24 @@ module soc_axi_to_mem
         assert (s_axi_req_i.aw.len == '0);
         assert (s_axi_req_i.w.last);
       end
-      // The admission bound must make the response FIFOs unable to overflow,
-      // so a response this engine is actually waiting for is never stalled.
-      assert (!(mem_rd_rvalid_i && (rd_pending_q != '0) && !mem_rd_rready_o));
-      assert (!(mem_wr_rvalid_i && (wr_pending_q != '0) && !mem_wr_rready_o));
+      // With response FIFOs as deep as the admission bound, a response this
+      // engine is waiting for can never be stalled. Shallower response FIFOs
+      // legitimately backpressure soc_mem_ss instead.
+      if (RspDepth >= MaxOutstanding) begin
+        assert (!(mem_rd_rvalid_i && (rd_pending_q != '0) && !mem_rd_rready_o));
+        assert (!(mem_wr_rvalid_i && (wr_pending_q != '0) && !mem_wr_rready_o));
+      end
+      // Conservation: until its AXI response handshake, an admitted transaction
+      // is in exactly one place - the request FIFO, issued to memory, or the
+      // response FIFO - and the id FIFO holds one entry for each.
+      assert (32'(rd_outstanding_q) == (rd_addr_full ? ReqDepth : 32'(rd_addr_usage)) +
+              32'(rd_pending_q) + (rd_rsp_full ? RspDepth : 32'(rd_rsp_usage)));
+      assert (32'(wr_outstanding_q) == (wr_req_full ? ReqDepth : 32'(wr_req_usage)) +
+              32'(wr_pending_q) + (wr_rsp_full ? RspDepth : 32'(wr_rsp_usage)));
+      assert (rd_id_full == (rd_outstanding_q == CntW'(MaxOutstanding)));
+      assert (rd_id_empty == (rd_outstanding_q == '0));
+      assert (wr_id_full == (wr_outstanding_q == CntW'(MaxOutstanding)));
+      assert (wr_id_empty == (wr_outstanding_q == '0));
     end
   end
 `endif

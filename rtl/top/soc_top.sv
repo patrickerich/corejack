@@ -163,6 +163,21 @@ module soc_top #(
     localparam int unsigned MemDataWidth = 64;
     localparam int unsigned MemBytesPerWord = MemDataWidth / 8;
     localparam int unsigned MemWords = RamWords / 2;
+    // In-flight bound for the soc_axi_to_mem bridges on the direct RAM legs
+    // (iDMA and CVA6). A transaction counts from AXI accept to AXI response,
+    // which is the SRAM read latency plus six cycles of bridge and soc_mem_ss
+    // pipeline at soc_mem_ss's default depths. Admission sees the registered
+    // count, so the bound must be one more than that round trip; one short,
+    // each engine stalls one cycle per round trip (8 transfers in 9 cycles at a
+    // bound of 8 on the Xilinx slice). tb/tb_axi_to_mem.sv measures this on both
+    // slice models. One further entry leaves room for one-cycle latency jitter
+    // (at the exact bound the iDMA hit it about once per 256-beat burst). It
+    // saved 22 cycles of mem-bw-bench's 24 KiB copy on CVA6 (model slice) and 1
+    // on Ibex (Xilinx slice). Only the bridges' 4-bit id FIFOs grow with the
+    // bound: the request and response FIFOs stay MemBridgeQueueDepth deep and
+    // backpressure into soc_mem_ss, which keeps the wide payload storage small.
+    localparam int unsigned MemBridgeOutstanding = mem_read_latency(MemImpl) + 8;
+    localparam int unsigned MemBridgeQueueDepth  = 2;
     localparam dm::hartinfo_t HartInfo = '{
       zero1:      '0,
       nscratch:   4'd2,
@@ -507,10 +522,12 @@ module soc_top #(
       // single-outstanding RV32 routers get by construction. Route index
       // 1 = RAM leg, 0 = xbar leg, so the select is just the decode bit.
       // ----------------------------------------------------------------------
-      // In-flight bound on the RAM leg: the router's per-ID counter and the
-      // bridge's per-engine depth are the same number so neither throttles
-      // below the other.
-      localparam int unsigned Cva6RamOutstanding = 8;
+      // In-flight bound on the RAM leg: the bridge enforces
+      // MemBridgeOutstanding exactly. The router's per-ID counters are
+      // idx_width(MaxTrans) bits and report full at all-ones, so they saturate
+      // below MaxTrans, and any one full ID blocks new transactions in that
+      // direction. MaxTrans is therefore set one above the bridge bound so the
+      // router never throttles first.
       // Widened like the xbar rules so base + size cannot wrap in 32 bits.
       localparam axi_addr_t Cva6RamStart = axi_addr_t'(RamBaseAddr);
       localparam axi_addr_t Cva6RamEnd   = axi_addr_t'(RamBaseAddr) + axi_addr_t'(RamSize);
@@ -536,7 +553,7 @@ module soc_top #(
         .axi_req_t   (soc_axi_req_t),
         .axi_resp_t  (soc_axi_resp_t),
         .NoMstPorts  (2),
-        .MaxTrans    (Cva6RamOutstanding),
+        .MaxTrans    (MemBridgeOutstanding + 1),
         .AxiLookBits (soc_bus_pkg::AxiIdWidth),
         .UniqueIds   (1'b0),
         // No spill registers: the RV32 direct path is unregistered too, and
@@ -567,7 +584,9 @@ module soc_top #(
       soc_axi_to_mem #(
         .AddrWidth      (32),
         .DataWidth      (MemDataWidth),
-        .MaxOutstanding (Cva6RamOutstanding)
+        .MaxOutstanding (MemBridgeOutstanding),
+        .ReqDepth       (MemBridgeQueueDepth),
+        .RspDepth       (MemBridgeQueueDepth)
       ) i_cva6_axi_to_mem (
         .clk_i,
         .rst_ni,
@@ -1001,8 +1020,11 @@ module soc_top #(
     // request route back onto the xbar; not provided - the iDMA is a memory
     // mover here.)
     soc_axi_to_mem #(
-      .AddrWidth (32),
-      .DataWidth (MemDataWidth)
+      .AddrWidth      (32),
+      .DataWidth      (MemDataWidth),
+      .MaxOutstanding (MemBridgeOutstanding),
+      .ReqDepth       (MemBridgeQueueDepth),
+      .RspDepth       (MemBridgeQueueDepth)
     ) i_dma_axi_to_mem (
       .clk_i,
       .rst_ni,
@@ -1071,8 +1093,8 @@ module soc_top #(
       .DataWidth     (MemDataWidth),
       // The crossbar never presents more than MaxMstTrans transactions to one
       // master port, so depth beyond that is unreachable on this leg. The iDMA
-      // and CVA6 legs keep the deeper depth because they are not behind the
-      // crossbar.
+      // and CVA6 legs size theirs from MemBridgeOutstanding because they are
+      // not behind the crossbar.
       .MaxOutstanding (FabricXbarCfg.MaxMstTrans),
       .axi_req_t     (soc_axi_mst_req_t),
       .axi_resp_t    (soc_axi_mst_resp_t),
