@@ -293,7 +293,7 @@ module soc_top #(
     // the initiator index to the AXI ID); the target adapters are typed to match.
     soc_axi_mst_req_t [FabricAxiPorts-1:0]        target_axi_req;
     soc_axi_mst_resp_t [FabricAxiPorts-1:0]       target_axi_rsp;
-    axi_pkg::xbar_rule_64_t [FabricAxiPorts-1:0]  fabric_addr_map;
+    xbar_rule_t [FabricAxiPorts-1:0]              fabric_addr_map;
 
     soc_apb_req_t  uart_apb_req;
     soc_apb_resp_t uart_apb_rsp;
@@ -391,21 +391,21 @@ module soc_top #(
       end
     end
 
-    // Rule bounds are widened explicitly: the xbar rules are 64-bit and the
-    // base + size sums must not wrap in 32-bit arithmetic.
+    // Rule bounds are widened explicitly: the xbar rules are AxiAddrWidth
+    // (48-bit) and the base + size sums must not wrap in 32-bit arithmetic.
     assign fabric_addr_map = '{
-      '{idx: 0, start_addr: {32'h0, RamBaseAddr},
-                end_addr:   {32'h0, RamBaseAddr} + {32'h0, RamSize}},
-      '{idx: 1, start_addr: {32'h0, UartBaseAddr},
-                end_addr:   {32'h0, UartBaseAddr} + {32'h0, UartSize}},
-      '{idx: 2, start_addr: {32'h0, DebugBaseAddr},
-                end_addr:   {32'h0, DebugBaseAddr} + {32'h0, DebugSize}},
-      '{idx: 3, start_addr: {32'h0, ClintBaseAddr},
-                end_addr:   {32'h0, ClintBaseAddr} + {32'h0, ClintSize}},
-      '{idx: 4, start_addr: {32'h0, DmaBaseAddr},
-                end_addr:   {32'h0, DmaBaseAddr} + {32'h0, DmaSize}},
-      '{idx: 5, start_addr: {32'h0, PlicBaseAddr},
-                end_addr:   {32'h0, PlicBaseAddr} + {32'h0, PlicSize}}
+      '{idx: 0, start_addr: {16'h0, RamBaseAddr},
+                end_addr:   {16'h0, RamBaseAddr} + {16'h0, RamSize}},
+      '{idx: 1, start_addr: {16'h0, UartBaseAddr},
+                end_addr:   {16'h0, UartBaseAddr} + {16'h0, UartSize}},
+      '{idx: 2, start_addr: {16'h0, DebugBaseAddr},
+                end_addr:   {16'h0, DebugBaseAddr} + {16'h0, DebugSize}},
+      '{idx: 3, start_addr: {16'h0, ClintBaseAddr},
+                end_addr:   {16'h0, ClintBaseAddr} + {16'h0, ClintSize}},
+      '{idx: 4, start_addr: {16'h0, DmaBaseAddr},
+                end_addr:   {16'h0, DmaBaseAddr} + {16'h0, DmaSize}},
+      '{idx: 5, start_addr: {16'h0, PlicBaseAddr},
+                end_addr:   {16'h0, PlicBaseAddr} + {16'h0, PlicSize}}
     };
 
     if (CoreType == platform_pkg::CoreCva6) begin : gen_cva6_core_path
@@ -1074,7 +1074,7 @@ module soc_top #(
       .slv_resp_t    (soc_axi_resp_t),
       .mst_req_t     (soc_axi_mst_req_t),
       .mst_resp_t    (soc_axi_mst_resp_t),
-      .rule_t        (axi_pkg::xbar_rule_64_t)
+      .rule_t        (xbar_rule_t)
     ) i_fabric_axi_xbar (
       .clk_i,
       .rst_ni,
