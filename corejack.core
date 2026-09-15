@@ -170,6 +170,26 @@ filesets:
     files:
       - tb/test_mem_ss_bench.py : {file_type : user, copyto : .}
 
+  # Self-checking SystemVerilog testbenches with no cocotb side, run by the
+  # sv-tb target. Each bench is a top-level module selected by a flag of the
+  # same name.
+  tb_sv_bench:
+    files:
+      - rtl/pkg/soc_bus_pkg.sv
+      - rtl/pkg/mem_ss_pkg.sv
+      - rtl/mem/soc_sram_slice_model.sv
+      - rtl/mem/soc_sram_byte_lane_xilinx.sv
+      - rtl/mem/soc_sram_slice_xilinx.sv
+      - rtl/mem/soc_sram_slice_wrapper.sv
+      - rtl/mem/soc_mem_bank.sv
+      - rtl/mem/soc_mem_port.sv
+      - rtl/mem/soc_mem_ss.sv
+      - rtl/bus/soc_axi_protocol_checker.sv
+      - rtl/bus/soc_axi_to_mem.sv
+      - tb/tb_mem_ss.sv
+      - tb/tb_axi_to_mem.sv
+    file_type: systemVerilogSource
+
 targets:
   default: &default
     filesets:
@@ -229,7 +249,10 @@ targets:
         - core_cv32e40x ? (-DDEBUG_TEST_HOOKS)
         - core_cv32e40s ? (-DDEBUG_TEST_HOOKS)
         - core_cva6 ? (-DDEBUG_TEST_HOOKS)
-        - -DASSERTS_OFF
+        # The common_cells ASSERT macros (common_cells, axi, idma, riscv-dbg) are
+        # on by default; SIM_ASSERTS=0 passes the asserts_off flag to disable
+        # them. Plain SystemVerilog asserts are not affected by this define.
+        - asserts_off ? (-DASSERTS_OFF)
         - -Wno-MODDUP
         - -Wno-REDEFMACRO
         - -Wno-IMPLICIT
@@ -293,7 +316,7 @@ targets:
         # See sw-sim: required for async-reset flops behind gated core clocks.
         - --x-initial-edge
         - -DDEBUG_TEST_HOOKS
-        - -DASSERTS_OFF
+        - asserts_off ? (-DASSERTS_OFF)
         - -Wno-MODDUP
         - -Wno-REDEFMACRO
         - -Wno-IMPLICIT
@@ -338,7 +361,7 @@ targets:
         - --x-initial-edge
         - -DCOREJACK_CORE_CVA6
         - -DDEBUG_TEST_HOOKS
-        - -DASSERTS_OFF
+        - asserts_off ? (-DASSERTS_OFF)
         # Same global waiver list as debug-sim; CVA6 adds lint noise, not less.
         - -Wno-MODDUP
         - -Wno-REDEFMACRO
@@ -376,7 +399,7 @@ targets:
       verilator_options:
         - trace_fst ? (--trace-fst --trace-structs)
         - trace_vcd ? (--trace --trace-structs)
-        - -DASSERTS_OFF
+        - asserts_off ? (-DASSERTS_OFF)
         - -Wno-MODDUP
         - -Wno-REDEFMACRO
         - -Wno-IMPLICIT
@@ -453,6 +476,31 @@ targets:
       - tb_mem_ss_bench_sv
       - tb_mem_ss_bench_cocotb
     toplevel: mem_ss_bench_dut
+
+  # Self-checking SystemVerilog benches (make sv-tb TB=<bench>). The bench
+  # reports PASS or FAIL itself and exits nonzero on failure; memimpl_xilinx
+  # selects the Xilinx SRAM slice instead of the model.
+  sv-tb:
+    flow: sim
+    flow_options:
+      tool: verilator
+      mode: binary
+      timescale: 1ns/1ps
+      verilator_options:
+        - --timing
+        - asserts_off ? (-DASSERTS_OFF)
+        - memimpl_xilinx ? (-DMEMIMPL_XILINX)
+        - -Wno-WIDTHEXPAND
+        - -Wno-WIDTHTRUNC
+        - -Wno-PINMISSING
+        - -Wno-UNOPTFLAT
+        - -Wno-UNSIGNED
+        - -Wno-SPLITVAR
+        - -Wno-CASEINCOMPLETE
+    filesets:
+      - common_deps
+      - tb_sv_bench
+    toplevel: tb_mem_ss ? (tb_mem_ss) tb_axi_to_mem ? (tb_axi_to_mem)
 
   fpga:
     <<: *default

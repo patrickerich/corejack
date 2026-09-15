@@ -142,7 +142,7 @@ Software and validation flow:
 -  **Extend what CI covers beyond the current regression.** CI now installs a
    prebuilt RISC-V toolchain from the ``toolchain-v1`` release and runs the full
    ``make axi-smoke`` set: ``.github/workflows/smoke.yml`` guards every PR in about
-   a minute, and ``.github/workflows/regression.yml`` runs the seven focused
+   a minute, and ``.github/workflows/regression.yml`` runs the ten focused
    simulations plus ``hello_world`` on all seven supported cores, split across
    runners so the wall time is about six minutes. ``axi-smoke`` is therefore
    enforced rather than left to contributor discipline.
@@ -383,11 +383,10 @@ Two things are intentionally **not** done:
    DUT, the Zephyr devicetree, and the bitstream manifest. Best designed when
    there is a second value worth supporting (for example, one board staying at 8
    while a benchmark configuration opts into 16).
--  **Initiator-side outstanding requests.** The fabric side of this is largely done:
-   ``soc_axi_to_mem`` is pipelined and ``soc_idma``'s ``NumAxInFlight`` matches it, so
-   the iDMA reaches ~85% of the one-word-per-cycle ceiling. Most of the rest is
-   the bridge's depth of 8, one short of its round trip (see
-   :doc:`axi4_fabric`). What remains is the **CPU** side, and it
+-  **Initiator-side outstanding requests.** The fabric side of this is done:
+   ``soc_axi_to_mem`` is pipelined and its in-flight bound is derived from the
+   SRAM read latency, so the iDMA reaches ~95% of the one-word-per-cycle ceiling
+   (see :doc:`axi4_fabric`). What remains is the **CPU** side, and it
    is a core limit rather than a fabric one: Ibex's instruction-fetch unit has a
    lower-level outstanding-fetch option its top-level parameter list does not
    expose. Worth measuring before assuming it pays — in ``mem-bw-bench`` the CPU

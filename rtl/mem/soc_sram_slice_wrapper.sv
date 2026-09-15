@@ -18,11 +18,10 @@ module soc_sram_slice_wrapper
   input  logic [DataWidth/8-1:0]  be_i,
   output logic [DataWidth-1:0] rdata_o
 );
-  // Registered-read latency of the selected slice: the model reads in 1 cycle,
-  // the Xilinx byte-cell pipelines through two registers (2 cycles). Must
-  // match soc_mem_bank's ReadLat so the write-response mask below lands on the
-  // write's own response cycle and never on a neighboring read's data.
-  localparam int unsigned ReadLat = (MemImpl == MemImplXilinx) ? 2 : 1;
+  // Registered-read latency of the selected slice. Shared with soc_mem_bank
+  // through mem_ss_pkg so the write-response mask below lands on the write's
+  // own response cycle and never on a neighboring read's data.
+  localparam int unsigned ReadLat = mem_read_latency(MemImpl);
 
   logic [DataWidth-1:0] raw_rdata;
   logic [ReadLat-1:0]   we_q;

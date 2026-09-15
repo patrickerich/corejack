@@ -91,6 +91,16 @@ Simulation Targets
      - ``soc_dut`` / ``mem_bw_smoke`` app
      - yes
      - :doc:``axi4_fabric``
+   * - ``make sv-tb TB=<bench>``
+     - a self-checking SystemVerilog bench, no cocotb: ``tb_mem_ss`` (``soc_mem_ss`` guarantees) or ``tb_axi_to_mem`` (``soc_axi_to_mem`` against ``soc_mem_ss``); ``SV_TB_XILINX_SRAM=1`` selects the Xilinx SRAM slice
+     - ``tb_mem_ss`` / ``tb_axi_to_mem`` (no cocotb)
+     - no
+     - :doc:``mem_ss_redesign``, :doc:``axi4_fabric``
+   * - ``make sv-tb-smoke``
+     - the ``sv-tb`` runs in ``axi-smoke``: ``tb_mem_ss``, and ``tb_axi_to_mem`` on both SRAM slices
+     - (composite)
+     - no
+     - —
    * - ``make cva6-reset-sim``
      - CVA6 AXI behaviour across an ``ndmreset`` (see its scope note)
      - ``soc_dut`` / ``test_cva6_reset_isolation``
@@ -103,7 +113,7 @@ Simulation Targets
      - :doc:``axi4_fabric``
 
 ``make axi-smoke`` runs ``axi-addr-map-check``, ``axi-adapter-sim``,
-``uart-loader-sim``, ``plic-sim``, ``mem-ss-bench``, ``mem-bw-bench``, ``debug-sim`` and
+``uart-loader-sim``, ``plic-sim``, ``mem-ss-bench``, ``sv-tb-smoke``, ``mem-bw-bench``, ``debug-sim`` and
 ``cva6-reset-sim``, then ``sim-run-sw`` for each core in ``AXI_SMOKE_CORES`` (default
 ``ibex cv32e40p cv32e40s cva6 serv picorv32 cvw``). Unsupported cores are intentionally excluded;
 see :doc:`support_matrix`.
@@ -114,7 +124,7 @@ What a full ``axi-smoke`` actually costs
 The unit of cost is the **simulation**, not the test. Each simulation builds its
 own Verilator model; a model is never shared between simulations, because each
 one differs in either its toplevel, its cocotb module, or its compile-time core
-select (``-DCOREJACK_CORE_*``). A full run is 14 simulations, so 14 Verilator
+select (``-DCOREJACK_CORE_*``). A full run is 17 simulations, so 17 Verilator
 builds:
 
 .. list-table::
@@ -144,6 +154,10 @@ builds:
      - ``test_mem_ss_bench``
      - ibex
      - 1
+   * - ``sv-tb-smoke``, 3x
+     - ``tb_mem_ss``; ``tb_axi_to_mem`` on the model and Xilinx slices
+     - none
+     - n/a (self-checking SystemVerilog)
    * - ``mem-bw-bench``
      - ``test_soc_sw`` (``mem_bw_smoke`` app)
      - ibex
@@ -161,13 +175,15 @@ builds:
      - one per ``AXI_SMOKE_CORES`` entry
      - 1 each
 
-That is **14 simulations and 35 tests**. The counts differ because a testbench
+That is **17 simulations and 35 cocotb tests**; the three ``sv-tb`` runs report
+PASS or FAIL themselves. The counts differ because a testbench
 file holds one or more ``@cocotb.test()`` functions and they all share the one
 model that simulation built - ``test_axi_adapters.py`` alone contributes 17. Tests
 are therefore nearly free to add; simulations are not.
 
 Measured on four cores (``taskset -c 0-3``, matching a GitHub-hosted runner), all
-35 passing:
+35 passing, before the ``sv-tb`` runs were added (each builds and runs in about
+10 seconds on a 16-core workstation):
 
 ::
 
@@ -202,8 +218,10 @@ The cocotb tests and testbench-only SystemVerilog live under ``tb/``:
 -  **DUT wrappers** select the toplevel for each flow: ``smoke_dut.sv`` (stub),
    ``soc_dut.sv`` (full platform, used by the software, debug, and CVA6 reset
    flows), ``axi_adapter_dut.sv``, ``uart_sram_loader_dut.sv``, ``plic_dut.sv``, and
-   ``mem_ss_bench_dut.sv``; ``tb_mem_ss.sv`` is the standalone Verilator testbench
-   for ``soc_mem_ss``.
+   ``mem_ss_bench_dut.sv``.
+-  **Self-checking SystemVerilog benches** (``make sv-tb``): ``tb_mem_ss.sv`` for
+   ``soc_mem_ss`` and ``tb_axi_to_mem.sv`` for ``soc_axi_to_mem`` driving
+   ``soc_mem_ss``. They report PASS or FAIL themselves and exit nonzero on failure.
 -  **cocotb tests:** ``test_smoke.py``, ``test_soc_sw.py``,
    ``test_debug_integration.py``, ``test_axi_adapters.py``,
    ``test_uart_sram_loader.py``, ``test_plic.py``, ``test_mem_ss_bench.py``, and
@@ -211,7 +229,8 @@ The cocotb tests and testbench-only SystemVerilog live under ``tb/``:
 -  **TB-only monitors:** ``sim_ctrl_monitor.sv``, ``axi_sim_ctrl_monitor.sv``, and
    ``uart_apb_tx_monitor.sv``.
 
-The toplevel and cocotb module for each target are wired in ``corejack.core``. See
+The toplevel and cocotb module for each target are wired in ``corejack.core``; the
+``sv-tb`` target selects its toplevel with a FuseSoC flag named after the bench. See
 :doc:`repository_layout` for the full source-tree map.
 
 Waveforms
@@ -282,6 +301,13 @@ All trace artifacts stay under ``build/`` and are covered by ``.gitignore``
 
 Other Knobs
 -----------
+
+-  ``SIM_ASSERTS`` (default ``1``) keeps the ``common_cells`` ``ASSERT`` macros
+   enabled in every simulation target. Those macros carry the built-in checks
+   of ``common_cells``, PULP ``axi``, ``idma`` and ``riscv-dbg``. ``SIM_ASSERTS=0``
+   passes the FuseSoC ``asserts_off`` flag, which defines ``ASSERTS_OFF``. Plain
+   SystemVerilog ``assert`` statements, including CoreJack's own, always run:
+   Verilator executes them without ``--assert``.
 
 -  ``SIM_TIMEOUT_CYCLES`` (default ``1000000``) bounds a software simulation; it is
    passed through to the testbench as the ``COREJACK_TIMEOUT_CYCLES`` cocotb

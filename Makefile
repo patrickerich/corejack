@@ -110,6 +110,14 @@ SIM_WAVES      ?= 0
 SIM_WAVE_FORMAT ?= fst
 SIM_WAVE_DIR   ?= $(CURDIR)/build/waves
 SIM_WAVE_FILE  ?=
+# The common_cells ASSERT macros run in simulation by default; SIM_ASSERTS=0
+# turns them off (FuseSoC flag asserts_off). Plain SystemVerilog asserts
+# always run.
+SIM_ASSERTS    ?= 1
+# sv-tb: which self-checking SystemVerilog bench to run, and whether it uses
+# the Xilinx SRAM slice (1) or the simulation model (0).
+TB             ?=
+SV_TB_XILINX_SRAM ?= 0
 ALLOW_PLANNED  ?= 0
 FLOW           ?= all
 AXI_SMOKE_CORES ?= ibex cv32e40p cv32e40s cva6 serv picorv32 cvw
@@ -137,6 +145,11 @@ FUSESOC_FLAG_ARGS := $(foreach flag,$(FUSESOC_FLAGS),--flag $(flag))
 SIM_BUILD_JOBS   ?= $(shell nproc 2>/dev/null || echo 4)
 SIM_MAKE_OPTIONS ?= --make_options=-j$(SIM_BUILD_JOBS)
 
+SIM_ASSERT_FUSESOC_FLAGS := $(if $(filter 0,$(SIM_ASSERTS)),--flag asserts_off,)
+
+SV_TB_BENCHES := tb_mem_ss tb_axi_to_mem
+SV_TB_SLICE   := $(if $(filter 1,$(SV_TB_XILINX_SRAM)),xilinx,model)
+
 SIM_TRACE_FUSESOC_FLAGS :=
 ifeq ($(SIM_WAVES),1)
 ifeq ($(SIM_WAVE_FORMAT),fst)
@@ -148,7 +161,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender docs docs-serve docs-preview docs-clean toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender docs docs-serve docs-preview docs-clean toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -211,6 +224,7 @@ help:
 	@printf '  %-18s %s\n' 'sim-run-sw' 'build TARGET=sim SW_APP and run cocotb software simulation'
 	@printf '  %-18s %s\n' '' 'tests must use sim_ctrl_pass()/sim_ctrl_fail() and print via UART'
 	@printf '  %-18s %s\n' '' 'set SIM_WAVES=1 SIM_WAVE_FORMAT=fst|vcd to dump optional waveforms'
+	@printf '  %-18s %s\n' '' 'set SIM_ASSERTS=0 to disable the common_cells IP assertions'
 	@printf '  %-18s %s\n' 'debug-sim' 'run debug-window and SBA integration regressions'
 	@printf '  %-18s %s\n' 'cva6-reset-sim' 'run CVA6 AXI reset-isolation regression'
 	@printf '  %-18s %s\n' 'axi-adapter-sim' 'run OBI-to-AXI and AXI-to-memory adapter regressions'
@@ -218,6 +232,9 @@ help:
 	@printf '  %-18s %s\n' 'plic-sim' 'run soc_plic claim/complete and gateway regression'
 	@printf '  %-18s %s\n' 'mem-ss-bench' 'measure soc_mem_ss words/cycle vs active ports/banks'
 	@printf '  %-18s %s\n' 'mem-bw-bench' 'measure CPU+iDMA memory bandwidth (mcycle-timed)'
+	@printf '  %-18s %s\n' 'sv-tb' 'run a self-checking SV bench: TB=$(SV_TB_BENCHES)'
+	@printf '  %-18s %s\n' '' 'set SV_TB_XILINX_SRAM=1 to use the Xilinx SRAM slice'
+	@printf '  %-18s %s\n' 'sv-tb-smoke' 'run the SV benches in the axi-smoke set'
 	@printf '  %-18s %s\n' 'axi-addr-map-check' 'check AXI fabric address windows for overlap'
 	@printf '  %-18s %s\n' 'axi-smoke' 'run AXI fabric regressions and supported-core SW sims'
 	@printf '  %-18s %s\n' 'openocd' 'launch OpenOCD for the FPGA JTAG debug target'
@@ -630,7 +647,7 @@ sim-run-sw: deps-core sw-build
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
 		COREJACK_TIMEOUT_CYCLES='$(SIM_TIMEOUT_CYCLES)' \
 		CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) --run_options="$$run_options"
+		fusesoc --cores-root . run --clean --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) --run_options="$$run_options"
 
 cva6-reset-sim: deps-base deps-cva6
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -642,7 +659,7 @@ cva6-reset-sim: deps-base deps-cva6
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target cva6-reset-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target cva6-reset-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 # Appends the ibex, cv32e40p and cv32e40s filesets (see corejack.core), so it
 # needs those cores fetched -- deps-base alone leaves fusesoc unable to find
@@ -657,7 +674,7 @@ debug-sim: deps-base deps-cv32e40p deps-cv32e40s
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target debug-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target debug-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 axi-adapter-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -669,7 +686,7 @@ axi-adapter-sim: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target axi-adapter-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target axi-adapter-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 uart-loader-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -681,7 +698,7 @@ uart-loader-sim: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target uart-loader-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target uart-loader-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 plic-sim: deps-base
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -693,7 +710,7 @@ plic-sim: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target plic-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target plic-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 # System-level memory-bandwidth benchmark: a CPU streaming loop against a
 # concurrent iDMA copy, timed with the mcycle CSR so the figures are unaffected
@@ -713,12 +730,31 @@ mem-ss-bench: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target mem-ss-bench --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target mem-ss-bench --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+
+# Self-checking SystemVerilog benches with no cocotb side (tb/tb_mem_ss.sv,
+# tb/tb_axi_to_mem.sv). The bench prints PASS/FAIL and exits nonzero on
+# failure, so the make exit status is the result.
+sv-tb: deps-base
+	@case " $(SV_TB_BENCHES) " in *" $(TB) "*) ;; \
+		*) echo "Error: set TB to one of: $(SV_TB_BENCHES)"; exit 1;; esac
+	@PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
+		fusesoc --cores-root . run --clean --target sv-tb --tool verilator \
+		--work-root "$(CURDIR)/build/sim/sv-tb/$(TB)-$(SV_TB_SLICE)" --flag $(TB) \
+		$(if $(filter xilinx,$(SV_TB_SLICE)),--flag memimpl_xilinx,) \
+		$(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS)
+
+# The SV benches in axi-smoke. tb_axi_to_mem runs on both slices because
+# the bridge's in-flight bound is derived from the slice read latency.
+sv-tb-smoke:
+	@$(MAKE) sv-tb TB=tb_mem_ss
+	@$(MAKE) sv-tb TB=tb_axi_to_mem
+	@$(MAKE) sv-tb TB=tb_axi_to_mem SV_TB_XILINX_SRAM=1
 
 axi-addr-map-check:
 	@$(PY) bin/check_axi_addr_map.py
 
-axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench debug-sim cva6-reset-sim
+axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench sv-tb-smoke mem-bw-bench debug-sim cva6-reset-sim
 	@for core in $(AXI_SMOKE_CORES); do \
 		echo "AXI smoke: sim-run-sw CORE=$$core"; \
 		$(MAKE) sim-run-sw CORE="$$core" SW_APP=hello_world SIM_TIMEOUT_CYCLES="$(SIM_TIMEOUT_CYCLES)"; \
@@ -788,7 +824,7 @@ smoke: deps-base
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
 
 plan:
 	@sed -n '1,240p' docs/source/roadmap.rst

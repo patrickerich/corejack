@@ -73,7 +73,7 @@ module axi_adapter_dut
   soc_axi_resp_t [NumSlv-1:0]  axi_slv_rsp;
   soc_axi_mst_req_t  [NumMst-1:0]  target_axi_req;
   soc_axi_mst_resp_t [NumMst-1:0]  target_axi_rsp;
-  axi_pkg::xbar_rule_64_t [NumMst-1:0] addr_map;
+  soc_bus_pkg::xbar_rule_t [NumMst-1:0] addr_map;
   soc_apb_req_t        apb_req;
   soc_apb_resp_t       apb_rsp;
 
@@ -191,7 +191,7 @@ module axi_adapter_dut
     .slv_resp_t    (soc_axi_resp_t),
     .mst_req_t     (soc_axi_mst_req_t),
     .mst_resp_t    (soc_axi_mst_resp_t),
-    .rule_t        (axi_pkg::xbar_rule_64_t)
+    .rule_t        (soc_bus_pkg::xbar_rule_t)
   ) i_axi_xbar (
     .clk_i,
     .rst_ni,

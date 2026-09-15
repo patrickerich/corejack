@@ -163,6 +163,10 @@ module soc_top #(
     localparam int unsigned MemDataWidth = 64;
     localparam int unsigned MemBytesPerWord = MemDataWidth / 8;
     localparam int unsigned MemWords = RamWords / 2;
+    // In-flight bound for the soc_axi_to_mem bridges on the direct RAM legs
+    // (iDMA and CVA6); mem_ss_pkg records how it is derived. Their request and
+    // response FIFOs are mem_ss_pkg::MemBridgeQueueDepth deep.
+    localparam int unsigned MemBridgeOutstanding = mem_bridge_outstanding(MemImpl);
     localparam dm::hartinfo_t HartInfo = '{
       zero1:      '0,
       nscratch:   4'd2,
@@ -278,7 +282,7 @@ module soc_top #(
     // the initiator index to the AXI ID); the target adapters are typed to match.
     soc_axi_mst_req_t [FabricAxiPorts-1:0]        target_axi_req;
     soc_axi_mst_resp_t [FabricAxiPorts-1:0]       target_axi_rsp;
-    axi_pkg::xbar_rule_64_t [FabricAxiPorts-1:0]  fabric_addr_map;
+    xbar_rule_t [FabricAxiPorts-1:0]              fabric_addr_map;
 
     soc_apb_req_t  uart_apb_req;
     soc_apb_resp_t uart_apb_rsp;
@@ -376,21 +380,21 @@ module soc_top #(
       end
     end
 
-    // Rule bounds are widened explicitly: the xbar rules are 64-bit and the
-    // base + size sums must not wrap in 32-bit arithmetic.
+    // Rule bounds are widened explicitly: the xbar rules are AxiAddrWidth
+    // (48-bit) and the base + size sums must not wrap in 32-bit arithmetic.
     assign fabric_addr_map = '{
-      '{idx: 0, start_addr: {32'h0, RamBaseAddr},
-                end_addr:   {32'h0, RamBaseAddr} + {32'h0, RamSize}},
-      '{idx: 1, start_addr: {32'h0, UartBaseAddr},
-                end_addr:   {32'h0, UartBaseAddr} + {32'h0, UartSize}},
-      '{idx: 2, start_addr: {32'h0, DebugBaseAddr},
-                end_addr:   {32'h0, DebugBaseAddr} + {32'h0, DebugSize}},
-      '{idx: 3, start_addr: {32'h0, ClintBaseAddr},
-                end_addr:   {32'h0, ClintBaseAddr} + {32'h0, ClintSize}},
-      '{idx: 4, start_addr: {32'h0, DmaBaseAddr},
-                end_addr:   {32'h0, DmaBaseAddr} + {32'h0, DmaSize}},
-      '{idx: 5, start_addr: {32'h0, PlicBaseAddr},
-                end_addr:   {32'h0, PlicBaseAddr} + {32'h0, PlicSize}}
+      '{idx: 0, start_addr: {16'h0, RamBaseAddr},
+                end_addr:   {16'h0, RamBaseAddr} + {16'h0, RamSize}},
+      '{idx: 1, start_addr: {16'h0, UartBaseAddr},
+                end_addr:   {16'h0, UartBaseAddr} + {16'h0, UartSize}},
+      '{idx: 2, start_addr: {16'h0, DebugBaseAddr},
+                end_addr:   {16'h0, DebugBaseAddr} + {16'h0, DebugSize}},
+      '{idx: 3, start_addr: {16'h0, ClintBaseAddr},
+                end_addr:   {16'h0, ClintBaseAddr} + {16'h0, ClintSize}},
+      '{idx: 4, start_addr: {16'h0, DmaBaseAddr},
+                end_addr:   {16'h0, DmaBaseAddr} + {16'h0, DmaSize}},
+      '{idx: 5, start_addr: {16'h0, PlicBaseAddr},
+                end_addr:   {16'h0, PlicBaseAddr} + {16'h0, PlicSize}}
     };
 
     if (CoreType == platform_pkg::CoreCva6) begin : gen_cva6_core_path
@@ -507,10 +511,12 @@ module soc_top #(
       // single-outstanding RV32 routers get by construction. Route index
       // 1 = RAM leg, 0 = xbar leg, so the select is just the decode bit.
       // ----------------------------------------------------------------------
-      // In-flight bound on the RAM leg: the router's per-ID counter and the
-      // bridge's per-engine depth are the same number so neither throttles
-      // below the other.
-      localparam int unsigned Cva6RamOutstanding = 8;
+      // In-flight bound on the RAM leg: the bridge enforces
+      // MemBridgeOutstanding exactly. The router's per-ID counters are
+      // idx_width(MaxTrans) bits and report full at all-ones, so they saturate
+      // below MaxTrans, and any one full ID blocks new transactions in that
+      // direction. MaxTrans is therefore set one above the bridge bound so the
+      // router never throttles first.
       // Widened like the xbar rules so base + size cannot wrap in 32 bits.
       localparam axi_addr_t Cva6RamStart = axi_addr_t'(RamBaseAddr);
       localparam axi_addr_t Cva6RamEnd   = axi_addr_t'(RamBaseAddr) + axi_addr_t'(RamSize);
@@ -536,7 +542,7 @@ module soc_top #(
         .axi_req_t   (soc_axi_req_t),
         .axi_resp_t  (soc_axi_resp_t),
         .NoMstPorts  (2),
-        .MaxTrans    (Cva6RamOutstanding),
+        .MaxTrans    (MemBridgeOutstanding + 1),
         .AxiLookBits (soc_bus_pkg::AxiIdWidth),
         .UniqueIds   (1'b0),
         // No spill registers: the RV32 direct path is unregistered too, and
@@ -567,7 +573,9 @@ module soc_top #(
       soc_axi_to_mem #(
         .AddrWidth      (32),
         .DataWidth      (MemDataWidth),
-        .MaxOutstanding (Cva6RamOutstanding)
+        .MaxOutstanding (MemBridgeOutstanding),
+        .ReqDepth       (MemBridgeQueueDepth),
+        .RspDepth       (MemBridgeQueueDepth)
       ) i_cva6_axi_to_mem (
         .clk_i,
         .rst_ni,
@@ -1001,8 +1009,11 @@ module soc_top #(
     // request route back onto the xbar; not provided - the iDMA is a memory
     // mover here.)
     soc_axi_to_mem #(
-      .AddrWidth (32),
-      .DataWidth (MemDataWidth)
+      .AddrWidth      (32),
+      .DataWidth      (MemDataWidth),
+      .MaxOutstanding (MemBridgeOutstanding),
+      .ReqDepth       (MemBridgeQueueDepth),
+      .RspDepth       (MemBridgeQueueDepth)
     ) i_dma_axi_to_mem (
       .clk_i,
       .rst_ni,
@@ -1052,7 +1063,7 @@ module soc_top #(
       .slv_resp_t    (soc_axi_resp_t),
       .mst_req_t     (soc_axi_mst_req_t),
       .mst_resp_t    (soc_axi_mst_resp_t),
-      .rule_t        (axi_pkg::xbar_rule_64_t)
+      .rule_t        (xbar_rule_t)
     ) i_fabric_axi_xbar (
       .clk_i,
       .rst_ni,
@@ -1071,8 +1082,8 @@ module soc_top #(
       .DataWidth     (MemDataWidth),
       // The crossbar never presents more than MaxMstTrans transactions to one
       // master port, so depth beyond that is unreachable on this leg. The iDMA
-      // and CVA6 legs keep the deeper depth because they are not behind the
-      // crossbar.
+      // and CVA6 legs size theirs from MemBridgeOutstanding because they are
+      // not behind the crossbar.
       .MaxOutstanding (FabricXbarCfg.MaxMstTrans),
       .axi_req_t     (soc_axi_mst_req_t),
       .axi_resp_t    (soc_axi_mst_resp_t),

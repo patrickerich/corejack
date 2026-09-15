@@ -34,6 +34,15 @@ package soc_bus_pkg;
   typedef logic [AxiDataWidth/8-1:0] axi_strb_t;
   typedef logic [0:0] axi_user_t;
 
+  // axi_xbar address rule at the fabric's address width. axi_pkg only offers
+  // 32- and 64-bit rules, and common_cells' addr_decode_dync asserts that the
+  // rule width matches the address it decodes.
+  typedef struct packed {
+    int unsigned idx;
+    axi_addr_t   start_addr;
+    axi_addr_t   end_addr;
+  } xbar_rule_t;
+
   // Initiator/slave-side fabric types (core instruction, core data, debug SBA).
   `AXI_TYPEDEF_ALL(soc_axi, axi_addr_t, axi_id_t, axi_data_t, axi_strb_t, axi_user_t)
 

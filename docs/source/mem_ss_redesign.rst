@@ -379,8 +379,8 @@ Still open:
 
 -  **Initiator-side outstanding requests** (see Section 5): the subsystem
    sustains ~1 access/cycle per port. For the iDMA this is now realized -
-   ``soc_axi_to_mem`` was pipelined and ``NumAxInFlight`` raised to match, reaching
-   ~85% of that ceiling (see :doc:`axi4_fabric`). For the CPUs
+   ``soc_axi_to_mem`` was pipelined and its in-flight bound derived from the SRAM
+   read latency, reaching ~95% of that ceiling (see :doc:`axi4_fabric`). For the CPUs
    the gap remains and is a core limit: the IFU outstanding-fetch options are
    vendored-RTL changes and are not taken here.
 -  **Per-board bank counts:** the count is now a single constant
