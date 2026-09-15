@@ -284,34 +284,61 @@ the memory - about **nine cycles** - was paid on every word instead of being
 hidden. The iDMA, the only high-bandwidth initiator on the platform, therefore
 ran at ~11% of what its own memory ports could sustain.
 
-Each engine is now a short pipeline (``MaxOutstanding``, default 8) rather than a
-four-state machine: one FIFO carries accepted requests to the memory, one
-carries the AXI id through to the response, one holds responses until the AXI
-channel takes them. No reorder buffer is needed because ``soc_mem_ss`` returns a
-port's responses in order. ``soc_idma``'s ``NumAxInFlight`` is kept equal to that
-depth - without it the backend simply becomes the next limiter.
+Each engine is now a short pipeline rather than a four-state machine: one FIFO
+carries accepted requests to the memory, one carries the AXI id through to the
+response, one holds responses until the AXI channel takes them. No reorder
+buffer is needed because ``soc_mem_ss`` returns a port's responses in order.
+
+Two parameters size it. ``MaxOutstanding`` bounds the transactions in flight and
+sets the depth of the narrow id FIFO. ``ReqDepth`` and ``RspDepth`` set the wide
+request and response FIFOs, which default to ``MaxOutstanding``. On the direct
+RAM legs (iDMA and CVA6) ``soc_top`` sets the queues to 2 and derives the bound
+from the SRAM read latency (``mem_ss_pkg::mem_read_latency``):
+
+-  A transaction takes the read latency plus six cycles from AXI accept to AXI
+   response, and admission sees the registered count, so the bound needs one
+   more than that. One short, each engine stalls one cycle per round trip.
+-  One further entry leaves room for one-cycle latency jitter; at the exact
+   bound the iDMA still hit it about once per 256-beat burst. It saved 22
+   cycles of the copy below on CVA6 and 1 on Ibex. The bound is therefore read
+   latency + 8: 9 on the model slice, 10 on the Xilinx slice.
+-  The shallow queues backpressure into ``soc_mem_ss``'s reorder buffer instead
+   of duplicating it, so only 4-bit id entries grow with the bound. Per bridge,
+   FIFO payload storage drops from 1,680 bits (every FIFO 8 deep) to 484 at a
+   bound of 10. The crossbar's RAM bridge keeps full-depth FIFOs at
+   ``MaxMstTrans``; it carries different traffic and was not re-measured.
+
+``tb/tb_axi_to_mem.sv`` measures the round trip on both slice models and checks
+the bridge against ``soc_mem_ss`` with independent read and write ports, random
+stalls and an iDMA-style coupled copy. ``soc_idma``'s ``NumAxInFlight`` counts
+bursts ahead of the burst splitter, not single-beat transactions, and does not
+have to match the bound.
 
 Reference figures from ``make mem-bw-bench`` (a 24 KiB iDMA copy, timed with the
-``mcycle`` CSR so the baud-throttled UART does not distort them):
+``mcycle`` CSR so the baud-throttled UART does not distort them). The Ibex
+software simulation uses the Xilinx slice (``COREJACK_SIM_XILINX_SRAM``):
 
-=================================== ============ ================
-\                                   before       after
-=================================== ============ ================
-copy                                27906 cycles **3616 cycles**
-bandwidth                           0.88 B/cycle **6.80 B/cycle**
-per 64-bit word                     9.08 cycles  **1.18 cycles**
-CPU/DMA overlap (1000 = serialized) 1114         **1853**
-=================================== ============ ================
+=================================== ============ ============ ================
+\                                   one at a     bound 8      **bound 10**
+                                    time
+=================================== ============ ============ ================
+copy                                27906 cycles 3616 cycles  **3244 cycles**
+bandwidth                           0.88 B/cycle 6.80 B/cycle **7.58 B/cycle**
+per 64-bit word                     9.08 cycles  1.18 cycles  **1.06 cycles**
+CPU/DMA overlap (1000 = serialized) 1114         1853         **1849**
+=================================== ============ ============ ================
 
-That is ~85% of the one-word-per-cycle ceiling. A waveform of that run accounts
-for the remaining 544 cycles. 135 are the CSR launch and ``DONE_ID`` polling
-inside the timed window, and ~25 are pipeline start and finish latency. The
-other 384 come from the depth of 8 itself: admit-to-response takes nine cycles
-on the model SRAM, so each engine stalls one cycle in nine at the cap.
-``soc_mem_ss`` never stalled the copy. The crossbar leg is given
+That is ~95% of the one-word-per-cycle ceiling. At a bound of 8, a waveform put
+384 of the 544 cycles above the ideal on the bound itself: admit-to-response
+takes eight cycles on the Xilinx slice, so each engine stalled one cycle in
+nine. Of the remaining 172, 135 are the CSR launch and ``DONE_ID`` polling
+inside the timed window, and the rest is pipeline latency and burst-boundary
+jitter. ``soc_mem_ss`` never held up the copy: bank arbitration granted every
+request on both iDMA ports. On CVA6, which simulates the model slice, the same
+copy went from 3334 to 3312 cycles. The crossbar leg is given
 ``MaxOutstanding = MaxMstTrans`` instead, since the crossbar never presents more
 than that to one master port; the iDMA and CVA6 legs are not behind the
-crossbar and keep the deeper depth of 8.
+crossbar and size theirs as above.
 
 Acceptance
 ----------
