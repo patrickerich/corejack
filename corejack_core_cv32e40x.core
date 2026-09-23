@@ -1,6 +1,6 @@
 CAPI=2:
 
-name: corejack:cores:cv32e40x:0.1.0
+name: corejack:cores:cv32e40x:0.2.0
 description: CV32E40X RTL and CoreJack adapter used by the CoreJack platform
 
 filesets:

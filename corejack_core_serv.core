@@ -1,6 +1,6 @@
 CAPI=2:
 
-name: corejack:cores:serv:0.1.0
+name: corejack:cores:serv:0.2.0
 description: SERV RTL and CoreJack adapter used by the CoreJack platform
 
 filesets:

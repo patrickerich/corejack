@@ -1,6 +1,6 @@
 CAPI=2:
 
-name: corejack:common:deps:0.1.0
+name: corejack:common:deps:0.2.0
 description: Shared dependency RTL used by the CoreJack platform
 
 filesets:
