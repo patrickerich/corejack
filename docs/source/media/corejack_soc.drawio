@@ -8,7 +8,7 @@
                     <mxGeometry x="40" y="20" width="640" height="36" as="geometry"/>
                 </mxCell>
                 <mxCell id="soctop" value="soc_top" style="swimlane;fontSize=14;fontStyle=1;html=1;startSize=28;fillColor=#F5F5F5;strokeColor=#666666;swimlaneFillColor=#FFFFFF" parent="1" vertex="1">
-                    <mxGeometry x="79" y="60" width="2010" height="690" as="geometry"/>
+                    <mxGeometry x="79" y="60" width="2010" height="900" as="geometry"/>
                 </mxCell>
                 <mxCell id="p_clk" value="clk_i" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#000000;fontSize=11;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="20" y="486" width="120" height="24" as="geometry"/>
@@ -37,29 +37,41 @@
                 <mxCell id="core_region" value="corejack_core_region&#xa;Ibex / CV32E40P/S/X / SERV / PicoRV32 / CVW&#xa;(used when CoreType != platform_pkg::CoreCva6)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="220" y="60" width="240" height="140" as="geometry"/>
                 </mxCell>
-                <mxCell id="cva6_adapter" value="corejack_cva6_axi_adapter&#xa;(CoreType = platform_pkg::CoreCva6, native AXI; XLEN=64, AxiAddrWidth=48, AxiDataWidth=64)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;verticalAlign=middle;dashed=1" parent="soctop" vertex="1">
-                    <mxGeometry x="600" y="220" width="260" height="70" as="geometry"/>
+                <mxCell id="cva6_adapter" value="corejack_cva6_axi_adapter&#xa;(CoreType = platform_pkg::CoreCva6, native AXI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;verticalAlign=middle;dashed=1" parent="soctop" vertex="1">
+                    <mxGeometry x="740" y="235" width="230" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="cva6_iso1" value="axi_isolate&#xa;(on rst_ni)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle;dashed=1;fontSize=10" parent="soctop" vertex="1">
+                    <mxGeometry x="900" y="560" width="90" height="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="cva6_demux1" value="axi_demux&#xa;(RAM split)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle;dashed=1;fontSize=10" parent="soctop" vertex="1">
+                    <mxGeometry x="1010" y="560" width="90" height="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="cva6_axi2mem" value="soc_axi_to_mem&#xa;(CVA6 RAM leg)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle;dashed=1" parent="soctop" vertex="1">
+                    <mxGeometry x="1120" y="560" width="170" height="55" as="geometry"/>
                 </mxCell>
                 <mxCell id="tied_zero" value="AXI[1] = &#39;0&#xa;(tied in CVA6 mode)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10;verticalAlign=middle;dashed=1" parent="soctop" vertex="1">
                     <mxGeometry x="884" y="180" width="90" height="34" as="geometry"/>
                 </mxCell>
-                <mxCell id="cva6_note" value="CVA6 path (CoreType = platform_pkg::CoreCva6):&#xa;- replaces RV32 core_region + OBI buffers + OBI-&gt;AXI bridges with corejack_cva6_axi_adapter&#xa;- core_axi_req[0] = cva6 native AXI; core_axi_req[1] is tied to &#39;0; SBA path (core_axi_req[2]) is unchanged&#xa;- sim + FPGA + debug supported (cfg/cores/cva6.yaml)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=10;align=left;spacingLeft=8;spacingTop=4;dashed=1" parent="soctop" vertex="1">
-                    <mxGeometry x="820" y="546.5" width="470" height="68" as="geometry"/>
+                <mxCell id="cva6_note" value="CVA6 path (CoreType = platform_pkg::CoreCva6; dashed):&#xa;- replaces core_region, the OBI buffers, routers and OBI-&gt;AXI bridges with corejack_cva6_axi_adapter&#xa;- axi_isolate on rst_ni, then axi_demux: RAM window -&gt; its own soc_axi_to_mem -&gt; soc_mem_ss ports 5/6; everything else -&gt; xbar AXI[0]&#xa;- core_axi_req[1] is tied to &#39;0; the SBA path (core_axi_req[2]) is unchanged&#xa;- sim + FPGA + debug supported (cfg/cores/cva6.yaml)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=10;align=left;spacingLeft=8;spacingTop=4;dashed=1" parent="soctop" vertex="1">
+                    <mxGeometry x="820" y="735" width="470" height="95" as="geometry"/>
                 </mxCell>
                 <mxCell id="checker_note" value="AXI protocol checkers (sim only): one soc_axi_protocol_checker is wired on every core_axi_req[i] (xbar slave ports) and on every target_axi_req[i] (xbar master ports) (single-beat invariants)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=10;align=left;spacingLeft=8;spacingTop=4" parent="soctop" vertex="1">
-                    <mxGeometry x="770" y="631.5" width="640" height="50" as="geometry"/>
+                    <mxGeometry x="770" y="845" width="640" height="50" as="geometry"/>
                 </mxCell>
                 <mxCell id="instr_buf" value="soc_obi_mem_buffer (instr)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="soctop" vertex="1">
-                    <mxGeometry x="540" y="60" width="150" height="60" as="geometry"/>
+                    <mxGeometry x="530" y="60" width="120" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="data_buf" value="soc_obi_mem_buffer (data)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="soctop" vertex="1">
-                    <mxGeometry x="540" y="140" width="150" height="60" as="geometry"/>
+                    <mxGeometry x="530" y="140" width="120" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="instr_obi2axi" value="soc_obi_to_axi (instr)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="soctop" vertex="1">
-                    <mxGeometry x="730" y="60" width="130" height="60" as="geometry"/>
+                    <mxGeometry x="745" y="60" width="120" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="data_obi2axi" value="soc_obi_to_axi (data)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="soctop" vertex="1">
-                    <mxGeometry x="730" y="140" width="130" height="60" as="geometry"/>
+                    <mxGeometry x="745" y="140" width="120" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="rv32_routers" value="instr / data&#xa;request&#xa;routers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle;fontSize=10" parent="soctop" vertex="1">
+                    <mxGeometry x="665" y="60" width="60" height="140" as="geometry"/>
                 </mxCell>
                 <mxCell id="sba_obi2axi" value="soc_obi_to_axi (SBA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="720" y="320" width="140" height="60" as="geometry"/>
@@ -69,6 +81,9 @@
                 </mxCell>
                 <mxCell id="soc_idma" value="iDMA accel socket&#xa;(soc_idma, irq -&gt; PLIC 2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="720" y="400" width="140" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="idma_axi2mem" value="soc_axi_to_mem&#xa;(iDMA leg)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="soctop" vertex="1">
+                    <mxGeometry x="710" y="560" width="140" height="55" as="geometry"/>
                 </mxCell>
                 <mxCell id="axi2reg_dma" value="soc_axi_to_apb" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="1380" y="350" width="180" height="60" as="geometry"/>
@@ -146,10 +161,42 @@
                 <mxCell id="e2" value="data OBI" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.786;entryX=0;entryY=0.5;fontSize=10" parent="soctop" source="core_region" target="data_buf" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e3" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5" parent="soctop" source="instr_buf" target="instr_obi2axi" edge="1">
+                <mxCell id="e3" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.214;" parent="soctop" source="instr_buf" target="rv32_routers" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e4" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5" parent="soctop" source="data_buf" target="data_obi2axi" edge="1">
+                <mxCell id="e4" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.786;" parent="soctop" source="data_buf" target="rv32_routers" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_rt_instr" value="" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.214;entryX=0;entryY=0.5" parent="soctop" source="rv32_routers" target="instr_obi2axi" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_rt_data" value="" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.786;entryX=0;entryY=0.5" parent="soctop" source="rv32_routers" target="data_obi2axi" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_rt_ram" value="RAM window: 32-bit ports" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.5;exitY=1;entryX=0.0241;entryY=0" parent="soctop" source="rv32_routers" target="mem_ss" edge="1">
+                    <mxGeometry x="-0.64" relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="695" y="212"/>
+                            <mxPoint x="480" y="212"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_idma_data" value="AXI" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.2857;exitY=1;entryX=0.3571;entryY=0" parent="soctop" source="soc_idma" target="idma_axi2mem" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_idma_mem" value="64-bit ports 3/4" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.5;exitY=1;entryX=0.3855;entryY=0" parent="soctop" source="idma_axi2mem" target="mem_ss" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_cva6_demux" value="" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;dashed=1" parent="soctop" source="cva6_iso1" target="cva6_demux1" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_cva6_xbar" value="AXI[0] (non-RAM)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.5;exitY=0;entryX=0.2586;entryY=1;dashed=1" parent="soctop" source="cva6_demux1" target="axi_xbar" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_cva6_ram" value="" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;dashed=1" parent="soctop" source="cva6_demux1" target="cva6_axi2mem" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_cva6_mem" value="64-bit ports 5/6" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.5;exitY=1;entryX=0.8976;entryY=0;dashed=1" parent="soctop" source="cva6_axi2mem" target="mem_ss" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="e5" value="AXI[0]" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;fontSize=10;entryX=0.003;entryY=0.095;entryDx=0;entryDy=0;entryPerimeter=0;" parent="soctop" source="instr_obi2axi" target="axi_xbar" edge="1">
@@ -162,14 +209,8 @@
                         <mxPoint x="981" y="170" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_cva6" value="AXI[0] (CVA6 alt)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;fontSize=10;dashed=1;entryX=0;entryY=0.095;entryDx=0;entryDy=0;entryPerimeter=0;" parent="soctop" source="cva6_adapter" target="axi_xbar" edge="1">
-                    <mxGeometry relative="1" as="geometry">
-                        <Array as="points">
-                            <mxPoint x="880" y="255"/>
-                            <mxPoint x="880" y="90"/>
-                        </Array>
-                        <mxPoint x="971" y="90" as="targetPoint"/>
-                    </mxGeometry>
+                <mxCell id="e_cva6" value="AXI" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;dashed=1;exitX=0.8913;exitY=1;entryX=0.5;entryY=0;" parent="soctop" source="cva6_adapter" target="cva6_iso1" edge="1">
+                    <mxGeometry relative="1" as="geometry"></mxGeometry>
                 </mxCell>
                 <mxCell id="e7" value="AXI[2] (SBA)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;fontSize=10" parent="soctop" source="sba_obi2axi" edge="1">
                     <mxGeometry relative="1" as="geometry">
@@ -289,7 +330,7 @@
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="legend" value="Legend:&#xa;blue = bus/fabric&#xa;green = CPU / core region&#xa;purple = memory&#xa;orange = debug&#xa;yellow = peripherals (UART)&#xa;red = reset&#xa;white = pin / external" style="text;html=1;strokeColor=#999999;fillColor=#FFFFFF;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;spacingLeft=8;spacingTop=4" parent="soctop" vertex="1">
-                    <mxGeometry x="460" y="546.5" width="230" height="135" as="geometry"/>
+                    <mxGeometry x="460" y="735" width="230" height="135" as="geometry"/>
                 </mxCell>
                 <mxCell id="axi2mem" value="soc_axi_to_mem" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="soctop" vertex="1">
                     <mxGeometry x="1380" y="140" width="180" height="60" as="geometry"/>
@@ -300,14 +341,16 @@
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="mem_ss" value="soc_mem_ss&#xa;(MemNumBanks=8; 2x 32-bit + 7x 64-bit ports; 0x80000000)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;verticalAlign=middle" parent="soctop" vertex="1">
-                    <mxGeometry x="1640" y="140" width="200" height="60" as="geometry"/>
+                    <mxGeometry x="460" y="650" width="830" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="e12" value="64-bit mem if" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10" parent="soctop" source="axi2mem" target="mem_ss" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                <mxCell id="e12" value="64-bit ports 0/1" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0;exitY=0.85;entryX=1;entryY=0.5;" parent="soctop" source="axi2mem" target="mem_ss" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1350" y="191"/>
+                            <mxPoint x="1350" y="680"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
-        <mxCell id="tl_divergence" value="Not yet drawn on this page (RTL is authoritative):&#xa;- The iDMA data path is NOT an xbar initiator. soc_idma reaches soc_mem_ss ports 3/4 through its own soc_axi_to_mem instance; only its CSR leg (xbar -&gt; soc_axi_to_apb) uses the fabric. See the AXI Fabric page.&#xa;- The CVA6 leg passes through an axi_isolate stage on rst_ni, so a core-only reset cannot orphan a transaction the fabric accepted.&#xa;- soc_axi_to_mem is instantiated twice for RV32 (xbar leg and iDMA leg), and a third time on CVA6&#39;s RAM leg behind its axi_demux; all are pipelined (MaxOutstanding)." style="text;html=1;strokeColor=#b85450;fillColor=#f8cecc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;fontStyle=2;spacing=6" parent="1" vertex="1">
-          <mxGeometry x="600" y="790" width="900" height="120" as="geometry"/>
-        </mxCell>
 
             </root>
         </mxGraphModel>
@@ -321,12 +364,12 @@
                     <mxGeometry x="40" y="20" width="800" height="36" as="geometry"/>
                 </mxCell>
                 <mxCell id="cva6_init" value="CVA6 native AXI&#xa;(CoreType = platform_pkg::CoreCva6, alt AXI[0])" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=middle;dashed=1" parent="1" vertex="1">
-                    <mxGeometry x="60" y="130" width="240" height="40" as="geometry"/>
+                    <mxGeometry x="60" y="125" width="200" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="i_instr" value="instr OBI&#xa;(RV32 core fetch)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
+                <mxCell id="i_instr" value="instr OBI&#xa;(RV32 core fetch; non-RAM window)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="60" y="250" width="180" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="i_data" value="data OBI&#xa;(RV32 core LSU; tied to &#39;0 in CVA6 mode)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
+                <mxCell id="i_data" value="data OBI&#xa;(RV32 core LSU, non-RAM window;&#xa;tied to &#39;0 in CVA6 mode)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="60" y="370" width="180" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="i_sba" value="DM SBA OBI&#xa;(debug master)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
@@ -345,7 +388,7 @@
                     <mxGeometry x="600" y="80" width="520" height="640" as="geometry"/>
                 </mxCell>
                 <mxCell id="i_dma" value="soc_idma AXI manager&#xa;(burst-split, single-beat)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
-                    <mxGeometry x="60" y="770" width="180" height="60" as="geometry"/>
+                    <mxGeometry x="60" y="870" width="180" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="t_dma" value="soc_axi_to_apb" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="1200" y="630" width="180" height="60" as="geometry"/>
@@ -354,9 +397,7 @@
                     <mxGeometry x="1460" y="630" width="180" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="e_dma_in" value="AXI (single-beat)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="i_dma" target="t_dma_mem" edge="1">
-                    <mxGeometry relative="1" as="geometry">
-                        <mxPoint x="320" y="800" as="targetPoint"/>
-                    </mxGeometry>
+                    <mxGeometry relative="1" as="geometry"></mxGeometry>
                 </mxCell>
                 <mxCell id="e_dma_out" value="port[4]" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.996;exitY=0.906;entryX=0;entryY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="xbar" target="t_dma" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
@@ -393,7 +434,7 @@
                 <mxCell id="t_clint" value="soc_axi_to_reg" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="1200" y="500" width="180" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="ep_mem" value="soc_mem_ss&#xa;banked SRAM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
+                <mxCell id="ep_mem" value="soc_mem_ss ports 0/1&#xa;(xbar RAM engines)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="1460" y="120" width="180" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="ep_apb" value="apb_uart_wrap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
@@ -405,11 +446,11 @@
                 <mxCell id="ep_clint" value="clint&#xa;mtime/mtimecmp/IPI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="1460" y="500" width="180" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="am_note" value="fabric_addr_map (axi_pkg::xbar_rule_64_t):&#xa;[0] RAM:   RamBaseAddr   .. +RamSize     (0x80000000)&#xa;[1] UART:  UartBaseAddr  .. +UartSize    (0x10000000)&#xa;[2] DEBUG: DebugBaseAddr .. +DebugSize   (e.g. 0x00000000 in ROM-select)&#xa;[3] CLINT: ClintBaseAddr .. +ClintSize   (0x02000000)&#xa;[4] DMA:   DmaBaseAddr   .. +DmaSize     (0x01000000)&#xa;[5] PLIC:  PlicBaseAddr  .. +PlicSize    (0x0C000000)&#xa;decode miss -&gt; built-in error slave (DECERR)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=11;align=left;spacingLeft=8;spacingTop=4" parent="1" vertex="1">
-                    <mxGeometry x="60" y="860" width="780" height="100" as="geometry"/>
+                <mxCell id="am_note" value="fabric_addr_map (soc_bus_pkg::xbar_rule_t, 48-bit):&#xa;[0] RAM:   RamBaseAddr   .. +RamSize     (0x80000000)&#xa;[1] UART:  UartBaseAddr  .. +UartSize    (0x10000000)&#xa;[2] DEBUG: DebugBaseAddr .. +DebugSize   (e.g. 0x00000000 in ROM-select)&#xa;[3] CLINT: ClintBaseAddr .. +ClintSize   (0x02000000)&#xa;[4] DMA:   DmaBaseAddr   .. +DmaSize     (0x01000000)&#xa;[5] PLIC:  PlicBaseAddr  .. +PlicSize    (0x0C000000)&#xa;decode miss -&gt; built-in error slave (DECERR)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;fontSize=11;align=left;spacingLeft=8;spacingTop=4" parent="1" vertex="1">
+                    <mxGeometry x="60" y="1090" width="780" height="100" as="geometry"/>
                 </mxCell>
                 <mxCell id="checker_note2" value="AXI protocol checkers (sim only):&#xa;- one soc_axi_protocol_checker on each core_axi_req[i] (xbar slave ports)&#xa;- one on each target_axi_req[i] (xbar master ports)&#xa;Single-beat invariants: len == 0, w.last == 1, payload stable while valid &amp;&amp; !ready.&#xa;&#xa;CVA6 mode (CoreType = platform_pkg::CoreCva6): replaces RV32 instr/data OBI bridges with corejack_cva6_axi_adapter; AXI[1] is tied to &#39;0 (no second initiator)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#82b366;fontSize=11;align=left;spacingLeft=8;spacingTop=4;dashed=1" parent="1" vertex="1">
-                    <mxGeometry x="860" y="860" width="780" height="100" as="geometry"/>
+                    <mxGeometry x="860" y="1090" width="780" height="100" as="geometry"/>
                 </mxCell>
                 <mxCell id="e_cva6_init" value="AXI" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;fontSize=10;dashed=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="cva6_init" target="cva6_iso" edge="1">
                     <mxGeometry relative="1" as="geometry">
@@ -462,22 +503,60 @@
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
         <mxCell id="cva6_iso" value="axi_isolate&#xa;(on rst_ni; drains across core reset)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;verticalAlign=middle;dashed=1" parent="1" vertex="1">
-          <mxGeometry x="320" y="130" width="180" height="40" as="geometry"/>
+          <mxGeometry x="280" y="125" width="150" height="50" as="geometry"/>
         </mxCell>
-        <mxCell id="e_cva6_iso_out" value="AXI[0] (CVA6 alt)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;fontSize=10;dashed=1;entryX=0;entryY=0.115;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="cva6_iso" target="xbar" edge="1">
+                <mxCell id="cva6_demux" value="axi_demux&#xa;(RAM window split)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle;dashed=1;fontSize=10" parent="1" vertex="1">
+                    <mxGeometry x="450" y="125" width="100" height="50" as="geometry"/>
+                </mxCell>
+        <mxCell id="e_cva6_iso_out" value="" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=1;exitY=0.5;fontSize=10;dashed=1;entryX=0;entryY=0.5;" parent="1" source="cva6_iso" target="cva6_demux" edge="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="t_dma_mem" value="soc_axi_to_mem&#xa;(iDMA leg, MaxOutstanding=8)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
-          <mxGeometry x="320" y="770" width="200" height="60" as="geometry"/>
+                <mxCell id="e_cva6_xbar2" value="AXI[0]" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.1094;dashed=1" parent="1" source="cva6_demux" target="xbar" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="b_cva6_mem" value="soc_axi_to_mem&#xa;(CVA6 RAM leg, MaxOutstanding = read lat + 8)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle;dashed=1" parent="1" vertex="1">
+                    <mxGeometry x="320" y="750" width="200" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="ep_cva6_mem" value="soc_mem_ss ports 5/6&#xa;(dedicated; bypasses the crossbar)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" parent="1" vertex="1">
+                    <mxGeometry x="600" y="750" width="240" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_cva6_ram2" value="RAM window" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=0.9;exitY=1;entryX=0.5;entryY=0;dashed=1" parent="1" source="cva6_demux" target="b_cva6_mem" edge="1">
+                    <mxGeometry x="0.77" relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="540" y="730"/>
+                            <mxPoint x="420" y="730"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_cva6_mem2" value="2x 64-bit mem if" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;dashed=1" parent="1" source="b_cva6_mem" target="ep_cva6_mem" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="i_rv32_ram" value="instr + data OBI&#xa;(RV32 RAM window)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
+                    <mxGeometry x="60" y="990" width="180" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="rv32_router" value="instr / data request routers&#xa;(in soc_top)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
+                    <mxGeometry x="320" y="990" width="200" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="ep_rv32_mem" value="soc_mem_ss native 32-bit ports&#xa;(dedicated; bypasses the crossbar)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
+                    <mxGeometry x="600" y="990" width="240" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_rv32_in" value="OBI" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5" parent="1" source="i_rv32_ram" target="rv32_router" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_rv32_mem" value="2x 32-bit" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5" parent="1" source="rv32_router" target="ep_rv32_mem" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+        <mxCell id="t_dma_mem" value="soc_axi_to_mem&#xa;(iDMA leg, MaxOutstanding = read lat + 8)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
+          <mxGeometry x="320" y="870" width="200" height="60" as="geometry"/>
         </mxCell>
         <mxCell id="ep_dma_mem" value="soc_mem_ss ports 3/4&#xa;(dedicated; bypasses the crossbar)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;verticalAlign=middle" parent="1" vertex="1">
-          <mxGeometry x="600" y="770" width="240" height="60" as="geometry"/>
+          <mxGeometry x="600" y="870" width="240" height="60" as="geometry"/>
         </mxCell>
         <mxCell id="e_dma_mem" value="2x 64-bit mem if" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="t_dma_mem" target="ep_dma_mem" edge="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="dma_note" value="The iDMA data path is NOT an xbar initiator: it reaches soc_mem_ss through its own soc_axi_to_mem. Only its CSR leg (xbar port[4] -&gt; soc_axi_to_apb) uses the fabric." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=2" parent="1" vertex="1">
-          <mxGeometry x="880" y="770" width="300" height="70" as="geometry"/>
+        <mxCell id="dma_note" value="RAM-window traffic never enters the xbar: the RV32 request routers, CVA6&#39;s axi_demux and the iDMA each drive their own soc_mem_ss ports (bottom rows). The xbar&#39;s RAM target (port[0] -&gt; soc_mem_ss ports 0/1) serves debug SBA and any other fabric-routed RAM access. The iDMA is not an xbar initiator; only its CSR leg (xbar port[4] -&gt; soc_axi_to_apb) uses the fabric." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=2" parent="1" vertex="1">
+          <mxGeometry x="860" y="750" width="280" height="300" as="geometry"/>
         </mxCell>
 
             </root>
@@ -1089,19 +1168,19 @@
                 <mxCell id="t8_title" value="Multi-Initiator Architecture (planned endpoint - not today&#39;s wiring)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1" parent="1" vertex="1">
                     <mxGeometry x="75" y="20" width="1400" height="36" as="geometry"/>
                 </mxCell>
-                <mxCell id="t8_legend" value="Solid = current baseline (the axi_xbar replaced the former soc_axi_arbiter + soc_axi_demux).&#xa;Dashed = planned additions (direct CPU instr/data mem ports, the iDMA direct mem port, accelerator, APB-wrapped peripherals).&#xa;The accel_socket_if interface already anticipates the dual-port shape: split mem_axi_* (data) and csr_apb_* (control)." style="text;html=1;strokeColor=#999999;fillColor=#FFFFFF;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;spacingLeft=8;spacingTop=4" parent="1" vertex="1">
+                <mxCell id="t8_legend" value="Solid = current baseline (the axi_xbar replaced the former soc_axi_arbiter + soc_axi_demux; the CPUs, CVA6 and the iDMA reach RAM through direct soc_mem_ss ports).&#xa;Dashed = planned additions (accelerator, APB-wrapped peripherals).&#xa;The accel_socket_if interface already anticipates the dual-port shape: split mem_axi_* (data) and csr_apb_* (control)." style="text;html=1;strokeColor=#999999;fillColor=#FFFFFF;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;spacingLeft=8;spacingTop=4" parent="1" vertex="1">
                     <mxGeometry x="1535" y="20" width="620" height="64" as="geometry"/>
                 </mxCell>
-                <mxCell id="t8_cpu_instr" value="CPU instr&#xa;(fabric + planned mem port)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
+                <mxCell id="t8_cpu_instr" value="CPU instr&#xa;(fabric + direct mem port)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="155" y="120" width="200" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="t8_cpu_data" value="CPU data&#xa;(fabric + planned mem port)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
+                <mxCell id="t8_cpu_data" value="CPU data&#xa;(fabric + direct mem port)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="415" y="120" width="200" height="80" as="geometry"/>
                 </mxCell>
                 <mxCell id="t8_dbg_sba" value="Debug SBA&#xa;(fabric port only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;verticalAlign=middle" parent="1" vertex="1">
                     <mxGeometry x="675" y="120" width="200" height="80" as="geometry"/>
                 </mxCell>
-                <mxCell id="t8_udma" value="iDMA (integrated, single-port)&#xa;CSR + data via xbar today;&#xa;direct mem port planned" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle;dashed=1" parent="1" vertex="1">
+                <mxCell id="t8_udma" value="iDMA (integrated, dual-port)&#xa;CSR via xbar; data on&#xa;direct 64-bit ports" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle;" parent="1" vertex="1">
                     <mxGeometry x="935" y="120" width="240" height="80" as="geometry"/>
                 </mxCell>
                 <mxCell id="t8_accel" value="Accelerator (planned)&#xa;via accel_socket_if&#xa;CSR (xbar) + data (direct mem port)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;verticalAlign=middle;dashed=1" parent="1" vertex="1">
@@ -1141,22 +1220,25 @@
                     <mxGeometry x="155" y="1020" width="1590" height="540" as="geometry"/>
                 </mxCell>
                 <mxCell id="t8_ip0" value="64-bit ports:&#xa;xbar RAM read + write engines&#xa;(Debug SBA + fabric RAM)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle" parent="t8_memss" vertex="1">
-                    <mxGeometry x="30" y="60" width="240" height="70" as="geometry"/>
+                    <mxGeometry x="30" y="60" width="200" height="70" as="geometry"/>
                 </mxCell>
-                <mxCell id="t8_ip1" value="64-bit port:&#xa;UART SRAM loader (optional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" parent="t8_memss" vertex="1">
-                    <mxGeometry x="290" y="60" width="240" height="70" as="geometry"/>
+                <mxCell id="t8_ip1" value="64-bit port:&#xa;UART SRAM loader (optional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;" parent="t8_memss" vertex="1">
+                    <mxGeometry x="250" y="60" width="200" height="70" as="geometry"/>
                 </mxCell>
-                <mxCell id="t8_ip2" value="32-bit port:&#xa;CPU instruction direct" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" parent="t8_memss" vertex="1">
-                    <mxGeometry x="550" y="60" width="240" height="70" as="geometry"/>
+                <mxCell id="t8_ip2" value="32-bit port:&#xa;CPU instruction direct" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;" parent="t8_memss" vertex="1">
+                    <mxGeometry x="470" y="60" width="200" height="70" as="geometry"/>
                 </mxCell>
-                <mxCell id="t8_ip3" value="32-bit port:&#xa;CPU data direct" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" parent="t8_memss" vertex="1">
-                    <mxGeometry x="810" y="60" width="240" height="70" as="geometry"/>
+                <mxCell id="t8_ip3" value="32-bit port:&#xa;CPU data direct" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;" parent="t8_memss" vertex="1">
+                    <mxGeometry x="690" y="60" width="200" height="70" as="geometry"/>
                 </mxCell>
-                <mxCell id="t8_ip4" value="64-bit ports:&#xa;iDMA read + write" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" parent="t8_memss" vertex="1">
-                    <mxGeometry x="1070" y="60" width="240" height="70" as="geometry"/>
+                <mxCell id="t8_ip4" value="64-bit ports:&#xa;iDMA read + write" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;" parent="t8_memss" vertex="1">
+                    <mxGeometry x="910" y="60" width="200" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="t8_ip_cva6" value="64-bit ports:&#xa;CVA6 read + write&#xa;(via its axi_demux)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle" parent="t8_memss" vertex="1">
+                    <mxGeometry x="1130" y="60" width="200" height="70" as="geometry"/>
                 </mxCell>
                 <mxCell id="t8_ip5" value="64-bit port:&#xa;Accel data (planned)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;dashed=1" parent="t8_memss" vertex="1">
-                    <mxGeometry x="1330" y="60" width="240" height="70" as="geometry"/>
+                    <mxGeometry x="1350" y="60" width="200" height="70" as="geometry"/>
                 </mxCell>
                 <mxCell id="t8_arb_note" value="per-bank fair round-robin (rr_arb_tree, soc_mem_ss internal; NumPorts32 / NumPorts64 are parameters)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=11;fontStyle=2" parent="t8_memss" vertex="1">
                     <mxGeometry x="30" y="160" width="1540" height="40" as="geometry"/>
@@ -1173,7 +1255,7 @@
                 <mxCell id="t8_bank3" value="bank[3]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;fontStyle=1;verticalAlign=middle" parent="t8_memss" vertex="1">
                     <mxGeometry x="810" y="220" width="240" height="280" as="geometry"/>
                 </mxCell>
-                <mxCell id="t8_bank_ellipsis" value="...&#xa;(MemNumBanks is&#xa;a parameter,&#xa;default 4)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;align=center;dashed=1" parent="t8_memss" vertex="1">
+                <mxCell id="t8_bank_ellipsis" value="...&#xa;(MemNumBanks is&#xa;a parameter,&#xa;default 8)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=11;verticalAlign=middle;align=center;dashed=1" parent="t8_memss" vertex="1">
                     <mxGeometry x="1070" y="220" width="220" height="280" as="geometry"/>
                 </mxCell>
                 <mxCell id="t8_three_tier_note" value="Why this layered shape?&#xa;&#xa;Memory subsystem (soc_mem_ss): per-bank arbitration. Memory-heavy initiators (CPU instr/data, DMA, accelerators) get dedicated init ports so bank parallelism actually pays off - the bus fabric does not gate memory bandwidth.&#xa;&#xa;System bus (axi_xbar): per-target AXI arbitration. In the end state the xbar exposes only ~2 slave targets: the peripheral subsystem and an optional RAM-fallback path. The xbar is small because most traffic does not need it.&#xa;&#xa;Peripheral subsystem (APB bus): a single APB peripheral bus behind one soc_axi_to_apb bridge. UART, CLINT (wrapped), DM regs (wrapped), accelerator CSR windows, and future SPI/I2C/GPIO/timers all fan out from one APB demux. Adding a new peripheral is &quot;add to the APB subsystem&quot;, not &quot;reconfigure the xbar&quot;.&#xa;&#xa;What grows linearly: arbiters. M arbiters in the xbar for M targets (only a handful in the end state); B arbiters in soc_mem_ss for B banks; the APB subsystem needs no arbitration (peripherals are slaves, they do not initiate). Wires fan out N x B inside soc_mem_ss but synthesis handles that cleanly at this scale." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=11;align=left;spacingLeft=12;spacingTop=8;spacingRight=12;spacingBottom=8" parent="1" vertex="1">
@@ -1185,16 +1267,16 @@
                         <mxPoint x="295.0200000000002" y="300.98" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="t8_e_cpu_instr_mem" value="native 32-bit mem port" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;entryX=0.5;entryY=0;fontSize=10;dashed=1;exitX=0.225;exitY=1;" parent="1" source="t8_cpu_instr" target="t8_ip2" edge="1">
+                <mxCell id="t8_e_cpu_instr_mem" value="native 32-bit mem port" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;entryX=0.5;entryY=0;fontSize=10;exitX=0.225;exitY=1;" parent="1" source="t8_cpu_instr" target="t8_ip2" edge="1">
                     <mxGeometry x="0.2344" relative="1" as="geometry">
-                        <mxPoint as="offset"/>
                         <Array as="points">
                             <mxPoint x="200" y="200"/>
                             <mxPoint x="200" y="220"/>
                             <mxPoint x="40" y="220"/>
                             <mxPoint x="40" y="1000"/>
-                            <mxPoint x="825" y="1000"/>
+                            <mxPoint x="725" y="1000"/>
                         </Array>
+                        <mxPoint as="offset"/>
                         <mxPoint x="200" y="200" as="sourcePoint"/>
                     </mxGeometry>
                 </mxCell>
@@ -1204,15 +1286,15 @@
                         <mxPoint x="560.0000000000001" y="302.94000000000005" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="t8_e_cpu_data_mem" value="native 32-bit mem port" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.195;exitY=1.004;entryX=0.5;entryY=0;fontSize=10;dashed=1;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="t8_cpu_data" target="t8_ip3" edge="1">
+                <mxCell id="t8_e_cpu_data_mem" value="native 32-bit mem port" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.195;exitY=1.004;entryX=0.5;entryY=0;fontSize=10;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="t8_cpu_data" target="t8_ip3" edge="1">
                     <mxGeometry x="0.1542" relative="1" as="geometry">
-                        <mxPoint as="offset"/>
                         <Array as="points">
                             <mxPoint x="454" y="240"/>
                             <mxPoint x="60" y="240"/>
                             <mxPoint x="60" y="980"/>
-                            <mxPoint x="1085" y="980"/>
+                            <mxPoint x="945" y="980"/>
                         </Array>
+                        <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="t8_e_dbg_sba" value="" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;fontSize=10;entryX=0.365;entryY=0;" parent="1" source="t8_dbg_sba" target="t8_xbar" edge="1">
@@ -1220,21 +1302,21 @@
                         <mxPoint x="775" y="300" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="t8_e_udma_csr" value="CSR (AXI master)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.3;exitY=1;fontSize=10;dashed=1;exitX=0.77;exitY=1;entryX=0.568;entryY=0;" parent="1" source="t8_udma" target="t8_xbar" edge="1">
+                <mxCell id="t8_e_udma_csr" value="CSR (APB target via xbar)" style="html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.3;exitY=1;fontSize=10;exitX=0.77;exitY=1;entryX=0.568;entryY=0;endArrow=none;startArrow=classic;" parent="1" source="t8_udma" target="t8_xbar" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="1120" y="200" as="sourcePoint"/>
                         <mxPoint x="1120" y="299" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="t8_e_udma_mem" value="data (direct mem port)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.273;exitY=1.011;entryX=0.5;entryY=0;fontSize=10;dashed=1;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="t8_udma" target="t8_ip4" edge="1">
+                <mxCell id="t8_e_udma_mem" value="data (direct mem port)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.273;exitY=1.011;entryX=0.5;entryY=0;fontSize=10;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="t8_udma" target="t8_ip4" edge="1">
                     <mxGeometry x="0.1825" relative="1" as="geometry">
-                        <mxPoint as="offset"/>
                         <Array as="points">
                             <mxPoint x="1000" y="260"/>
                             <mxPoint x="80" y="260"/>
                             <mxPoint x="80" y="960"/>
-                            <mxPoint x="1345" y="960"/>
+                            <mxPoint x="1165" y="960"/>
                         </Array>
+                        <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="t8_e_accel_csr" value="CSR (APB master via xbar)" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.3;exitY=1;fontSize=10;dashed=1;exitX=0.79;exitY=1;entryX=0.744;entryY=0;" parent="1" source="t8_accel" target="t8_xbar" edge="1">
@@ -1274,13 +1356,13 @@
                 </mxCell>
                 <mxCell id="t8_e_axi2mem_ip0" value="64-bit mem if" style="endArrow=classic;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10" parent="1" source="t8_axi2mem" target="t8_ip0" edge="1">
                     <mxGeometry x="-0.5103" relative="1" as="geometry">
-                        <mxPoint as="offset"/>
                         <Array as="points">
                             <mxPoint x="455" y="640"/>
                             <mxPoint x="130" y="640"/>
                             <mxPoint x="130" y="910"/>
-                            <mxPoint x="305" y="910"/>
+                            <mxPoint x="285" y="910"/>
                         </Array>
+                        <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
             </root>
