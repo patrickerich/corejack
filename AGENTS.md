@@ -80,17 +80,17 @@ Run `make help` for the full target list.
 Versions are pinned in the `Makefile` and should match what CI uses; do not
 silently bump them. Build toolchains from prebuilt packages, not from source.
 
-- Bender `0.31.0`, Verilator `v5.050`, Verible `v0.0-4053-g89d4d98a`
+- Bender `0.31.0`, Verilator `v5.052`, Verible `v0.0-4053-g89d4d98a`
 - RISC-V GNU toolchain: prefix `riscv64-unknown-elf-`, RV32/RV64 multilib
 - Vivado `2025.2.1` (observed validation version), Zephyr `v4.4.0`
 
-Local/dev Verilator is pinned to `v5.050` (`make tool-verilator`), but no
-`v5.050` prebuilt exists yet, so the `smoke` workflow intentionally stays on
-`v5.048` (the newest available) until one is published. Re-align CI when it is.
-The gate is not the `setup-verilator` action itself — that action hosts no
-binaries, it downloads them from `veryl-lang/verilator-package` releases, so
-check that repository (not `setup-verilator`, and not upstream
-`verilator/verilator`) to see whether a bump is possible.
+Local/dev Verilator (`make tool-verilator`) and both CI workflows use
+`v5.052`; bump them together. CI can only move to a version that has a
+published prebuilt. The gate is not the `setup-verilator` action itself —
+that action hosts no binaries, it downloads them from
+`veryl-lang/verilator-package` releases, so check that repository (not
+`setup-verilator`, and not upstream `verilator/verilator`) to see whether a
+bump is possible.
 
 ## Conventions for changes
 
