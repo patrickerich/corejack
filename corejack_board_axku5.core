@@ -1,6 +1,6 @@
 CAPI=2:
 
-name: corejack:boards:axku5:0.1.0
+name: corejack:boards:axku5:0.2.0
 description: ALINX AXKU5 FPGA board wrapper and constraints for CoreJack
 
 filesets:

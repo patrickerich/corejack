@@ -1,6 +1,6 @@
 CAPI=2:
 
-name: corejack:corejack:platform:0.1.0
+name: corejack:corejack:platform:0.2.0
 description: Minimal CoreJack platform core with FuseSoC+cocotb Verilator smoke target
 
 parameters:
@@ -23,7 +23,7 @@ parameters:
 filesets:
   common_deps:
     depend:
-      - corejack:common:deps:0.1.0
+      - corejack:common:deps:0.2.0
 
   core_ibex_rtl:
     depend:
@@ -34,25 +34,25 @@ filesets:
 
   core_cv32e40p_rtl:
     depend:
-      - corejack:cores:cv32e40p:0.1.0
+      - corejack:cores:cv32e40p:0.2.0
   core_cv32e40x_rtl:
     depend:
-      - corejack:cores:cv32e40x:0.1.0
+      - corejack:cores:cv32e40x:0.2.0
   core_cv32e40s_rtl:
     depend:
-      - corejack:cores:cv32e40s:0.1.0
+      - corejack:cores:cv32e40s:0.2.0
   core_cva6_rtl:
     depend:
-      - corejack:cores:cva6:0.1.0
+      - corejack:cores:cva6:0.2.0
   core_serv_rtl:
     depend:
-      - corejack:cores:serv:0.1.0
+      - corejack:cores:serv:0.2.0
   core_picorv32_rtl:
     depend:
-      - corejack:cores:picorv32:0.1.0
+      - corejack:cores:picorv32:0.2.0
   core_cvw_rtl:
     depend:
-      - corejack:cores:cvw:0.1.0
+      - corejack:cores:cvw:0.2.0
   core_region_rtl:
     files:
       - rtl/cores/corejack_core_region.sv
@@ -60,11 +60,11 @@ filesets:
 
   board_axku5_rtl:
     depend:
-      - corejack:boards:axku5:0.1.0
+      - corejack:boards:axku5:0.2.0
 
   board_arty_a7_100t_rtl:
     depend:
-      - corejack:boards:arty_a7_100t:0.1.0
+      - corejack:boards:arty_a7_100t:0.2.0
 
   rtl:
     files:

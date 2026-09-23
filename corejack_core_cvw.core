@@ -1,6 +1,6 @@
 CAPI=2:
 
-name: corejack:cores:cvw:0.1.0
+name: corejack:cores:cvw:0.2.0
 description: CVW/Wally RTL and CoreJack adapter used by the CoreJack platform
 
 filesets:
