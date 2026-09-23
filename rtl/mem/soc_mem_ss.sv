@@ -31,7 +31,7 @@ module soc_mem_ss
   // SliceOutDepth / (ReadLat + 2). The defaults below put both at ~1 per cycle
   // for the 2-cycle Xilinx slice, so the subsystem is not the limiter even
   // though today's initiators issue far fewer outstanding requests.
-  // SliceInDepth must stay >= 2: a depth-1 fifo_v3 blocks its push while full,
+  // SliceInDepth must stay >= 2: a depth-1 bank input FIFO blocks its push while full,
   // which alone would halve the per-bank rate.
   parameter int unsigned IngressDepth = 2,
   parameter int unsigned EgressDepth  = 8,
