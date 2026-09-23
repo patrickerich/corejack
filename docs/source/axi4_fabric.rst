@@ -378,13 +378,12 @@ FPGA acceptance is a separate hardware gate:
    make fpga-accept BOARD=<board> UART_DEV=/dev/ttyUSBx
 
 Debug-capable cores use OpenOCD/GDB in that gate. Supported cores without a
-RISC-V debug interface use the UART SRAM loader. The crossbar fabric has passed
-this gate on both boards (AXKU5 and Arty A7-100T) across all seven supported
-cores, and closes timing at the 25 MHz default on both. The CVA6 direct RAM
-path (``axi_demux`` plus its own ``soc_axi_to_mem``) is newer than that run: it is
-validated by ``hello_world`` simulation and ``cva6-reset-sim``, and the next
-``make fpga-accept`` on each board is what promotes it to hardware-validated
-(check Vivado's LUTLP-1 DRC on the new leg, which has no spill registers).
+RISC-V debug interface use the UART SRAM loader. The crossbar fabric, with every
+core's RAM traffic on direct ``soc_mem_ss`` ports (including CVA6's ``axi_demux``
+leg), has passed this gate on both boards (AXKU5 and Arty A7-100T) across all
+seven supported cores, and closes timing at the 25 MHz default on both. Vivado
+reports no LUTLP-1 combinational loop on the CVA6 leg, which has no spill
+registers.
 
 Future Work
 -----------
@@ -413,12 +412,30 @@ acceptance set report ``DESIGN_TIMING_MET=1``. The meaningful figure is
 spans every path group and normally resolves to a lone JTAG/IO endpoint, so it
 understates how much headroom the SoC logic actually has.
 
-At ``mem_ss_pkg::MemNumBanksDefault`` (currently 8) ibex has ``+29.5 ns`` of
-SoC-clock slack on the AXKU5 and ``+14.8 ns`` on the Arty A7-100T. The tightest
-of the fourteen is CORE-V-Wally on the Arty at ``+5.6 ns``, and it is the only
-combination whose whole-design WNS equals its SoC-clock WNS -- the design's
-worst path genuinely is on the SoC clock there -- which makes it the
-combination that bounds any future clock increase.
+SoC-clock slack (``CORE_CLK_WNS_NS``) from the 2026-09-23 acceptance run on
+``main`` at ``39fb151``, with ``mem_ss_pkg::MemNumBanksDefault`` = 8 and a
+40 ns period:
+
+============ ========== ==============
+Core         AXKU5      Arty A7-100T
+============ ========== ==============
+ibex         +29.97 ns  +16.19 ns
+cv32e40p     +31.63 ns  +17.12 ns
+cv32e40s     +29.95 ns  +14.86 ns
+cva6         +28.48 ns  +15.23 ns
+serv         +32.19 ns  +17.34 ns
+picorv32     +31.21 ns  +18.59 ns
+cvw          +17.03 ns  +3.33 ns
+============ ========== ==============
+
+CORE-V-Wally on the Arty is the tightest, and the only combination whose
+whole-design WNS equals its SoC-clock WNS, which makes it the combination that
+bounds any future clock increase. Its worst path runs from the core reset
+synchronizer to the reset pins of Wally's register file, which is clocked on the
+falling edge, so it is a half-cycle path whose delay is almost all routing
+across that reset net's fan-out. Slack there varies by a few ns between builds
+of near-identical RTL (+6.5 ns on 2026-09-20), so shortening that net is the
+first step if the clock is raised.
 
 ``make fpga-bit`` writes these numbers to ``reports/timing_key.txt`` in the
 board/core build directory (under the ignored ``build/`` tree, so they are not

@@ -393,7 +393,8 @@ zephyr-check:
 zephyr-build: zephyr-check validate-target
 	@test "$(BOARD)" = "axku5" -o "$(BOARD)" = "arty_a7_100t" || { echo "Error: initial Zephyr support is BOARD=axku5 or BOARD=arty_a7_100t only"; exit 1; }
 	@test "$(CORE)" = "ibex" -o "$(CORE)" = "cv32e40p" -o "$(CORE)" = "cv32e40s" -o "$(CORE)" = "cva6" -o "$(CORE)" = "serv" || { echo "Error: Zephyr support is CORE=ibex, CORE=cv32e40p, CORE=cv32e40s, CORE=cva6, or CORE=serv only"; exit 1; }
-	@if [ "$(CORE)" = "cva6" ] && ! "$(RISCV_TOOLCHAIN_PREFIX)/bin/riscv64-unknown-elf-gcc" -march=rv64imc -mabi=lp64 -print-libgcc-file-name | grep -q '/rv64imc/lp64/libgcc.a$$'; then \
+	@multilib_dir="$$("$(RISCV_TOOLCHAIN_PREFIX)/bin/riscv64-unknown-elf-gcc" -march=rv64imc -mabi=lp64 -print-multi-directory 2>/dev/null)"; \
+	if [ "$(CORE)" = "cva6" ] && { [ -z "$$multilib_dir" ] || [ "$$multilib_dir" = "." ]; }; then \
 		echo "Error: CVA6 Zephyr requires the rv64imc/lp64 multilib."; \
 		echo "Rebuild the local toolchain with: make toolchain-riscv"; \
 		exit 1; \

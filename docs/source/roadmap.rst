@@ -48,10 +48,8 @@ Platform pieces:
 -  Bitstreams close timing at the conservative ``25 MHz`` default with the
    ``axi_xbar`` crossbar on both boards; all fourteen combinations in the default
    FPGA acceptance set report timing met. The figure to quote is the SoC clock's
-   own slack (``CORE_CLK_WNS_NS``), not the whole-design WNS: at 8 banks ibex has
-   ``+29.5 ns`` on the AXKU5 and ``+14.8 ns`` on the Arty A7-100T, and the tightest
-   of the fourteen is CORE-V-Wally on the Arty at ``+5.6 ns``. See
-   :doc:`axi4_fabric` for how the numbers are produced.
+   own slack (``CORE_CLK_WNS_NS``), not the whole-design WNS; :doc:`axi4_fabric`
+   has the per-combination figures and how they are produced.
 -  OpenOCD enumerates and examines the RISC-V target over external JTAG;
    GDB loads an ELF into SRAM through the debug module SBA path.
 -  ``hello_world`` runs from SRAM and prints through the platform APB UART at
@@ -90,10 +88,9 @@ The authoritative descriptor-derived matrix lives in
    initial.
 -  **CVA6** - native AXI core path with the same dual-port memory integration
    as the RV32 cores (RAM window on dedicated ``soc_mem_ss`` ports, everything
-   else via the crossbar); simulation, FPGA, OpenOCD/GDB load/run/single-step
-   validated on the earlier crossbar-only integration. The dedicated RAM path
-   is simulation-validated and awaits the next FPGA acceptance run. Zephyr
-   initial (RV64).
+   else via the crossbar); simulation, FPGA, and OpenOCD/GDB
+   load/run/single-step validated on both boards with the dedicated RAM path.
+   Zephyr initial (RV64).
 -  **CV32E40X** - demoted from the supported set. Instruction-fetch and
    vector behavior diverge from the other cores and are tracked upstream
    in :doc:`cv32e40x_boot_issue`. It is intentionally

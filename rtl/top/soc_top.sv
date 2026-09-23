@@ -875,10 +875,10 @@ module soc_top #(
     // through the xbar's single RAM master port. Non-RAM data accesses (UART,
     // CLINT, PLIC, DMA CSR, debug ROM, decode misses) still go through the xbar
     // via core_axi_req[1]. The router is single-outstanding across the two
-    // paths, so OBI responses stay in order without a reorder buffer;
-    // back-to-back accesses to the same path are not blocked by the router
-    // (each sub-bridge is itself single-outstanding). CVA6 leaves the data OBI
-    // idle (data_req = 0), so both paths stay quiescent for it.
+    // paths: it accepts no new request until the previous response has
+    // returned, whichever path that request took, so OBI responses stay in
+    // order without a reorder buffer. CVA6 leaves the data OBI idle
+    // (data_req = 0), so both paths stay quiescent for it.
     // ------------------------------------------------------------------------
     logic        data_is_ram;
     logic        data_rt_busy_q;

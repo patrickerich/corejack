@@ -8,6 +8,21 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
+-  **CVA6 on the AXKU5 intermittently fails to halt after ``monitor reset halt``.**
+   In the 2026-09-23 ``make fpga-accept`` run the first halt worked (GDB attached
+   at ``uart_putc``), but after the ``ndmreset``-based ``reset halt`` in
+   ``rtl/platform/fpga/scripts/run_elf.sh`` the hart stayed running
+   (``Unable to halt. dmcontrol=0x80000001, dmstatus=0x00000c82``, i.e. halt
+   requested, all harts running) and ``fpga-run-sw`` failed. Re-running the same
+   bitstream passed 13 times in a row, so the rate is roughly 1 in 14. The
+   failing attempt came straight after the cv32e40s session in the multi-core
+   sequence; every passing retry followed another CVA6 session. ``ndmreset``
+   resets only the core side (``core_rst_ni`` and the CVA6 ``axi_isolate``
+   window), not ``soc_mem_ss``, and the same core passed on the Arty in the same
+   run. Next step when it matters: capture the debug-module state
+   (``dmstatus`` ``allhavereset``/``anyunavail``, ``core_rst_ni``, the isolate
+   drain) with an ILA on a failing attempt, or loop the acceptance with cores
+   interleaved to find what the failing order does differently.
 -  **The CVA6 orphaned-response condition is not constructed by any test.**
    ``cva6-reset-sim`` runs a real CVA6 with ``ndmreset`` forced while it is fetching,
    and measures zero fabric-side response activity: the reset synchroniser's
@@ -47,15 +62,3 @@ Add an entry when you choose not to fix something now; remove it once resolved.
    properly needs either an mtime export added to (a wrapper of) the CLINT or
    a CLINT replacement; disabling ZICNTR would trade the silent zero for an
    illegal-instruction trap but also removes the working counters.
--  **The CVA6 Zephyr multilib gate is a false negative under GCC 16.**
-   ``zephyr-build`` gates ``CORE=cva6`` on ``riscv64-unknown-elf-gcc -march=rv64imc -mabi=lp64 -print-libgcc-file-name | grep -q '/rv64imc/lp64/libgcc.a$'``, but
-   GCC 16 canonicalises ``rv64imc`` to ``rv64imc_zmmul_zca``, so the multilib
-   directory is ``rv64imc_zmmul_zca/lp64`` and the anchored pattern never matches.
-   The multilib is genuinely present, so the gate rejects a working toolchain
-   with a misleading "rebuild the local toolchain" message. Scope is that one
-   target: ``bin/check_tools.py`` prints ``--print-multi-lib`` without asserting on
-   it, and nothing under ``sw/`` checks the same way. The gate and
-   ``RISCV_GNU_TOOLCHAIN_REF`` both date from the initial import and the pin has
-   never moved, so the check has likely never passed. The robust fix is to test
-   that the returned path exists rather than pattern-matching its spelling,
-   since the canonical name will keep drifting with GCC releases.

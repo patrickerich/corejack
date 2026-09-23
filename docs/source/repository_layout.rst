@@ -28,7 +28,8 @@ RTL
    ``axi_xbar`` from the Bender-managed ``axi`` dependency; see
    :doc:`axi4_fabric`.
 -  ``rtl/mem/`` - banked, interleaved SRAM subsystem (``soc_mem_ss``) built from
-   per-bank elastic pipes (``soc_mem_bank``) and per-port ingress/egress logic
+   per-bank elastic pipes (``soc_mem_bank``, fed by its synchronously reset
+   request FIFO ``soc_mem_bank_fifo``) and per-port ingress/egress logic
    (``soc_mem_port``), the OBI memory buffer (``soc_obi_mem_buffer``), and SRAM slice
    models/wrappers for behavioral and Xilinx targets.
 -  ``rtl/platform/soc_uart_sram_loader.sv`` - side-path UART SRAM loader.
