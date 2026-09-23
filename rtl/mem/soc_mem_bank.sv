@@ -11,6 +11,13 @@
 // in-flight reads plus queued results). Per-request metadata rides through
 // opaquely so the subsystem can route the response to the owning port's
 // reorder-buffer slot.
+//
+// Everything that drives an SRAM control pin resets synchronously: the input
+// FIFO (soc_mem_bank_fifo; its head is the address, write enable and data),
+// out_claims_q (gates the enable) and the read-valid pipeline. An asynchronous
+// reset there would move those pins mid-cycle and could corrupt a write in
+// flight; see soc_mem_bank_fifo. The output FIFO sits after the SRAM read data
+// and keeps fifo_v3's asynchronous reset.
 module soc_mem_bank
   import mem_ss_pkg::*;
 #(
@@ -60,10 +67,18 @@ module soc_mem_bank
   assign in_ready_o = !in_full;
   assign in_push    = in_valid_i & in_ready_o;
 
-  fifo_v3 #(.FALL_THROUGH(1'b0), .DATA_WIDTH(ReqWidth), .DEPTH(InDepth)) i_in_fifo (
-    .clk_i, .rst_ni, .flush_i(1'b0), .testmode_i(1'b0),
-    .full_o(in_full), .empty_o(in_empty), .usage_o(),
-    .data_i(in_din), .push_i(in_push), .data_o(in_dout), .pop_i(in_pop)
+  soc_mem_bank_fifo #(
+    .DataWidth (ReqWidth),
+    .Depth     (InDepth)
+  ) i_in_fifo (
+    .clk_i   (clk_i),
+    .rst_ni  (rst_ni),
+    .push_i  (in_push),
+    .data_i  (in_din),
+    .full_o  (in_full),
+    .pop_i   (in_pop),
+    .data_o  (in_dout),
+    .empty_o (in_empty)
   );
 
   logic                 head_we;
@@ -94,9 +109,10 @@ module soc_mem_bank
   );
 
   // Carry valid + metadata ReadLat cycles to align with the slice read data.
+  // Synchronous reset: rd_valid_q reaches the SRAM output-register enable.
   logic [ReadLat-1:0]                rd_valid_q;
   logic [ReadLat-1:0][MetaWidth-1:0] rd_meta_q;
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  always_ff @(posedge clk_i) begin
     if (!rst_ni) begin
       rd_valid_q <= '0;
       rd_meta_q  <= '0;
@@ -126,7 +142,8 @@ module soc_mem_bank
   assign out_pop               = out_valid_o & out_ready_i;
 
   // Output claims: +1 when a read is issued, -1 when a result is consumed.
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  // Synchronous reset: out_claims_q gates the SRAM enable through issue.
+  always_ff @(posedge clk_i) begin
     if (!rst_ni) begin
       out_claims_q <= '0;
     end else begin

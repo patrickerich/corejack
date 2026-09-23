@@ -78,6 +78,7 @@ filesets:
       - rtl/mem/soc_sram_slice_xilinx.sv
       - rtl/mem/soc_sram_slice_wrapper.sv
       - rtl/mem/soc_obi_mem_buffer.sv
+      - rtl/mem/soc_mem_bank_fifo.sv
       - rtl/mem/soc_mem_bank.sv
       - rtl/mem/soc_mem_port.sv
       - rtl/mem/soc_mem_ss.sv
@@ -160,6 +161,7 @@ filesets:
       - rtl/mem/soc_sram_byte_lane_xilinx.sv
       - rtl/mem/soc_sram_slice_xilinx.sv
       - rtl/mem/soc_sram_slice_wrapper.sv
+      - rtl/mem/soc_mem_bank_fifo.sv
       - rtl/mem/soc_mem_bank.sv
       - rtl/mem/soc_mem_port.sv
       - rtl/mem/soc_mem_ss.sv
@@ -181,6 +183,7 @@ filesets:
       - rtl/mem/soc_sram_byte_lane_xilinx.sv
       - rtl/mem/soc_sram_slice_xilinx.sv
       - rtl/mem/soc_sram_slice_wrapper.sv
+      - rtl/mem/soc_mem_bank_fifo.sv
       - rtl/mem/soc_mem_bank.sv
       - rtl/mem/soc_mem_port.sv
       - rtl/mem/soc_mem_ss.sv

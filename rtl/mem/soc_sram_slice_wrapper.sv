@@ -60,7 +60,9 @@ module soc_sram_slice_wrapper
     );
   end
 
-  always_ff @(posedge clk_i or negedge rst_ni) begin
+  // Synchronous reset: we_q reaches the SRAM output-register enable (see
+  // soc_mem_bank_fifo for why nothing driving an SRAM pin resets asynchronously).
+  always_ff @(posedge clk_i) begin
     if (!rst_ni) begin
       we_q <= '0;
     end else begin

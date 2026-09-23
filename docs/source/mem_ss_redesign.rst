@@ -145,7 +145,17 @@ responses may return out of order. Every port is in-order today.
    read is applied only when the output FIFO has room to catch the result. Both
    depths are sized so a bank accepts a request every cycle: the output side must
    hold ``ReadLat + 2`` claims to cover issue -> read -> drain, and the input side
-   must be at least 2 because a depth-1 ``fifo_v3`` blocks its push while full.
+   must be at least 2 because a depth-1 input FIFO blocks its push while full.
+-  **Reset style at the SRAM.** The input FIFO is CoreJack's own
+   ``soc_mem_bank_fifo`` rather than ``fifo_v3``, because its head drives the
+   SRAM address, write enable and write data, and its empty flag gates the SRAM
+   enable. Its storage has no reset and its pointers reset synchronously, as do
+   the bank's claim counter and read-valid pipeline, so the SRAM control pins
+   only change on a clock edge. With ``fifo_v3``'s asynchronous reset, asserting
+   reset moved those pins mid-cycle, outside static timing, and could corrupt a
+   write in flight (Vivado DRC ``REQP-1839`` on 7-series block RAM; the same
+   hazard applies to an ASIC SRAM macro). The clock must therefore run while
+   reset is held; both board wrappers and every testbench already do.
 -  **Lane select.** For a 32-bit port, the requested 32-bit half is selected from
    the 64-bit slice word on the way into egress (reads); writes expand the 32-bit
    lane + 4-bit BE into the 64-bit word at the slice input.
@@ -267,7 +277,7 @@ swap):
    (port head -> target bank) and a response crossbar (bank output -> owning port,
    <=1 per port per cycle by construction, fair round-robin across banks).
 
-Reuse from ``common_cells``: ``fifo_v3`` (buffers), ``rr_arb_tree`` (fair RR).
+Reuse from ``common_cells``: ``fifo_v3`` (buffers, except the bank input FIFO), ``rr_arb_tree`` (fair RR).
 
 Standalone verification (before any SoC integration): extend the ``mem-ss-bench``
 harness to drive 32- and 64-bit ports, and assert the hard guarantees directly -
