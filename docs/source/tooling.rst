@@ -291,15 +291,15 @@ The default source checkout and install prefix are:
    TOOLS_DIR/src/verilator/
    TOOLS_DIR/verilator/
 
-The default pinned Verilator tag is ``v5.050``, matching ``VERILATOR_VERSION`` in
+The default pinned Verilator tag is ``v5.052``, matching ``VERILATOR_VERSION`` in
 the ``Makefile``. Override it when invoking the target if needed:
 
 .. code:: bash
 
-   make tool-verilator VERILATOR_VERSION=v5.050
+   make tool-verilator VERILATOR_VERSION=v5.052
 
 The default tag is verified against commit
-``848d926ebd4addacacd294dc84e35d9d4ae8078c`` after checkout.
+``ea338be98e1e838d3518809ce8899f85a009963c`` after checkout.
 
 ``source sourceme.sh`` prepends ``TOOLS_DIR/verilator/bin`` when that local install is
 present. If it is absent, the flow falls back to whichever ``verilator`` is
@@ -414,7 +414,7 @@ These are currently observed local tool versions used to validate this
 repository. They are not all pinned by this repo, so recording them here helps
 reproducibility:
 
--  Verilator: repo-local ``5.050``
+-  Verilator: repo-local ``5.052``
 -  lz4 development headers (FST tracing only): ``1.9.4``
 -  zlib development headers (FST tracing only): ``zlib-ng-compat`` ``2.2.3``
 -  Verible: repo-local ``v0.0-4053-g89d4d98a``

@@ -24,8 +24,8 @@ TOOLCHAIN_BUILDER_FILE ?= bin/toolchain-builder.Containerfile
 PODMAN ?= podman
 # Set to 1 to re-package an already-built toolchain instead of rebuilding.
 TOOLCHAIN_SKIP_BUILD ?= 0
-VERILATOR_VERSION ?= v5.050
-VERILATOR_COMMIT ?= 848d926ebd4addacacd294dc84e35d9d4ae8078c
+VERILATOR_VERSION ?= v5.052
+VERILATOR_COMMIT ?= ea338be98e1e838d3518809ce8899f85a009963c
 VERILATOR_PREFIX ?= $(TOOLS_DIR)/verilator
 VERILATOR_SRC ?= $(TOOLS_DIR)/src/verilator
 VERILATOR_JOBS ?= $(shell nproc 2>/dev/null || echo 4)
