@@ -8,6 +8,21 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
+-  **CVA6 on the AXKU5 intermittently fails to halt after ``monitor reset halt``.**
+   In the 2026-09-23 ``make fpga-accept`` run the first halt worked (GDB attached
+   at ``uart_putc``), but after the ``ndmreset``-based ``reset halt`` in
+   ``rtl/platform/fpga/scripts/run_elf.sh`` the hart stayed running
+   (``Unable to halt. dmcontrol=0x80000001, dmstatus=0x00000c82``, i.e. halt
+   requested, all harts running) and ``fpga-run-sw`` failed. Re-running the same
+   bitstream passed 13 times in a row, so the rate is roughly 1 in 14. The
+   failing attempt came straight after the cv32e40s session in the multi-core
+   sequence; every passing retry followed another CVA6 session. ``ndmreset``
+   resets only the core side (``core_rst_ni`` and the CVA6 ``axi_isolate``
+   window), not ``soc_mem_ss``, and the same core passed on the Arty in the same
+   run. Next step when it matters: capture the debug-module state
+   (``dmstatus`` ``allhavereset``/``anyunavail``, ``core_rst_ni``, the isolate
+   drain) with an ILA on a failing attempt, or loop the acceptance with cores
+   interleaved to find what the failing order does differently.
 -  **The CVA6 orphaned-response condition is not constructed by any test.**
    ``cva6-reset-sim`` runs a real CVA6 with ``ndmreset`` forced while it is fetching,
    and measures zero fabric-side response activity: the reset synchroniser's

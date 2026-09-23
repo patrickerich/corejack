@@ -196,7 +196,14 @@ Board Wrapper Checklist
 The board wrapper should provide only board-specific adaptation:
 
 -  FPGA clock input buffers and clock generation
--  reset synchronization and board reset polarity handling
+-  reset synchronization and board reset polarity handling. The SoC reset
+   (``rst_ni`` into ``soc_top``) must deassert synchronously to the SoC clock and
+   stay asserted across at least one rising edge of a *running* SoC clock:
+   the logic driving the SRAM control pins in ``soc_mem_ss`` resets
+   synchronously (see :doc:`mem_ss_redesign`), so a reset asserted only while
+   the SoC clock is stopped or gated never reaches it. Both existing wrappers
+   release reset through two flops clocked by the PLL output, which keeps it
+   asserted for two running clock edges after lock.
 -  UART pin wiring
 -  JTAG/debug pin wiring or connection to the debug transport used by OpenOCD
 -  instantiation of the generic CoreJack SoC top
