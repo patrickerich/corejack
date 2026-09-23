@@ -93,10 +93,10 @@ jobs:
           rm -f toolchain.tar.xz
 
       - name: Setup Verilator
-        # Keep in lockstep with smoke.yml; see the note there on why v5.048.
+        # Keep in lockstep with smoke.yml and the Makefile's VERILATOR_VERSION.
         uses: veryl-lang/setup-verilator@v2
         with:
-          version: '5.048'
+          version: '5.052'
 
       - name: Run focused simulations
         shell: bash
@@ -157,7 +157,7 @@ jobs:
       - name: Setup Verilator
         uses: veryl-lang/setup-verilator@v2
         with:
-          version: '5.048'
+          version: '5.052'
 
       - name: Run hello_world on ${{ matrix.core }}
         shell: bash
