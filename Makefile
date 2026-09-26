@@ -478,18 +478,11 @@ deps-cv32e40s: deps-base
 	@$(PY) bin/deps_core.py --core cv32e40s
 
 deps-cva6: deps-base
-	@if [ ! -d "$(CURDIR)/.bender/vendor/cva6/.git" ]; then \
-		git clone "$(CVA6_REPO)" "$(CURDIR)/.bender/vendor/cva6"; \
-	fi
-	@if ! git -C "$(CURDIR)/.bender/vendor/cva6" cat-file -e "$(CVA6_REV)^{commit}" 2>/dev/null; then \
-		git -C "$(CURDIR)/.bender/vendor/cva6" fetch --tags --prune origin; \
-	fi
-	@git -C "$(CURDIR)/.bender/vendor/cva6" checkout --force "$(CVA6_REV)"
+	@$(PY) bin/deps_core.py --core cva6 --upstream "$(CVA6_REPO)" --rev "$(CVA6_REV)"
 	@for patch in $(CVA6_PATCHES); do \
 		echo "Applying CVA6 patch $$patch"; \
 		git -C "$(CURDIR)/.bender/vendor/cva6" apply "$(CURDIR)/$$patch"; \
 	done
-	@ln -sfn "$(CURDIR)/.bender/vendor/cva6" "deps/cva6"
 
 new-board:
 	@test -n "$(FPGA_PART)" || { echo "Error: FPGA_PART is required, e.g. make new-board BOARD=myboard FPGA_PART=xc..."; exit 1; }

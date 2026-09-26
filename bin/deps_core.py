@@ -7,6 +7,7 @@ import argparse
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -51,6 +52,37 @@ def run(cmd: list[str], cwd: Path | None = None) -> None:
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
+def run_with_retry(cmd: list[str], cwd: Path, attempts: int = 4) -> None:
+    """Run a network command, retrying failures after 2, 4 and 8 s.
+
+    A single TLS or HTTP hiccup from GitHub is enough to fail a CI run that has
+    nothing wrong with it. A genuinely bad revision still fails, just 14 s later.
+    """
+    for attempt in range(1, attempts + 1):
+        returncode = subprocess.run(cmd, cwd=cwd, check=False).returncode
+        if returncode == 0:
+            return
+        if attempt == attempts:
+            fail(f"'{' '.join(cmd)}' failed {attempts} times (last exit {returncode})")
+        delay = 2**attempt
+        print(
+            f"'{' '.join(cmd)}' failed (exit {returncode}); retrying in {delay} s",
+            file=sys.stderr,
+        )
+        time.sleep(delay)
+
+
+def is_shallow_or_empty(checkout: Path) -> bool:
+    shallow = subprocess.run(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        cwd=checkout,
+        stdout=subprocess.PIPE,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    return shallow == "true" or not commit_exists(checkout, "HEAD")
+
+
 def commit_exists(checkout: Path, rev: str) -> bool:
     return subprocess.run(
         ["git", "cat-file", "-e", f"{rev}^{{commit}}"],
@@ -68,7 +100,9 @@ def sanitize_checkout(package: str, checkout: Path) -> None:
         (checkout / "picorv32.core").unlink(missing_ok=True)
 
 
-def checkout_dependency(core: str) -> None:
+def checkout_dependency(
+    core: str, upstream_override: str | None = None, rev_override: str | None = None
+) -> None:
     descriptor = CORE_DIR / f"{core}.yaml"
     if not descriptor.is_file():
         fail(f"unknown CORE '{core}'")
@@ -83,6 +117,8 @@ def checkout_dependency(core: str) -> None:
     path_text = yaml_path_scalar(text, ("dependency", "path"))
     upstream = yaml_path_scalar(text, ("dependency", "upstream"))
     rev = yaml_path_scalar(text, ("dependency", "rev"))
+    upstream = upstream_override or upstream
+    rev = rev_override or rev
     if not package or not path_text or not upstream or not rev:
         fail(f"CORE '{core}' dependency requires package, path, upstream, and rev")
 
@@ -101,14 +137,18 @@ def checkout_dependency(core: str) -> None:
         # Existing Bender vendor-copy checkout. It is already an exact source
         # copy, but not a Git checkout that can be fetched in place.
         pass
-    elif not (checkout / ".git").is_dir():
-        run(["git", "clone", upstream, str(checkout)])
-        if not commit_exists(checkout, rev):
-            run(["git", "fetch", "--tags", "--prune", "origin"], cwd=checkout)
-        run(["git", "checkout", "--force", rev], cwd=checkout)
     else:
+        if not (checkout / ".git").is_dir():
+            run(["git", "init", "--quiet", str(checkout)])
+            run(["git", "remote", "add", "origin", upstream], cwd=checkout)
         if not commit_exists(checkout, rev):
-            run(["git", "fetch", "--tags", "--prune", "origin"], cwd=checkout)
+            if is_shallow_or_empty(checkout):
+                # Fetch only the pinned commit, not the upstream history: for
+                # CVA6 that is 33 MB instead of 163 MB.
+                run_with_retry(["git", "fetch", "--depth", "1", "origin", rev], cwd=checkout)
+            else:
+                # A full clone from before pinned-commit fetches: keep it full.
+                run_with_retry(["git", "fetch", "--tags", "--prune", "origin"], cwd=checkout)
         run(["git", "checkout", "--force", rev], cwd=checkout)
     sanitize_checkout(package, checkout)
     link.unlink(missing_ok=True)
@@ -119,8 +159,11 @@ def checkout_dependency(core: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--core", required=True)
+    # For make deps-cva6, whose pin lives in the Makefile (CVA6_REPO, CVA6_REV).
+    parser.add_argument("--upstream", help="override the descriptor's upstream URL")
+    parser.add_argument("--rev", help="override the descriptor's pinned revision")
     args = parser.parse_args()
-    checkout_dependency(args.core)
+    checkout_dependency(args.core, args.upstream, args.rev)
 
 
 if __name__ == "__main__":
