@@ -179,8 +179,11 @@ The target:
 
    make deps-cva6
 
-clones or updates ``.bender/vendor/cva6``, checks out ``CVA6_REV``, and creates
-``deps/cva6``. Bender is still used for the shared base dependency graph through
+fetches ``CVA6_REV`` into ``.bender/vendor/cva6``, checks it out, applies the
+patches under ``patches/cva6/``, and creates ``deps/cva6``. Like the other core
+checkouts made by ``bin/deps_core.py``, a new checkout fetches only the pinned
+commit, without the upstream history (run ``git fetch --unshallow`` inside it if
+you need that), and network fetches are retried on failure. Bender is still used for the shared base dependency graph through
 ``deps-base``, but it does not manage CVA6 itself in this temporary mode.
 
 As more cores and boards are added, dependency integration should converge
