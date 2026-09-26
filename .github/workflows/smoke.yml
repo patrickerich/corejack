@@ -20,6 +20,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Bender plus its git database: with both restored, `make deps-base`
+      # checks the HDL dependencies out offline instead of cloning them, and
+      # rebuilding the checkouts from the database takes well under a second,
+      # so they stay out of the cache. PR runs cannot read caches saved by
+      # other PRs, only those saved on main, so this job's push run on main
+      # is what fills it for regression.yml as well.
+      - name: Read Bender version
+        id: bender
+        shell: bash
+        run: |
+          ver=$(sed -nE 's/^BENDER_VERSION \?= (.*)$/\1/p' Makefile)
+          test -n "$ver" || { echo "BENDER_VERSION not found in Makefile"; exit 1; }
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Bender and HDL dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tools/bender
+            .tools/bender-v${{ steps.bender.outputs.version }}
+            .bender/git/db
+          key: bender-${{ steps.bender.outputs.version }}-${{ hashFiles('Bender.lock') }}
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:

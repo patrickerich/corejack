@@ -60,6 +60,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Same key as smoke.yml, whose push run on main saves it; see there.
+      - name: Read Bender version
+        id: bender
+        shell: bash
+        run: |
+          ver=$(sed -nE 's/^BENDER_VERSION \?= (.*)$/\1/p' Makefile)
+          test -n "$ver" || { echo "BENDER_VERSION not found in Makefile"; exit 1; }
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Bender and HDL dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tools/bender
+            .tools/bender-v${{ steps.bender.outputs.version }}
+            .bender/git/db
+          key: bender-${{ steps.bender.outputs.version }}-${{ hashFiles('Bender.lock') }}
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
@@ -121,6 +139,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      # Same key as smoke.yml, whose push run on main saves it; see there.
+      - name: Read Bender version
+        id: bender
+        shell: bash
+        run: |
+          ver=$(sed -nE 's/^BENDER_VERSION \?= (.*)$/\1/p' Makefile)
+          test -n "$ver" || { echo "BENDER_VERSION not found in Makefile"; exit 1; }
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Bender and HDL dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .tools/bender
+            .tools/bender-v${{ steps.bender.outputs.version }}
+            .bender/git/db
+          key: bender-${{ steps.bender.outputs.version }}-${{ hashFiles('Bender.lock') }}
 
       - name: Setup Python
         uses: actions/setup-python@v6
