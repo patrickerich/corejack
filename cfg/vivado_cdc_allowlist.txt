@@ -1,0 +1,34 @@
+# Reviewed Vivado clock-domain crossings (report_cdc).
+#
+# One entry per line: <CDC rule ID> <startpoint glob> <endpoint glob>. A
+# crossing is reviewed when its rule ID matches and every startpoint and
+# endpoint pin matches the globs (multi-bit crossings list several pins).
+# Matching both ends matters: a new path from the debug transport into
+# CoreJack logic starts at a reviewed source but must still fail. Any other
+# crossing fails make fpga-bit (via make fpga-cdc-check): review it, then fix
+# the RTL or add an entry here with the reason.
+#
+# CoreJack's own RTL runs on the single SoC clock, so every reviewed crossing
+# below belongs to the JTAG debug transport or a board reset input.
+
+# riscv-dbg's DMI crossing between the JTAG TCK and SoC clocks (dmi_cdc):
+# common_cells cdc_2phase_clearable, a two-phase handshake whose data registers
+# are only sampled once the synchronized request toggles. Vivado cannot
+# recognise the handshake, so it reports the data and reset-controller bits as
+# unknown (CDC-1, CDC-4) or clock-enable controlled (CDC-15); CDC-3 is its
+# ASYNC_REG synchronizers.
+# Its destinations are the debug module (SoC clock) and the DTM (TCK).
+CDC-1  *.i_dmi_jtag/i_dmi_cdc/*  *.i_dm_top/*
+CDC-1  *.i_dmi_jtag/i_dmi_cdc/*  *.i_dmi_jtag/*
+CDC-3  *.i_dmi_jtag/i_dmi_cdc/*  *.i_dmi_jtag/*
+CDC-4  *.i_dmi_jtag/i_dmi_cdc/*  *.i_dmi_jtag/*
+CDC-15 *.i_dmi_jtag/i_dmi_cdc/*  *.i_dm_top/*
+CDC-15 *.i_dmi_jtag/i_dmi_cdc/*  *.i_dmi_jtag/*
+
+# JTAG TRST is asynchronous by the JTAG standard: it resets the TAP and the
+# TCK-side DMI registers directly. The XDC declares it a false path.
+CDC-7  jtag_trst_n  *.i_dmi_jtag/*
+
+# The board reset input clears the first flop of the wrapper's reset
+# synchronizer asynchronously; that is what the synchronizer is for.
+CDC-7  sys_rst_n  pll_locked_r_reg/*

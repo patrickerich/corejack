@@ -108,6 +108,7 @@ real board listed in ``compatible_boards``:
    make check-tools FLOW=fpga CORE=<core> BOARD=<board>
    make fpga-bit CORE=<core> BOARD=<board>
    make fpga-warning-check CORE=<core> BOARD=<board>
+   make fpga-cdc-check CORE=<core> BOARD=<board>
    make fpga-pgm CORE=<core> BOARD=<board>
    make fpga-run-sw CORE=<core> BOARD=<board> SW_APP=hello_world GDB_TIMEOUT=10
 
@@ -125,6 +126,7 @@ Expected result:
 
 -  The bitstream builds without requiring ``ALLOW_PLANNED=1``.
 -  Vivado synthesis and implementation logs contain no unreviewed warning IDs.
+-  ``report_cdc`` finds no unreviewed clock-domain crossings.
 -  The FPGA programs successfully.
 -  For debug-capable cores, OpenOCD can connect well enough for ``fpga-run-sw``
    to load the ELF through the debug module SBA path.
@@ -133,10 +135,20 @@ Expected result:
 -  UART prints the expected ``hello_world`` banner for the selected target, core,
    board, clock, and baud.
 
-``make fpga-bit`` runs ``fpga-warning-check`` automatically after report
-generation. The explicit target is useful when reviewing an existing Vivado
-build directory. Warning IDs are reviewed in ``cfg/vivado_warning_allowlist.txt``;
-new IDs must be investigated before being added.
+``make fpga-bit`` runs ``fpga-warning-check`` and ``fpga-cdc-check``
+automatically after report generation. The explicit targets are useful when
+reviewing an existing Vivado build directory. Warning IDs are reviewed in
+``cfg/vivado_warning_allowlist.txt``; new IDs must be investigated before being
+added.
+
+Clock-domain crossings are reviewed in ``cfg/vivado_cdc_allowlist.txt``, by
+``report_cdc`` rule ID and both ends of the crossing. CoreJack's own RTL runs on the
+single SoC clock, so the reviewed crossings are all in the JTAG debug transport
+(``riscv-dbg``'s DMI handshake and the asynchronous JTAG TRST) plus the board
+reset input into its synchronizer. A new crossing - a second clock domain, or a
+signal sampled in another domain without a synchronizer - fails the build until
+it is reviewed. The reports are in the build's ``reports/`` directory:
+``cdc_summary.rpt``, ``cdc_details.rpt``, and ``cdc_crossings.tsv``.
 
 Record the validated clock range in the descriptor:
 
