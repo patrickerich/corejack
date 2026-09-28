@@ -95,6 +95,11 @@ filesets:
       - rtl/top/soc_top.sv
     file_type: systemVerilogSource
 
+  lint_waivers:
+    files:
+      - cfg/verilator_lint_waivers.vlt
+    file_type: vlt
+
   tb_sv:
     files:
       - tb/smoke_dut.sv
@@ -504,6 +509,35 @@ targets:
       - common_deps
       - tb_sv_bench
     toplevel: tb_mem_ss ? (tb_mem_ss) tb_axi_to_mem ? (tb_axi_to_mem)
+
+  # Verilator lint of soc_top for one core (make lint-rtl), configured as the
+  # board wrappers build it (EnablePlatform = 1). Unlike the simulation targets
+  # it switches nothing off: -Wall with every warning shown. -Wno-fatal only
+  # stops the first warning from ending the run early, which would hide the
+  # checks Verilator does later (LATCH, UNUSED, UNDRIVEN).
+  lint:
+    <<: *default
+    flow: lint
+    flow_options:
+      tool: verilator
+      verilator_options:
+        - -Wall
+        - -Wno-fatal
+        - -GEnablePlatform=1
+    filesets_append:
+      - lint_waivers
+      - core_ibex ? (core_ibex_rtl)
+      - core_cv32e40p ? (core_cv32e40p_rtl)
+      - core_cv32e40x ? (core_cv32e40x_rtl)
+      - core_cv32e40s ? (core_cv32e40s_rtl)
+      - core_cva6 ? (core_cva6_rtl)
+      - core_serv ? (core_serv_rtl)
+      - core_picorv32 ? (core_picorv32_rtl)
+      - core_cvw ? (core_cvw_rtl)
+      - core_region ? (core_region_rtl)
+    parameters:
+      - CoreType
+      - EnableUartLoader
 
   fpga:
     <<: *default

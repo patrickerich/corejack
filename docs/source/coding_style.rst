@@ -22,12 +22,29 @@ CoreJack style unless there is a concrete tool or integration reason not to.
 The repository ``.editorconfig`` captures only basic whitespace, newline, and
 indentation defaults. It is not a complete formatter or lint policy.
 
-Verible is the intended first lint/format tool for this style direction. The
-repository can install project-local Verible tools with ``make tool-verible``.
-Verible checks are intentionally not enforced yet.
+``make lint-rtl`` runs Verilator's lint (``--lint-only -Wall``) over the
+elaborated ``soc_top``, once per core in ``AXI_SMOKE_CORES``, configured as the
+board wrappers build it. This is the semantic check - widths, latches,
+undriven and multiply-driven signals, implicit nets, incomplete ``case``
+statements - that a per-file style linter cannot do, because it needs the whole
+design. Any warning that is not waived fails it, and ``smoke.yml`` runs it on
+every pull request. Each core's output is in ``build/lint/<core>/lint.log``.
 
-Before adding a ``make lint-rtl`` target to CI or any default smoke flow, define
-the CoreJack-owned file scope, initial rule set, and waiver policy. Start with a
-manual, non-blocking check over local RTL only. Promote it to CI only after the
-rule set is stable, low-noise, and explicitly excludes imported dependency
-code.
+Waivers live in ``cfg/verilator_lint_waivers.vlt``, each with its reason:
+
+-  Imported IP is waived by file: everything under a ``deps/`` directory, the
+   vendored Ibex, and the ``rtl/cores`` copies of upstream files. It keeps its
+   upstream style and is linted upstream.
+-  ``PINCONNECTEMPTY`` (deliberately open output ports) and ``DECLFILENAME``
+   (stand-in files named after the upstream module they replace) are off.
+-  Anything else in CoreJack-owned RTL is fixed, or waived for one named signal
+   with ``-match`` - not by line number, which would drift as the file changes.
+   Verilator also skips signals whose name contains ``unused``, the usual way
+   to mark a deliberate sink.
+
+Verible remains the intended style and format tool. The repository can install
+project-local Verible tools with ``make tool-verible``. Verible checks are
+intentionally not enforced yet.
+
+Before adding Verible to CI, define its rule set and waiver policy the same
+way: stable, low-noise, and excluding imported dependency code.
