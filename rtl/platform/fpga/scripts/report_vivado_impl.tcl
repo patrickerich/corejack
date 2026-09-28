@@ -60,6 +60,27 @@ report_timing \
 report_clock_interaction \
   -file [file join $report_dir clock_interaction.rpt]
 
+# Clock-domain crossings. The two reports are for reading; cdc_crossings.tsv
+# lists every crossing for bin/check_vivado_cdc.py, which fails the build on
+# any crossing not reviewed in cfg/vivado_cdc_allowlist.txt.
+# get_cdc_violations is only populated after report_cdc has run.
+report_cdc \
+  -file [file join $report_dir cdc_summary.rpt]
+report_cdc \
+  -details \
+  -file [file join $report_dir cdc_details.rpt]
+
+set cdc_tsv [open [file join $report_dir cdc_crossings.tsv] w]
+puts $cdc_tsv "check\tseverity\tstartpoint_clock\tendpoint_clock\tstartpoint\tendpoint"
+foreach crossing [get_cdc_violations -quiet] {
+  set row {}
+  foreach prop {CHECK SEVERITY STARTPOINT_CLOCK ENDPOINT_CLOCK STARTPOINT_PIN ENDPOINT_PIN} {
+    lappend row [get_property $prop $crossing]
+  }
+  puts $cdc_tsv [join $row "\t"]
+}
+close $cdc_tsv
+
 # Key timing numbers in a greppable form.
 #
 # CORE_CLK_WNS_NS is the intra-clock worst slack on core_clk_raw - the SoC

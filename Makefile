@@ -75,14 +75,19 @@ FPGA_TOP       ?= corejack_$(BOARD)_wrap
 FPGA_TARGET    ?= fpga-$(BOARD)
 FPGA_WORK_ROOT ?= $(FPGA_BUILD_DIR)/$(BOARD)/$(CORE)/fusesoc-$(FPGA_TARGET)
 UART_LOADER    ?= 0
-FPGA_XPR       ?= $(FPGA_WORK_ROOT)/corejack_corejack_platform_0.1.0.xpr
-FPGA_PROJECT_TCL ?= $(FPGA_WORK_ROOT)/corejack_corejack_platform_0.1.0.tcl
+# FuseSoC names the Vivado project after corejack.core's VLNV, so read the
+# version from there: make bump-version rewrites only the .core files.
+COREJACK_VERSION := $(shell sed -nE 's/^name: corejack:corejack:platform:([0-9.]+)$$/\1/p' corejack.core)
+FPGA_PROJECT   := corejack_corejack_platform_$(COREJACK_VERSION)
+FPGA_XPR       ?= $(FPGA_WORK_ROOT)/$(FPGA_PROJECT).xpr
+FPGA_PROJECT_TCL ?= $(FPGA_WORK_ROOT)/$(FPGA_PROJECT).tcl
 FPGA_REPORT_DIR ?= $(FPGA_WORK_ROOT)/reports
 FPGA_REPORT_TCL ?= rtl/platform/fpga/scripts/report_vivado_impl.tcl
 FPGA_PATCH_PROJECT_TCL ?= rtl/platform/fpga/scripts/patch_vivado_project_tcl.sh
 VIVADO_HOME ?= $(CURDIR)/.cache/vivado-home
 VIVADO_WARNING_ALLOWLIST ?= cfg/vivado_warning_allowlist.txt
-VIVADO_WARNING_LOGS ?= $(FPGA_WORK_ROOT)/corejack_corejack_platform_0.1.0.runs/synth_1/runme.log $(FPGA_WORK_ROOT)/corejack_corejack_platform_0.1.0.runs/impl_1/runme.log
+VIVADO_CDC_ALLOWLIST ?= cfg/vivado_cdc_allowlist.txt
+VIVADO_WARNING_LOGS ?= $(FPGA_WORK_ROOT)/$(FPGA_PROJECT).runs/synth_1/runme.log $(FPGA_WORK_ROOT)/$(FPGA_PROJECT).runs/impl_1/runme.log
 SW_APP         ?= hello_world
 FW             ?= baremetal
 TARGET         ?= fpga
@@ -161,7 +166,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender docs docs-serve docs-preview docs-clean toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke lint-rtl lint-rtl-core openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender docs docs-serve docs-preview docs-clean toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-cdc-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke lint-rtl lint-rtl-core openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -210,6 +215,7 @@ help:
 	@printf '  %-18s %s\n' 'fpga-manifest' 'backfill provenance manifest for an existing bitstream'
 	@printf '  %-18s %s\n' 'fpga-report' 'write routed Vivado timing/route/utilization reports'
 	@printf '  %-18s %s\n' 'fpga-warning-check' 'summarize Vivado warnings and fail on unreviewed IDs'
+	@printf '  %-18s %s\n' 'fpga-cdc-check' 'summarize clock-domain crossings and fail on unreviewed ones'
 	@printf '  %-18s %s\n' 'fpga-pgm' 'program the selected bitstream through generated Vivado Makefile'
 	@printf '  %-18s %s\n' 'fpga-debug-accept' 'run FPGA acceptance for CORE/BOARD'
 	@printf '  %-18s %s\n' 'fpga-accept' 'run FPGA acceptance for board-compatible cores'
@@ -593,13 +599,14 @@ fpga-bit: validate-target deps-core
 	@$(FPGA_PATCH_PROJECT_TCL) "$(FPGA_PROJECT_TCL)"
 	@mkdir -p "$(VIVADO_HOME)"
 	@HOME="$(VIVADO_HOME)" $(MAKE) -C "$(FPGA_WORK_ROOT)"
-	@bin/write_bitstream_manifest.sh --core "$(CORE)" --board "$(BOARD)" --core-type "$(CORE_TYPE)" --uart-loader "$(UART_LOADER)" --bitstream "$(FPGA_WORK_ROOT)/corejack_corejack_platform_0.1.0.bit" --manifest "$(FPGA_WORK_ROOT)/.corejack_bitstream_manifest"
+	@bin/write_bitstream_manifest.sh --core "$(CORE)" --board "$(BOARD)" --core-type "$(CORE_TYPE)" --uart-loader "$(UART_LOADER)" --bitstream "$(FPGA_WORK_ROOT)/$(FPGA_PROJECT).bit" --manifest "$(FPGA_WORK_ROOT)/.corejack_bitstream_manifest"
 	@echo "FuseSoC FPGA work root: $(FPGA_WORK_ROOT)"
 	@$(MAKE) fpga-report
 	@$(MAKE) fpga-warning-check
+	@$(MAKE) fpga-cdc-check
 
 fpga-manifest: validate-target
-	@bin/write_bitstream_manifest.sh --core "$(CORE)" --board "$(BOARD)" --core-type "$(CORE_TYPE)" --uart-loader "$(UART_LOADER)" --bitstream "$(FPGA_WORK_ROOT)/corejack_corejack_platform_0.1.0.bit" --manifest "$(FPGA_WORK_ROOT)/.corejack_bitstream_manifest" --best-effort-timestamp
+	@bin/write_bitstream_manifest.sh --core "$(CORE)" --board "$(BOARD)" --core-type "$(CORE_TYPE)" --uart-loader "$(UART_LOADER)" --bitstream "$(FPGA_WORK_ROOT)/$(FPGA_PROJECT).bit" --manifest "$(FPGA_WORK_ROOT)/.corejack_bitstream_manifest" --best-effort-timestamp
 
 fpga-report:
 	@test -f "$(FPGA_XPR)" || { echo "Error: Vivado project not found: $(FPGA_XPR)"; exit 1; }
@@ -609,6 +616,9 @@ fpga-report:
 
 fpga-warning-check:
 	@$(PY) bin/check_vivado_warnings.py --allowlist "$(VIVADO_WARNING_ALLOWLIST)" $(VIVADO_WARNING_LOGS)
+
+fpga-cdc-check:
+	@$(PY) bin/check_vivado_cdc.py --allowlist "$(VIVADO_CDC_ALLOWLIST)" "$(FPGA_REPORT_DIR)/cdc_crossings.tsv"
 
 fpga-pgm: validate-target
 	@mkdir -p "$(VIVADO_HOME)"

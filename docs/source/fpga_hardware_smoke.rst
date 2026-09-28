@@ -52,15 +52,17 @@ Build the selected FPGA target:
 
    make fpga-bit CORE=ibex BOARD=axku5
 
-This also runs the Vivado warning gate. To re-check an existing build without
-rebuilding the bitstream, run:
+This also runs the Vivado warning and clock-domain-crossing gates. To re-check
+an existing build without rebuilding the bitstream, run:
 
 .. code:: bash
 
    make fpga-warning-check CORE=ibex BOARD=axku5
+   make fpga-cdc-check CORE=ibex BOARD=axku5
 
 The warning gate fails on warning IDs that are not listed in
-``cfg/vivado_warning_allowlist.txt``.
+``cfg/vivado_warning_allowlist.txt``; the CDC gate fails on crossings not
+reviewed in ``cfg/vivado_cdc_allowlist.txt``.
 
 Program the FPGA:
 

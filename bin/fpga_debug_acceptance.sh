@@ -202,7 +202,9 @@ fpga_bitstream_path() {
   local work_root
 
   work_root="$(fpga_work_root "$core")"
-  printf '%s/corejack_corejack_platform_0.1.0.bit\n' "$work_root"
+  # FuseSoC names the bitstream after corejack.core's VLNV version.
+  printf '%s/corejack_corejack_platform_%s.bit\n' "$work_root" \
+    "$(sed -nE 's/^name: corejack:corejack:platform:([0-9.]+)$/\1/p' corejack.core)"
 }
 
 fpga_manifest_path() {

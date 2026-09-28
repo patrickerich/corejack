@@ -53,6 +53,7 @@ Descriptors And Configuration
 -  ``cfg/boards/<board>.yaml`` - per-board descriptors covering FPGA part,
    clocks, pins, UART, debug transport, and programming flow.
 -  ``cfg/vivado_warning_allowlist.txt`` - reviewed Vivado warning IDs.
+-  ``cfg/vivado_cdc_allowlist.txt`` - reviewed Vivado clock-domain crossings.
 
 Tooling And Build Glue
 ----------------------
@@ -70,8 +71,8 @@ and host runtime - nothing that ends up as SystemVerilog.
 -  ``bin/create_core.py``, ``bin/create_board.py`` - scaffolds behind
    ``make new-core`` and ``make new-board``.
 -  ``bin/check_axi_addr_map.py``, ``bin/check_tools.py``,
-   ``bin/check_vivado_warnings.py`` - lint and acceptance checks run
-   from ``make``.
+   ``bin/check_vivado_warnings.py``, ``bin/check_vivado_cdc.py`` - lint and
+   acceptance checks run from ``make``.
 -  ``bin/deps_core.py`` - Bender checkout-to-``deps/<name>`` symlink helper.
 -  ``bin/vivado_tcl_to_flist.py`` - Vivado project TCL -> flist helper.
 -  ``bin/uart_sram_load.py`` - host side of the UART SRAM loader protocol
