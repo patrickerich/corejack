@@ -54,7 +54,8 @@ jobs:
   # The ten focused simulations plus the address-map check: everything
   # `make axi-smoke` runs before its per-core sweep.
   focused:
-    runs-on: ubuntu-latest
+    # Pinned for setup-verilator; see smoke.yml.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -70,7 +71,7 @@ jobs:
           echo "version=$ver" >> "$GITHUB_OUTPUT"
 
       - name: Cache Bender and HDL dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             .tools/bender
@@ -92,7 +93,7 @@ jobs:
 
       - name: Cache RISC-V toolchain
         id: riscv-toolchain
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .tools/riscv
           key: riscv-toolchain-v1
@@ -129,7 +130,8 @@ jobs:
   # docs/source/cv32e40x_boot_issue.rst.
   cores:
     needs: core-list
-    runs-on: ubuntu-latest
+    # Pinned for setup-verilator; see smoke.yml.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       # One core failing should not hide the state of the other six.
@@ -150,7 +152,7 @@ jobs:
           echo "version=$ver" >> "$GITHUB_OUTPUT"
 
       - name: Cache Bender and HDL dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             .tools/bender
@@ -172,7 +174,7 @@ jobs:
 
       - name: Cache RISC-V toolchain
         id: riscv-toolchain
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .tools/riscv
           key: riscv-toolchain-v1

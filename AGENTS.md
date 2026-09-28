@@ -90,7 +90,9 @@ published prebuilt. The gate is not the `setup-verilator` action itself —
 that action hosts no binaries, it downloads them from
 `veryl-lang/verilator-package` releases, so check that repository (not
 `setup-verilator`, and not upstream `verilator/verilator`) to see whether a
-bump is possible.
+bump is possible. That repository also publishes one build per Ubuntu release,
+which is why the CI jobs that install Verilator run on `ubuntu-24.04` rather
+than `ubuntu-latest`.
 
 ## Conventions for changes
 
