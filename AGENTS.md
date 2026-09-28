@@ -109,9 +109,10 @@ than `ubuntu-latest`.
 - **Do not reformat or refactor vendored, Bender-managed, or generated
   dependency code** to match local style. Keep edits scoped to CoreJack-owned
   wrappers, adapters, packages, tests, scripts, and docs.
-- No lint is enforced in CI yet (Verible is the intended tool — `make
-  tool-verible`). Still, flag any construct likely to lint poorly (inferred
-  latches, incomplete sensitivity, implicit nets).
+- No lint is enforced in CI yet. `make lint-rtl` runs a manual, report-only
+  Verilator `-Wall` lint of `soc_top` per core; Verible (`make tool-verible`)
+  is the intended style tool. Still, flag any construct likely to lint poorly
+  (inferred latches, incomplete sensitivity, implicit nets).
 - Changing a descriptor's support status requires regenerating
   `docs/source/support_matrix.rst` and committing it with the change; promote status
   only after [Core Acceptance Checklist](https://patrickerich.github.io/corejack/core_acceptance_checklist.html)

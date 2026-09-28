@@ -161,7 +161,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender docs docs-serve docs-preview docs-clean toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender docs docs-serve docs-preview docs-clean toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke lint-rtl lint-rtl-core openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -237,6 +237,7 @@ help:
 	@printf '  %-18s %s\n' 'sv-tb-smoke' 'run the SV benches in the axi-smoke set'
 	@printf '  %-18s %s\n' 'axi-addr-map-check' 'check AXI fabric address windows for overlap'
 	@printf '  %-18s %s\n' 'axi-smoke' 'run AXI fabric regressions and supported-core SW sims'
+	@printf '  %-18s %s\n' 'lint-rtl' 'Verilator -Wall lint of soc_top for each AXI_SMOKE_CORES core (report only)'
 	@printf '  %-18s %s\n' 'openocd' 'launch OpenOCD for the FPGA JTAG debug target'
 	@printf '  %-18s %s\n' 'fpga-load-sw' 'build TARGET=fpga SW_APP, load ELF over OpenOCD/GDB, stay interactive'
 	@printf '  %-18s %s\n' 'fpga-run-sw' 'build TARGET=fpga SW_APP, load/run ELF for GDB_TIMEOUT seconds'
@@ -806,6 +807,26 @@ fpga-uart-load-zephyr: validate-target zephyr-build
 		--timeout "$(UART_LOADER_TIMEOUT)" \
 		--capture-seconds "$(UART_CAPTURE_TIMEOUT)" \
 		"$${extra_args[@]}"
+
+# Verilator lint, one soc_top configuration per core (the core adapters differ).
+# Manual and report-only for now: warnings never fail it, and it is not part of
+# smoke, axi-smoke, or CI. The loader is enabled so its RTL is linted too.
+LINT_CORES       ?= $(AXI_SMOKE_CORES)
+LINT_UART_LOADER ?= 1
+LINT_WORK_ROOT   ?= $(CURDIR)/build/lint/$(CORE)
+
+lint-rtl:
+	@for core in $(LINT_CORES); do \
+		$(MAKE) --no-print-directory lint-rtl-core CORE="$$core" || exit 1; \
+	done
+
+lint-rtl-core: deps-core
+	@mkdir -p "$(LINT_WORK_ROOT)"
+	@echo "lint-rtl: CORE=$(CORE) -> $(LINT_WORK_ROOT)/lint.log"
+	@PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
+		fusesoc --cores-root . run --clean --target lint --work-root "$(LINT_WORK_ROOT)/fusesoc" $(FUSESOC_FLAG_ARGS) corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(LINT_UART_LOADER)" > "$(LINT_WORK_ROOT)/lint.log" 2>&1 \
+		|| { tail -20 "$(LINT_WORK_ROOT)/lint.log"; exit 1; }
+	@echo "lint-rtl: CORE=$(CORE): $$(grep -c '^%Warning' "$(LINT_WORK_ROOT)/lint.log") warning(s)"
 
 smoke: deps-base
 	@test -x "$(VENV_PY)" || { echo "Error: venv not found. Run: source ./sourceme.sh"; exit 1; }

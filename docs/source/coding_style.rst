@@ -22,12 +22,20 @@ CoreJack style unless there is a concrete tool or integration reason not to.
 The repository ``.editorconfig`` captures only basic whitespace, newline, and
 indentation defaults. It is not a complete formatter or lint policy.
 
-Verible is the intended first lint/format tool for this style direction. The
-repository can install project-local Verible tools with ``make tool-verible``.
-Verible checks are intentionally not enforced yet.
+``make lint-rtl`` runs Verilator's lint (``--lint-only -Wall``) over the
+elaborated ``soc_top``, once per core in ``AXI_SMOKE_CORES``, configured as the
+board wrappers build it. This is the semantic check - widths, latches,
+undriven and multiply-driven signals, implicit nets, incomplete ``case``
+statements - that a per-file style linter cannot do, because it needs the whole
+design. It is manual and report-only for now: warnings never fail it, each
+core's output is in ``build/lint/<core>/lint.log``, and the output still
+includes the imported dependencies' warnings.
 
-Before adding a ``make lint-rtl`` target to CI or any default smoke flow, define
-the CoreJack-owned file scope, initial rule set, and waiver policy. Start with a
-manual, non-blocking check over local RTL only. Promote it to CI only after the
-rule set is stable, low-noise, and explicitly excludes imported dependency
-code.
+Verible remains the intended style and format tool. The repository can install
+project-local Verible tools with ``make tool-verible``. Verible checks are
+intentionally not enforced yet.
+
+Before adding either check to CI or any default smoke flow, define the
+CoreJack-owned file scope, initial rule set, and waiver policy. Promote a check
+to CI only after the rule set is stable, low-noise, and explicitly excludes
+imported dependency code.
