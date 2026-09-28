@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Waivers for make lint-rtl (the corejack.core lint target). Every waiver says
+// why it is safe; a new warning in CoreJack-owned RTL is either fixed or given
+// a waiver here with its reason. Waivers name the signal (-match) rather than
+// the line, so edits to a file do not silently move them onto other code.
+
+`verilator_config
+
+// Imported IP keeps its upstream style and is linted upstream: everything under
+// a deps/ directory (Bender dependencies and per-core upstream sources), the
+// vendored Ibex, and the rtl/cores copies of upstream files, which CoreJack
+// changes as little as possible.
+lint_off -file "*/deps/*"
+lint_off -file "*/corejack_ibex_design_*"
+lint_off -file "*/rtl/cores/cvw_*"
+lint_off -file "*/rtl/cores/cv32e40s_csr_fpga.sv"
+lint_off -file "*/rtl/cores/overrides/*"
+// A file-only lint_off covers just Verilator's lint category; these warnings
+// sit outside it, so they are named. None of them occur in the rtl/cores copies.
+lint_off -rule SELRANGE -file "*/deps/*"
+lint_off -rule SYMRSVDWORD -file "*/deps/*"
+lint_off -rule TIMESCALEMOD -file "*/deps/*"
+lint_off -rule UNOPTFLAT -file "*/deps/*"
+lint_off -rule SELRANGE -file "*/corejack_ibex_design_*"
+lint_off -rule SYMRSVDWORD -file "*/corejack_ibex_design_*"
+lint_off -rule TIMESCALEMOD -file "*/corejack_ibex_design_*"
+lint_off -rule UNOPTFLAT -file "*/corejack_ibex_design_*"
+// REDEFMACRO is off everywhere: the vendored Ibex redefines the common_cells
+// assertion macros, and the preprocessor reports that before a file-scoped
+// waiver can apply.
+lint_off -rule REDEFMACRO
+
+// Style rules not applied to CoreJack RTL. Output ports are left open on
+// purpose (FIFO fill levels, unused bridge outputs), and the CVA6/CV32E40S
+// stand-in files are named after the upstream module they replace.
+lint_off -rule PINCONNECTEMPTY
+lint_off -rule DECLFILENAME
+
+// soc_top: one top serves every core, so each core leaves some paths idle.
+// The RV32 OBI paths are idle under CVA6, and CVA6's AXI path and its two
+// memory ports (5, 6) are idle under the RV32 cores.
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'core_instr_*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'core_data_*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'instr_gnt'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'instr_rdata'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'instr_err'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'data_gnt'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'data_rdata'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'data_err'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'instr_axi_req'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'data_axi_req'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'cva6_axi_*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'mem_init_*"
+// The APB smoke port is only partly read once EnablePlatform = 1.
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'apb_req_i'*"
+// The CLINT is built for two harts; CoreJack has one.
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'clint_timer_irq'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'clint_ipi'*"
+
+// rst_ni is also sampled synchronously on purpose: the SRAM-facing bank logic
+// resets synchronously so the SRAM control pins only move on a clock edge (see
+// soc_mem_bank_fifo). jtag_trst_ni reaches riscv-dbg's dmi_cdc, whose
+// common_cells cdc_2phase_clearable reset controllers use it that way upstream.
+lint_off -rule SYNCASYNCNET -file "*/rtl/top/soc_top.sv" -match "*'rst_ni'*"
+lint_off -rule SYNCASYNCNET -file "*/rtl/top/soc_top.sv" -match "*'jtag_trst_ni'*"
+
+// Core region: the shared port list covers every core; cores without debug
+// support or with fewer interrupt inputs leave some unused.
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/cores/corejack_core_region.sv" -match "*'debug_req_i'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/cores/corejack_core_region.sv" -match "*'irq_*"
+lint_off -rule UNUSEDPARAM -file "*/rtl/cores/corejack_core_region.sv" -match "*'HartId'*"
+lint_off -rule UNUSEDPARAM -file "*/rtl/cores/corejack_core_region.sv" -match "*'Dm*"
+
+// Core adapters: core outputs CoreJack does not use (Ibex icache RAM config,
+// integrity, and scrambling), and AHB fields that are constant for CVW's
+// single-beat 32-bit accesses (upper address bits, htrans[0]).
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/cores/corejack_ibex_socket_adapter.sv" -match "*'ram_cfg_rsp_icache_*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/cores/corejack_ibex_socket_adapter.sv" -match "*'data_wdata_intg'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/cores/corejack_ibex_socket_adapter.sv" -match "*'scramble_req'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/cores/corejack_cvw_ahb_adapter.sv" -match "*'haddr'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/cores/corejack_cvw_ahb_adapter.sv" -match "*'htrans'*"
+
+// CVA6 stand-ins: shift_reg_gated is instantiated with no stages, so the clock
+// and reset are unused, and the SRAM wrapper's read pipeline loop is empty
+// (a constant comparison) at a read latency of one.
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/cores/cva6_shift_reg_gated.sv" -match "*'clk_i'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/cores/cva6_shift_reg_gated.sv" -match "*'rst_ni'*"
+lint_off -rule UNSIGNED -file "*/rtl/cores/cva6_tc_sram_wrappers.sv"
+
+// Bridges register whole AXI request beats but use only the fields their
+// target needs (address and strobe bits); synthesis drops the unused flops.
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/bus/soc_axi_to_apb.sv" -match "*'a?_q'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/bus/soc_axi_to_apb.sv" -match "*'w_q'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/bus/soc_axi_to_dm.sv" -match "*'a?_q'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/bus/soc_axi_to_dm.sv" -match "*'w_q'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/bus/soc_axi_to_reg.sv" -match "*'a?_q'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/bus/soc_axi_to_reg.sv" -match "*'w_q'*"
+
+// Address decode helpers and the SRAM model take full addresses but only look
+// at the bits that select a register, word, or byte lane.
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/bus/soc_axi_to_reg.sv" -match "*'offset'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/bus/soc_obi_to_axi.sv" -match "*'addr'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/platform/soc_plic.sv" -match "*'addr'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/mem/soc_sram_slice_model.sv" -match "*'addr_i'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/interfaces/accel_socket_if.sv" -match "*'csr_req'*"
+
+// iDMA: only the 1-D frontend is used, so the N-D response is ignored.
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/platform/soc_idma.sv" -match "*'nd_rsp'*"
+
+// UART loader: the start bit is driven straight onto uart_tx_o when a frame is
+// loaded, so the shift register's bit 0 is never read.
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/platform/soc_uart_sram_loader.sv" -match "*'tx_shift_q'*"

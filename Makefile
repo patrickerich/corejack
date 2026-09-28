@@ -237,7 +237,7 @@ help:
 	@printf '  %-18s %s\n' 'sv-tb-smoke' 'run the SV benches in the axi-smoke set'
 	@printf '  %-18s %s\n' 'axi-addr-map-check' 'check AXI fabric address windows for overlap'
 	@printf '  %-18s %s\n' 'axi-smoke' 'run AXI fabric regressions and supported-core SW sims'
-	@printf '  %-18s %s\n' 'lint-rtl' 'Verilator -Wall lint of soc_top for each AXI_SMOKE_CORES core (report only)'
+	@printf '  %-18s %s\n' 'lint-rtl' 'Verilator -Wall lint of soc_top for each AXI_SMOKE_CORES core'
 	@printf '  %-18s %s\n' 'openocd' 'launch OpenOCD for the FPGA JTAG debug target'
 	@printf '  %-18s %s\n' 'fpga-load-sw' 'build TARGET=fpga SW_APP, load ELF over OpenOCD/GDB, stay interactive'
 	@printf '  %-18s %s\n' 'fpga-run-sw' 'build TARGET=fpga SW_APP, load/run ELF for GDB_TIMEOUT seconds'
@@ -809,8 +809,8 @@ fpga-uart-load-zephyr: validate-target zephyr-build
 		"$${extra_args[@]}"
 
 # Verilator lint, one soc_top configuration per core (the core adapters differ).
-# Manual and report-only for now: warnings never fail it, and it is not part of
-# smoke, axi-smoke, or CI. The loader is enabled so its RTL is linted too.
+# Any warning not waived in cfg/verilator_lint_waivers.vlt fails the target. The
+# loader is enabled so its RTL is linted too.
 LINT_CORES       ?= $(AXI_SMOKE_CORES)
 LINT_UART_LOADER ?= 1
 LINT_WORK_ROOT   ?= $(CURDIR)/build/lint/$(CORE)
@@ -826,7 +826,13 @@ lint-rtl-core: deps-core
 	@PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
 		fusesoc --cores-root . run --clean --target lint --work-root "$(LINT_WORK_ROOT)/fusesoc" $(FUSESOC_FLAG_ARGS) corejack:corejack:platform --CoreType="$(CORE_TYPE)" --EnableUartLoader="$(LINT_UART_LOADER)" > "$(LINT_WORK_ROOT)/lint.log" 2>&1 \
 		|| { tail -20 "$(LINT_WORK_ROOT)/lint.log"; exit 1; }
-	@echo "lint-rtl: CORE=$(CORE): $$(grep -c '^%Warning' "$(LINT_WORK_ROOT)/lint.log") warning(s)"
+	@count=$$(grep -c '^%Warning' "$(LINT_WORK_ROOT)/lint.log"); \
+	echo "lint-rtl: CORE=$(CORE): $$count warning(s)"; \
+	if [ "$$count" -ne 0 ]; then \
+		grep -A4 '^%Warning' "$(LINT_WORK_ROOT)/lint.log"; \
+		echo "Fix these, or waive them with a reason in cfg/verilator_lint_waivers.vlt."; \
+		exit 1; \
+	fi
 
 smoke: deps-base
 	@test -x "$(VENV_PY)" || { echo "Error: venv not found. Run: source ./sourceme.sh"; exit 1; }

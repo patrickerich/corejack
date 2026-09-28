@@ -95,6 +95,11 @@ filesets:
       - rtl/top/soc_top.sv
     file_type: systemVerilogSource
 
+  lint_waivers:
+    files:
+      - cfg/verilator_lint_waivers.vlt
+    file_type: vlt
+
   tb_sv:
     files:
       - tb/smoke_dut.sv
@@ -520,6 +525,7 @@ targets:
         - -Wno-fatal
         - -GEnablePlatform=1
     filesets_append:
+      - lint_waivers
       - core_ibex ? (core_ibex_rtl)
       - core_cv32e40p ? (core_cv32e40p_rtl)
       - core_cv32e40x ? (core_cv32e40x_rtl)

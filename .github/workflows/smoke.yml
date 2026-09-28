@@ -118,6 +118,14 @@ jobs:
         with:
           version: '5.052'
 
+      # Verilator lint of soc_top for every core in AXI_SMOKE_CORES; fails on
+      # any warning not waived in cfg/verilator_lint_waivers.vlt.
+      - name: Lint RTL
+        shell: bash
+        run: |
+          source ./sourceme.sh
+          make lint-rtl
+
       - name: Run smoke test
         shell: bash
         run: |
