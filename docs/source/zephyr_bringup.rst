@@ -39,6 +39,10 @@ Initial Target
 -  CLINT: ``0x02000000``, with ``mtime`` at ``0x0200bff8`` and hart 0
    ``mtimecmp`` at ``0x02004000``
 -  Zephyr timer frequency: ``12.5 MHz``
+-  PLIC: ``0x0C000000`` (``sifive,plic-1.0.0``, machine external interrupt 11),
+   sources 1 = UART and 2 = iDMA completion; the console UART is
+   interrupt-driven through it. SERV has no external interrupt input, so its
+   devicetree disables the PLIC and its UART stays polled.
 
 The Zephyr app uses out-of-tree board and SoC definitions. This follows
 Zephyr's current hardware model, where board and SoC metadata are kept in
@@ -151,6 +155,12 @@ The first Zephyr smoke app should print:
    Board: axku5
    UART and Zephyr console path are alive.
    Machine timer interrupt path is alive.
+   PLIC external interrupt path is alive.
+
+The last line is printed on every core except SERV: the app enables the UART's
+transmitter-empty interrupt and waits for it to arrive through the PLIC, the
+same event ``sw/c/plic_smoke`` uses. A missing interrupt prints a ``FAILED``
+line instead, which the acceptance check catches.
 
 Current Bring-Up Limits
 -----------------------

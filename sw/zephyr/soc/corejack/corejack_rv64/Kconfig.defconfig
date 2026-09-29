@@ -1,6 +1,21 @@
 if SOC_COREJACK_RV64
 
+# The PLIC is a second-level controller on machine external interrupt 11;
+# level-1 IRQs take ISR table slots 0..11 and PLIC IDs 0..2 follow from 12.
+config 2ND_LVL_ISR_TBL_OFFSET
+	default 12
+
+config 2ND_LVL_INTR_00_OFFSET
+	default 11
+
+config MAX_IRQ_PER_AGGREGATOR
+	default 3
+
 config NUM_IRQS
 	default 16
+
+# The console UART's interrupt reaches the core through the PLIC.
+config UART_INTERRUPT_DRIVEN
+	default y if PLIC
 
 endif

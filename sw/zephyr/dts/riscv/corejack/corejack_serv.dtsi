@@ -24,3 +24,16 @@
 		};
 	};
 };
+
+/*
+ * SERV has no machine external interrupt input (see its socket adapter), so the
+ * PLIC cannot reach it: leave the PLIC out and keep the UART polled.
+ */
+&plic {
+	status = "disabled";
+};
+
+&uart0 {
+	/delete-property/ interrupt-parent;
+	/delete-property/ interrupts;
+};
