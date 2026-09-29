@@ -169,19 +169,9 @@ With the console UART interrupt-driven through the PLIC, Zephyr's shell runs
 on the board UART. ``make fpga-zephyr-shell`` builds Zephyr's own shell sample
 (``samples/subsys/shell/shell_module``) for the selected core and board, loads
 it over JTAG like ``fpga-run-zephyr``, and leaves it running for
-``ZEPHYR_SHELL_TIMEOUT`` seconds (default 3600; Ctrl-C ends it sooner). It
-needs a core with a JTAG debug path, so not SERV.
-
-.. code:: bash
-
-   make fpga-pgm CORE=ibex BOARD=arty_a7_100t
-   make openocd CORE=ibex BOARD=arty_a7_100t              # terminal 1
-   picocom -b 115200 /dev/serial/by-id/<uart-device>      # terminal 2
-   make fpga-zephyr-shell CORE=ibex BOARD=arty_a7_100t    # terminal 3
-
-The console shows a ``uart:~$`` prompt. ``help`` lists the commands; for
-example ``kernel uptime``, ``kernel thread list``, and ``device list``, which
-shows the PLIC and the UART.
+``ZEPHYR_SHELL_TIMEOUT`` seconds (default 3600). It needs a core with a JTAG
+debug path, so not SERV. :doc:`Zephyr shell on an FPGA board <zephyr_shell>`
+walks through the whole setup on the Arty A7-100T with Ibex.
 
 ``zephyr-build`` and ``fpga-run-zephyr`` build CoreJack's demo app by default.
 To build any other Zephyr app for a CoreJack board, set ``ZEPHYR_APP_DIR`` to

@@ -111,6 +111,10 @@ make openocd                                            # terminal 1
 make fpga-run-sw SW_APP=hello_world GDB_TIMEOUT=10      # terminal 2
 ```
 
+For an interactive Zephyr shell on real hardware, follow
+[Zephyr shell on an FPGA board](https://patrickerich.github.io/corejack/zephyr_shell.html),
+a walkthrough on the Arty A7-100T with Ibex.
+
 For cores without a usable RISC-V debug interface (SERV, PicoRV32, CVW), use
 the [UART SRAM loader](https://patrickerich.github.io/corejack/uart_sram_loader.html)
 instead of OpenOCD/GDB. Check the descriptor matrix for a board with
