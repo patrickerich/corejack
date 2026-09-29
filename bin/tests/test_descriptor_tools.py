@@ -238,6 +238,21 @@ def test_mem_num_banks_reads_the_rtl_package() -> None:
     assert banks >= 2 and (banks & (banks - 1)) == 0, f"not a power of two >= 2: {banks}"
 
 
+@pytest.mark.parametrize(
+    "board",
+    sorted(p.stem for p in (REPO_ROOT / "cfg" / "boards").glob("*.yaml") if not p.stem.startswith("_")),
+)
+def test_board_check_passes_for_every_board(board: str) -> None:
+    # board-check resolves programming.bitstream_target/program_target against
+    # the Make targets, which live in the root Makefile and the mk/*.mk
+    # fragments it includes.
+    result = run_cmd(
+        [sys.executable, "bin/validate_target.py", "--board", board, "--board-check"],
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_ram_bytes_must_divide_across_banks(tmp_path: Path) -> None:
     # soc_top truncates when deriving WordsPerBank, so a ram_bytes that is a
     # multiple of 8 but not of 8*MemNumBanks would advertise more RAM than is
