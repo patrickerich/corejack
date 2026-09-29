@@ -19,7 +19,10 @@
 #                                   patch_vivado_project_tcl.sh does shape the
 #                                   build and stays hashed
 # sw/zephyr is not hashed: nothing in the FPGA flow reads it. Every *.core file
-# is, since the board and core cores carry the XDC, wrapper, and file lists.
+# is, since the board and core cores carry the XDC, wrapper, and file lists. Of
+# the make fragments under mk/, only deps.mk (dependency pins, the CVA6 fetch
+# and patches) and fpga.mk (the FPGA build) feed the bitstream; the rest - sim,
+# lint, sw, zephyr, docs, tools, project - are left out.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -31,6 +34,8 @@ excluded='^cfg/validation/|^cfg/vivado_[a-z]+_allowlist\.txt$|^cfg/verilator_lin
     'Bender.lock' \
     'Bender.yml' \
     'Makefile' \
+    'mk/deps.mk' \
+    'mk/fpga.mk' \
     'cfg' \
     'patches' \
     'rtl' \

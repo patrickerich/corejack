@@ -355,13 +355,13 @@ for out-of-range addresses.
    ``EgressDepth`` 2 -> 8 (port ceiling), ``SliceOutDepth`` 1 -> 4 and ``SliceInDepth``
    1 -> 2 (bank ceiling) - superseding the "default depth 2 / 1-deep slice
    buffers" of C3/C9, and ``soc_top.MemNumBanks`` went 4 -> 8 to match the seven
-   ports driving the subsystem (``sw/Makefile NUM_BANKS`` follows). Measured effect:
+   ports driving the subsystem (``mk/sw.mk NUM_BANKS`` follows). Measured effect:
    a single port 0.33 -> 0.98 access/cycle, same-bank 0.33 -> 0.99, 4-port
    disjoint 1.33 -> 3.91. Re-verified by ``tb/tb_mem_ss.sv`` on both slice models at
    the shipping depths and by ``make axi-smoke``.
 -  **Bank count reduced to one literal.** ``mem_ss_pkg::MemNumBanksDefault`` is now
    the single source of truth: ``soc_top.MemNumBanks`` defaults to it, and
-   ``sw/Makefile`` derives its ``NUM_BANKS`` hex-split width from the same constant
+   ``mk/sw.mk`` derives its ``NUM_BANKS`` hex-split width from the same constant
    through ``bin/validate_target.py --mem-num-banks`` instead of restating it. This
    follows the existing ``platform_pkg::core_type_e`` -> ``CORE_TYPE`` precedent, and
    covers the simulation and FPGA paths with one mechanism because both take the

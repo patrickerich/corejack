@@ -169,7 +169,7 @@ contains one 64-bit SRAM word:
 
    bank = word64_index % NUM_BANKS
 
-``NUM_BANKS`` (``sw/Makefile``) is not written down twice: it is read from
+``NUM_BANKS`` (``mk/sw.mk``) is not written down twice: it is read from
 ``mem_ss_pkg::MemNumBanksDefault`` — the same constant ``soc_top``'s ``MemNumBanks``
 defaults to — via ``bin/validate_target.py --mem-num-banks``.
 

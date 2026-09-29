@@ -135,7 +135,7 @@ documentation such as `docs/` or `README.md`.
 Start from [CoreJack documentation](https://patrickerich.github.io/corejack/) when adding or updating
 documentation. A new page must be listed in one of that file's captioned
 `toctree` blocks — the caption becomes its group heading in the rendered
-sidebar. `make -C docs html` builds with `-W`, so a page left out of every
+sidebar. `make docs` builds with `-W`, so a page left out of every
 `toctree` fails the build rather than disappearing silently.
 
 ### Architecture diagrams
@@ -153,6 +153,28 @@ and commit the regenerated SVGs alongside the source. SVG is preferred
 over PNG so diffs remain text-based; the export is deterministic and
 filenames are stable across tab insertions (the slug comes from the tab
 name, not the page index).
+
+## Makefile Layout
+
+There is one Makefile, at the repository root, and it is the only entry point:
+`make <target>`. It holds the pinned tool versions, the settings derived from
+the core and board descriptors, and the settings more than one area uses. All
+make logic lives in fragments under `mk/`, one per area (`tools.mk`,
+`deps.mk`, `sw.mk`, `sim.mk`, `lint.mk`, `fpga.mk`, `zephyr.mk`, `docs.mk`,
+`project.mk`), which the root Makefile includes. Do not add a Makefile in a
+subdirectory or call `make -C <dir>`; a target that needs a fresh set of
+variables calls `$(MAKE) <target>` on the same Makefile instead.
+
+- Put a new target in the fragment for its area and list it in that fragment's
+  `.PHONY`.
+- Describe it for `make help` with ` ## text` after its prerequisites; a line
+  starting `## ` adds a note under the target above it.
+- A variable used by one fragment lives in that fragment. One used by several,
+  a pinned version, or one CI reads (`BENDER_VERSION`, `AXI_SMOKE_CORES`)
+  lives in the root Makefile.
+- The root Makefile, `mk/deps.mk`, and `mk/fpga.mk` are in the bitstream design
+  hash (`bin/design_input_hash.sh`). Keep logic that does not shape the
+  bitstream out of them, so editing it does not make existing bitstreams stale.
 
 ## Coding Style
 

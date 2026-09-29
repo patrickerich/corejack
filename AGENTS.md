@@ -96,6 +96,10 @@ than `ubuntu-latest`.
 
 ## Conventions for changes
 
+- **One Makefile, at the root**, is the only entry point; it includes per-area
+  fragments `mk/<area>.mk`. Add targets to the right fragment with a ` ## `
+  help text; no Makefiles in subdirectories and no `make -C`. See
+  [`CONTRIBUTING.md`](CONTRIBUTING.md) (Makefile Layout).
 - **RTL is 100% hand-written SystemVerilog.** Python under `bin/` is build glue,
   descriptor resolution, lint/check, scaffolding, and host runtime only — it
   **never** generates RTL.
@@ -144,7 +148,7 @@ than `ubuntu-latest`.
   `MemNumBanks = 8` banks, and the outstanding depths are sized so neither a port
   nor a bank caps below ~1 access/cycle. The bank count has one home,
   **`mem_ss_pkg::MemNumBanksDefault`** — `soc_top.MemNumBanks` defaults to it and
-  `sw/Makefile` reads it back via `validate_target.py --mem-num-banks` to split
+  `mk/sw.mk` reads it back via `validate_target.py --mem-num-banks` to split
   the `bank_<n>.hex` preload, so don't write the number anywhere else. See
   [Memory Subsystem Redesign](https://patrickerich.github.io/corejack/mem_ss_redesign.html).
 - **CV32E40X is intentionally excluded** from default regressions — see
@@ -153,7 +157,7 @@ than `ubuntu-latest`.
 - External IP is fetched, not vendored-in-tree: PULP `axi`, `apb`,
   `common_cells`, `idma`, `clint`, `obi`, `apb_uart`, `riscv-dbg` via Bender;
   cores `serv`/`picorv32`/`cvw`/`cv32e40p`/`cv32e40x`/`cv32e40s` via Bender
-  vendor packages; CVA6 fetched and patched by the `Makefile`. Always
+  vendor packages; CVA6 fetched and patched by `mk/deps.mk`. Always
   `make bender && make deps` before building.
 
 ### Memory map

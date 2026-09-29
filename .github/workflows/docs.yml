@@ -9,6 +9,8 @@ on:
       - main
     paths:
       - 'docs/**'
+      - 'Makefile'
+      - 'mk/docs.mk'
       - '.github/workflows/docs.yml'
       # Generates docs/source/support_matrix.rst, so it is a docs input too.
       - 'bin/render_support_matrix.py'
@@ -17,6 +19,8 @@ on:
       - main
     paths:
       - 'docs/**'
+      - 'Makefile'
+      - 'mk/docs.mk'
       - '.github/workflows/docs.yml'
       # Generates docs/source/support_matrix.rst, so it is a docs input too.
       - 'bin/render_support_matrix.py'
@@ -44,13 +48,13 @@ jobs:
             docs/requirements.txt
 
       # sourceme.sh creates .venv and puts .venv/bin on PATH, which is what
-      # docs/Makefile requires; the build runs with -W, so a broken link or a
+      # mk/docs.mk requires; the build runs with -W, so a broken link or a
       # page missing from every toctree fails here.
       - name: Build documentation
         shell: bash
         run: |
           source ./sourceme.sh
-          make -C docs html
+          make docs
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'

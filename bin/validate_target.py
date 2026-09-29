@@ -494,10 +494,13 @@ def print_compatible_cores(board: str) -> None:
 
 
 def make_target_exists(target: str) -> bool:
-    if not MAKEFILE.is_file():
-        return False
-    makefile_text = MAKEFILE.read_text(encoding="utf-8")
-    return re.search(rf"(?m)^{re.escape(target)}\s*:", makefile_text) is not None
+    # Targets live in the root Makefile or in the mk/*.mk fragments it includes.
+    pattern = re.compile(rf"(?m)^{re.escape(target)}\s*:")
+    make_files = [MAKEFILE, *sorted((REPO_ROOT / "mk").glob("*.mk"))]
+    return any(
+        path.is_file() and pattern.search(path.read_text(encoding="utf-8"))
+        for path in make_files
+    )
 
 
 def fusesoc_target_exists(target: str) -> bool:
