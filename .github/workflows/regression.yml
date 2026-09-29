@@ -25,6 +25,7 @@ on:
       - 'cfg/**'
       - 'corejack.core'
       - 'Makefile'
+      - 'mk/**'
       - '.github/workflows/regression.yml'
   workflow_dispatch:
 

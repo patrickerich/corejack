@@ -84,8 +84,12 @@ and host runtime - nothing that ends up as SystemVerilog.
 -  ``corejack.core``, ``corejack_common.core``, ``corejack_core_<core>.core``,
    ``corejack_board_<board>.core`` - FuseSoC platform target plus the per-core
    and per-board plugins.
--  ``Makefile`` - user-facing targets for descriptor validation, FPGA build,
-   software build, simulation, debug, and Zephyr.
+-  ``Makefile`` - the single make entry point: pinned tool versions,
+   descriptor-derived settings, and ``make help``. It includes the fragments
+   in ``mk/``.
+-  ``mk/`` - the make logic, one fragment per area: ``tools.mk``, ``deps.mk``,
+   ``sw.mk``, ``sim.mk``, ``lint.mk``, ``fpga.mk``, ``zephyr.mk``, ``docs.mk``,
+   and ``project.mk``.
 -  ``sourceme.sh`` - project virtual environment activation and tool path setup.
 
 Testbenches And Software

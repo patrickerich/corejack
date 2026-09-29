@@ -275,8 +275,8 @@ def test_bank_count_has_a_single_source_of_truth() -> None:
         soc_top,
     ), "soc_top.MemNumBanks must default to mem_ss_pkg::MemNumBanksDefault, not a literal"
 
-    sw_makefile = (REPO_ROOT / "sw" / "Makefile").read_text(encoding="utf-8")
+    sw_mk = (REPO_ROOT / "mk" / "sw.mk").read_text(encoding="utf-8")
     assert not re.search(
-        r"(?m)^\s*NUM_BANKS\s*[:?]?=\s*[0-9]", sw_makefile
-    ), "sw/Makefile must derive NUM_BANKS from the RTL, not assign a literal"
-    assert "--mem-num-banks" in sw_makefile
+        r"(?m)^\s*NUM_BANKS\s*[:?]?=\s*[0-9]", sw_mk
+    ), "mk/sw.mk must derive NUM_BANKS from the RTL, not assign a literal"
+    assert "--mem-num-banks" in sw_mk
