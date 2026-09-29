@@ -48,7 +48,26 @@
 			reg-shift = <2>;
 			clock-frequency = <25000000>;
 			current-speed = <115200>;
+			interrupt-parent = <&plic>;
+			interrupts = <1 1>;
 			status = "disabled";
+		};
+
+		/*
+		 * rtl/platform/soc_plic.sv: M-mode, one context (context 0), sources
+		 * 1 = UART and 2 = iDMA completion, 3 priority bits, a 4 MiB window.
+		 * Zephyr's driver only accepts local IRQ IDs below riscv,ndev, and
+		 * ID 0 is reserved, so the two sources need riscv,ndev = 3.
+		 */
+		plic: interrupt-controller@c000000 {
+			compatible = "sifive,plic-1.0.0";
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+			interrupts-extended = <&cpu0_intc 11>;
+			reg = <0x0c000000 0x00400000>;
+			riscv,max-priority = <7>;
+			riscv,ndev = <3>;
 		};
 
 		mtimer: timer@200bff8 {

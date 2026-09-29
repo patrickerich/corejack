@@ -39,6 +39,10 @@ Initial Target
 -  CLINT: ``0x02000000``, with ``mtime`` at ``0x0200bff8`` and hart 0
    ``mtimecmp`` at ``0x02004000``
 -  Zephyr timer frequency: ``12.5 MHz``
+-  PLIC: ``0x0C000000`` (``sifive,plic-1.0.0``, machine external interrupt 11),
+   sources 1 = UART and 2 = iDMA completion; the console UART is
+   interrupt-driven through it. SERV has no external interrupt input, so its
+   devicetree disables the PLIC and its UART stays polled.
 
 The Zephyr app uses out-of-tree board and SoC definitions. This follows
 Zephyr's current hardware model, where board and SoC metadata are kept in
@@ -151,6 +155,42 @@ The first Zephyr smoke app should print:
    Board: axku5
    UART and Zephyr console path are alive.
    Machine timer interrupt path is alive.
+   PLIC external interrupt path is alive.
+
+The last line is printed on every core except SERV: the app enables the UART's
+transmitter-empty interrupt and waits for it to arrive through the PLIC, the
+same event ``sw/c/plic_smoke`` uses. A missing interrupt prints a ``FAILED``
+line instead, which the acceptance check catches.
+
+Zephyr Shell
+------------
+
+With the console UART interrupt-driven through the PLIC, Zephyr's shell runs
+on the board UART. ``make fpga-zephyr-shell`` builds Zephyr's own shell sample
+(``samples/subsys/shell/shell_module``) for the selected core and board, loads
+it over JTAG like ``fpga-run-zephyr``, and leaves it running for
+``ZEPHYR_SHELL_TIMEOUT`` seconds (default 3600; Ctrl-C ends it sooner). It
+needs a core with a JTAG debug path, so not SERV.
+
+.. code:: bash
+
+   make fpga-pgm CORE=ibex BOARD=arty_a7_100t
+   make openocd CORE=ibex BOARD=arty_a7_100t              # terminal 1
+   picocom -b 115200 /dev/serial/by-id/<uart-device>      # terminal 2
+   make fpga-zephyr-shell CORE=ibex BOARD=arty_a7_100t    # terminal 3
+
+The console shows a ``uart:~$`` prompt. ``help`` lists the commands; for
+example ``kernel uptime``, ``kernel thread list``, and ``device list``, which
+shows the PLIC and the UART.
+
+``zephyr-build`` and ``fpga-run-zephyr`` build CoreJack's demo app by default.
+To build any other Zephyr app for a CoreJack board, set ``ZEPHYR_APP_DIR`` to
+its directory and ``ZEPHYR_APP`` to a name for its build directory:
+
+.. code:: bash
+
+   make zephyr-build CORE=ibex BOARD=arty_a7_100t \
+     ZEPHYR_APP=hello ZEPHYR_APP_DIR=.tools/zephyrproject/zephyr/samples/hello_world
 
 Current Bring-Up Limits
 -----------------------

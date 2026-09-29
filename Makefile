@@ -39,6 +39,12 @@ ZEPHYR_VERSION ?= v4.4.0
 ZEPHYR_WORKSPACE ?= $(TOOLS_DIR)/zephyrproject
 ZEPHYR_BASE ?= $(ZEPHYR_WORKSPACE)/zephyr
 ZEPHYR_APP ?= corejack_hello
+# The app zephyr-build compiles: CoreJack's demo by default, or any Zephyr app
+# directory (set ZEPHYR_APP too, which names its build directory).
+ZEPHYR_APP_DIR ?= $(CURDIR)/sw/zephyr
+# fpga-zephyr-shell: Zephyr's shell sample, left running for this many seconds.
+ZEPHYR_SHELL_APP_DIR ?= $(ZEPHYR_BASE)/samples/subsys/shell/shell_module
+ZEPHYR_SHELL_TIMEOUT ?= 3600
 ZEPHYR_BOARD ?= corejack_$(CORE)_$(BOARD)
 ZEPHYR_BUILD_DIR ?= $(CURDIR)/sw/build/zephyr/$(ZEPHYR_BOARD)/$(ZEPHYR_APP)
 ZEPHYR_ELF ?= $(ZEPHYR_BUILD_DIR)/zephyr/zephyr.elf
@@ -166,7 +172,7 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
-.PHONY: help bender docs docs-serve docs-preview docs-clean toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-cdc-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke lint-rtl lint-rtl-core openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr smoke plan clean distclean
+.PHONY: help bender docs docs-serve docs-preview docs-clean toolchain-riscv toolchain-riscv-dist toolchain-builder-image toolchain-riscv-container tool-verilator tool-verible zephyr-init zephyr-python-deps zephyr-build zephyr-check check-tools deps deps-update deps-base deps-core deps-vendor deps-all deps-serv deps-picorv32 deps-cvw deps-cv32e40p deps-cv32e40x deps-cv32e40s deps-cva6 new-board new-core support-matrix support-matrix-check version-check bump-version drawio-svg python-tests flist validate-target list-targets target-config board-check core-check target-check fpga-flist fpga-setup fpga-bit fpga-manifest fpga-report fpga-warning-check fpga-cdc-check fpga-pgm fpga-debug-accept fpga-accept sw-build sw-build-hello list-apps sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke lint-rtl lint-rtl-core openocd fpga-load-sw fpga-run-sw fpga-uart-load-sw fpga-uart-load-zephyr fpga-load-hello fpga-run-hello fpga-run-zephyr fpga-zephyr-shell smoke plan clean distclean
 
 help:
 	@echo "Targets:"
@@ -252,6 +258,7 @@ help:
 	@printf '  %-18s %s\n' 'fpga-load-hello' 'load the hello_world ELF over OpenOCD/GDB, stay interactive'
 	@printf '  %-18s %s\n' 'fpga-run-hello' 'load/run the hello_world ELF for GDB_TIMEOUT seconds'
 	@printf '  %-18s %s\n' 'fpga-run-zephyr' 'build/load/run Zephyr app for GDB_TIMEOUT seconds'
+	@printf '  %-18s %s\n' 'fpga-zephyr-shell' 'build/load/run the Zephyr shell on the board UART (needs make openocd)'
 	@printf '  %-18s %s\n' 'smoke' 'run FuseSoC cocotb+Verilator smoke target'
 	@printf '  %-18s %s\n' 'plan' 'show the current CoreJack roadmap'
 	@printf '  %-18s %s\n' 'clean' 'remove simulation and generated outputs'
@@ -414,8 +421,9 @@ zephyr-build: zephyr-check validate-target
 		-p always \
 		-b "$(ZEPHYR_BOARD)" \
 		-d "$(ZEPHYR_BUILD_DIR)" \
-		"$(CURDIR)/sw/zephyr" \
+		"$(ZEPHYR_APP_DIR)" \
 		-- \
+		--no-warn-unused-cli \
 		-DBOARD_ROOT="$(CURDIR)/sw/zephyr" \
 		-DSOC_ROOT="$(CURDIR)/sw/zephyr" \
 		-DDTS_ROOT="$(CURDIR)/sw/zephyr" \
@@ -802,6 +810,13 @@ fpga-run-zephyr: validate-target zephyr-build
 	@COREJACK_GDB_ENTRY_SYMBOL="__start" \
 	 COREJACK_GDB_RUN_MODE="$(FPGA_GDB_RUN_MODE)" \
 	 rtl/platform/fpga/scripts/run_elf.sh "$(ZEPHYR_ELF)" "$(GDB_TIMEOUT)"
+
+# Zephyr's shell sample on the board UART, loaded over JTAG like fpga-run-zephyr
+# and left running for ZEPHYR_SHELL_TIMEOUT seconds (Ctrl-C ends it sooner).
+fpga-zephyr-shell: validate-target
+	@$(PY) bin/validate_target.py --core "$(CORE)" --board "$(BOARD)" --flow debug --quiet >/dev/null 2>&1 || \
+		{ echo "Error: fpga-zephyr-shell loads over JTAG, and CORE=$(CORE) has no supported debug path on BOARD=$(BOARD)"; exit 1; }
+	@$(MAKE) --no-print-directory fpga-run-zephyr ZEPHYR_APP=shell ZEPHYR_APP_DIR="$(ZEPHYR_SHELL_APP_DIR)" GDB_TIMEOUT="$(ZEPHYR_SHELL_TIMEOUT)"
 
 fpga-uart-load-zephyr: validate-target zephyr-build
 	@test -n "$(UART_DEV)" || { echo "Error: UART_DEV is required, e.g. UART_DEV=/dev/serial/by-id/<uart>"; exit 1; }

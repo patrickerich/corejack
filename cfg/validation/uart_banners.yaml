@@ -39,9 +39,11 @@ zephyr:
     - "Core: {core}"
     - "Board: {board}"
     - "UART and Zephyr console path are alive."
-  # sw/zephyr/src/main.c prints both lines unconditionally, so unlike baremetal
-  # this is not a branch: the timer line is simply the last thing printed, and
-  # both variants wait for it.
+    - "Machine timer interrupt path is alive."
+  # sw/zephyr/src/main.c prints the PLIC line only where the PLIC reaches the
+  # core (CONFIG_UART_INTERRUPT_DRIVEN). Every Zephyr core on the debug path has
+  # an external interrupt input; SERV, the one loader-path Zephyr core, has none,
+  # so its last line is the timer line. Revisit if that pairing changes.
   alive:
-    debug: "Machine timer interrupt path is alive."
+    debug: "PLIC external interrupt path is alive."
     loader: "Machine timer interrupt path is alive."
