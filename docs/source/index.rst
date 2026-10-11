@@ -77,6 +77,8 @@ FPGA And Debug
 Software
 --------
 
+-  :doc:`Zephyr shell on an FPGA board <zephyr_shell>` - walkthrough from a
+   fresh checkout to an interactive Zephyr shell on the Arty A7-100T with Ibex.
 -  :doc:`Zephyr bring-up <zephyr_bringup>` - Zephyr board/application setup and
    current support notes.
 
@@ -132,6 +134,7 @@ Core-Specific Notes
    :hidden:
    :caption: Software
 
+   zephyr_shell
    zephyr_bringup
 
 .. toctree::
