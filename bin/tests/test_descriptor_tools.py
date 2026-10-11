@@ -23,6 +23,11 @@ def run_cmd(args: list[str], cwd: Path = REPO_ROOT, check: bool = True) -> subpr
     )
 
 
+def platform_version(repo: Path) -> str:
+    text = (repo / "corejack.core").read_text(encoding="utf-8")
+    return re.search(r"(?m)^name: corejack:corejack:platform:(\S+)$", text).group(1)
+
+
 def copy_file(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
@@ -135,6 +140,9 @@ def test_create_board_scaffold_and_overwrite_guard(tmp_path: Path) -> None:
     assert (repo / "rtl" / "platform" / "fpga" / "boards" / "testboard" / "testboard.xdc").is_file()
     assert (repo / "rtl" / "platform" / "fpga" / "boards" / "testboard" / "corejack_testboard_wrap.sv").is_file()
     assert (repo / "corejack_board_testboard.core").is_file()
+    # A scaffold carries the version corejack.core is at, not a literal of its own.
+    board_core = (repo / "corejack_board_testboard.core").read_text(encoding="utf-8")
+    assert f"name: corejack:boards:testboard:{platform_version(repo)}" in board_core
     corejack_core = (repo / "corejack.core").read_text(encoding="utf-8")
     assert "board_testboard_rtl" in corejack_core
     assert "board_testboard ? (corejack_testboard_wrap)" in corejack_core
@@ -179,6 +187,8 @@ def test_create_core_scaffold_core_check_and_overwrite_guard(tmp_path: Path) -> 
     assert (repo / "cfg" / "cores" / "testcore.yaml").is_file()
     assert (repo / "rtl" / "cores" / "corejack_testcore_socket_adapter.sv").is_file()
     assert (repo / "corejack_core_testcore.core").is_file()
+    core_core = (repo / "corejack_core_testcore.core").read_text(encoding="utf-8")
+    assert f"name: corejack:cores:testcore:{platform_version(repo)}" in core_core
     expected_core_type = next_core_type_from_platform_pkg(REPO_ROOT / "rtl" / "pkg" / "platform_pkg.sv")
     assert f"CoreTestcore = {expected_core_type}" in (
         repo / "rtl" / "pkg" / "platform_pkg.sv"

@@ -118,13 +118,15 @@ core descriptor's ``compatible_boards`` list.
 FuseSoC Board Core
 ------------------
 
-Use this shape for ``corejack_board_<board>.core``:
+Use this shape for ``corejack_board_<board>.core``, where ``X.Y.Z`` is
+CoreJack's current version - the one on ``corejack.core``'s ``name:`` line,
+which ``make new-board`` fills in:
 
 .. code:: yaml
 
    CAPI=2:
 
-   name: corejack:boards:myboard:0.1.0
+   name: corejack:boards:myboard:X.Y.Z
    description: My FPGA board wrapper and constraints for CoreJack
 
    filesets:
@@ -145,7 +147,7 @@ Then add one board-selection fileset to ``corejack.core``:
 
    board_myboard_rtl:
      depend:
-       - corejack:boards:myboard:0.1.0
+       - corejack:boards:myboard:X.Y.Z
 
 The shared ``fpga`` target should conditionally select board-specific files,
 top-level, and Vivado part:
