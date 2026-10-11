@@ -112,6 +112,49 @@ static int run_case(const char *name, uint32_t src_off, uint32_t dst_off,
   return 0;
 }
 
+/* Back-to-back launches without waiting: more copies than the iDMA queues
+ * internally, so later NEXT_ID reads must stall the bus until there is room
+ * rather than drop a transfer. Every launch must get the next id in order and
+ * every chunk must arrive. A multi-channel driver depends on this. */
+#define QUEUE_COPIES 16u
+#define QUEUE_CHUNK (DMA_BUF_BYTES / QUEUE_COPIES)
+
+static int run_case_queued(void) {
+  uint32_t ids[QUEUE_COPIES];
+
+  fill_buffers(0x55u);
+  for (uint32_t c = 0; c < QUEUE_COPIES; c++) {
+    /* Chunk c of src lands in chunk (QUEUE_COPIES - 1 - c) of dst, so a
+     * dropped or reordered launch shows up as wrong data. */
+    uint32_t dst_chunk = QUEUE_COPIES - 1u - c;
+    ids[c] = dma_memcpy_start((uintptr_t)&dst_buf[dst_chunk * QUEUE_CHUNK],
+                              (uintptr_t)&src_buf[c * QUEUE_CHUNK], QUEUE_CHUNK);
+  }
+  for (uint32_t c = 1; c < QUEUE_COPIES; c++) {
+    if (ids[c] != ids[c - 1u] + 1u) {
+      printf("DMA FAIL [queued]: launch %u got id %u after %u\n", c, ids[c],
+             ids[c - 1u]);
+      return 1;
+    }
+  }
+  dma_wait(ids[QUEUE_COPIES - 1u]);
+  for (uint32_t c = 0; c < QUEUE_COPIES; c++) {
+    uint32_t dst_chunk = QUEUE_COPIES - 1u - c;
+    for (uint32_t i = 0; i < QUEUE_CHUNK; i++) {
+      uint8_t got = dst_buf[dst_chunk * QUEUE_CHUNK + i];
+      uint8_t expected = src_buf[c * QUEUE_CHUNK + i];
+      if (got != expected) {
+        printf("DMA FAIL [queued]: copy %u byte %u = 0x%02x, expected 0x%02x\n",
+               c, i, got, expected);
+        return 1;
+      }
+    }
+  }
+  printf("DMA case queued: OK (%u back-to-back copies, ids %u..%u)\n",
+         QUEUE_COPIES, ids[0], ids[QUEUE_COPIES - 1u]);
+  return 0;
+}
+
 #if COREJACK_HAS_EXT_IRQ
 /* Interrupt-driven completion: the copy is started without polling and the
  * ISR observes it through PLIC source 2 (claim, dma_irq_ack, complete). */
@@ -176,6 +219,7 @@ int main(void) {
   failures += run_case("aligned", 0u, 0u, 256u, 0x11u);
   failures += run_case("unaligned", 3u, 5u, 61u, 0x22u);
   failures += run_case("large", 0u, 0u, DMA_BUF_BYTES, 0x33u);
+  failures += run_case_queued();
 #if COREJACK_HAS_EXT_IRQ
   failures += run_case_irq();
 #endif
