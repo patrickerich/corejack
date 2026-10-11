@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rewrite all CoreJack FuseSoC VLNV versions in .core files and scaffolds.
+"""Rewrite all CoreJack FuseSoC VLNV versions in the .core files.
 
 Most users should invoke this through the Make wrappers:
 
@@ -14,7 +14,9 @@ Invoking this script directly is equivalent:
 FuseSoC parses the `name:` and dependency VLNV strings verbatim, so we cannot
 inherit the project version from an environment variable at parse time. This
 helper rewrites every `corejack:<lib>:<name>:<old>` occurrence to a new SemVer
-in one atomic sweep, keeping every cross-reference in sync.
+in one atomic sweep, keeping every cross-reference in sync. The scaffold
+helpers (bin/create_core.py, bin/create_board.py) hold no version of their own:
+they read it from corejack.core when they run.
 """
 from __future__ import annotations
 
@@ -26,10 +28,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 CORE_FILES = sorted(REPO_ROOT.glob("*.core"))
-SCAFFOLD_TEMPLATES = [
-    REPO_ROOT / "bin" / "create_core.py",
-    REPO_ROOT / "bin" / "create_board.py",
-]
 
 # Match a CoreJack VLNV (Vendor:Library:Name:Version) where Version is SemVer.
 # Captures the prefix up to (but excluding) the final ":Version" segment.
@@ -38,9 +36,7 @@ SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
 
 def collect_files() -> list[Path]:
-    files = [p for p in CORE_FILES if p.is_file()]
-    files += [p for p in SCAFFOLD_TEMPLATES if p.is_file()]
-    return files
+    return [p for p in CORE_FILES if p.is_file()]
 
 
 def find_versions(files: list[Path]) -> dict[str, list[Path]]:
@@ -92,13 +88,13 @@ def main() -> None:
 
     files = collect_files()
     if not files:
-        sys.exit("error: no .core files or scaffold templates found")
+        sys.exit("error: no .core files found")
 
     current = detect_current_version(files)
     print(f"Current CoreJack VLNV version: {current}")
 
     if args.check:
-        print("OK (all .core files and scaffold templates agree)")
+        print("OK (all .core files agree)")
         return
 
     if not args.to:

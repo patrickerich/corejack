@@ -82,7 +82,7 @@ compatible_cores:
 def board_core(args: argparse.Namespace) -> str:
     return f"""CAPI=2:
 
-name: corejack:boards:{args.board}:0.1.0
+name: corejack:boards:{args.board}:{args.version}
 description: {args.display_name} FPGA board wrapper and constraints for CoreJack
 
 filesets:
@@ -269,7 +269,7 @@ def replace_in_fpga_target(text: str, args: argparse.Namespace) -> str:
     fileset_block = f"""
   {fileset}:
     depend:
-      - corejack:boards:{args.board}:0.1.0
+      - corejack:boards:{args.board}:{args.version}
 """
     if rtl_marker not in text:
         fail(f"could not find rtl fileset marker in {CORE_FILE}")
@@ -325,8 +325,22 @@ def update_corejack_core(repo_root: Path, args: argparse.Namespace) -> None:
     core_path.write_text(updated, encoding="utf-8")
 
 
+def platform_version(repo_root: Path) -> str:
+    """Return CoreJack's version: the one in corejack.core's platform VLNV.
+
+    New .core files take it from there rather than from a literal here, so a
+    scaffold always matches the release it is created in.
+    """
+    text = (repo_root / CORE_FILE).read_text(encoding="utf-8")
+    match = re.search(r"(?m)^name: corejack:corejack:platform:(\d+\.\d+\.\d+)$", text)
+    if match is None:
+        fail(f"could not read the platform version from {CORE_FILE}")
+    return match.group(1)
+
+
 def create_board(args: argparse.Namespace) -> None:
     repo_root = args.repo_root.resolve()
+    args.version = platform_version(repo_root)
 
     require_identifier(args.board, "board")
     if args.reset_polarity not in {"active_low"}:

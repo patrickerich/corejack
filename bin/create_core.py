@@ -196,7 +196,7 @@ def core_fusesoc(args: argparse.Namespace) -> str:
     adapter = f"corejack_{args.core}_{args.integration_suffix}_adapter"
     return f"""CAPI=2:
 
-name: corejack:cores:{args.core}:0.1.0
+name: corejack:cores:{args.core}:{args.version}
 description: {args.display_name} RTL and CoreJack adapter used by the CoreJack platform
 
 filesets:
@@ -240,7 +240,7 @@ def update_corejack_core(repo_root: Path, args: argparse.Namespace) -> None:
     block = f"""
   {fileset}:
     depend:
-      - corejack:cores:{args.core}:0.1.0
+      - corejack:cores:{args.core}:{args.version}
 """
     if marker not in text:
         fail(f"could not find core_region_rtl marker in {CORE_FILE}")
@@ -284,8 +284,22 @@ def update_board_descriptor(repo_root: Path, args: argparse.Namespace) -> None:
     path.write_text(append_yaml_top_list_item(text, "compatible_cores", args.core), encoding="utf-8")
 
 
+def platform_version(repo_root: Path) -> str:
+    """Return CoreJack's version: the one in corejack.core's platform VLNV.
+
+    New .core files take it from there rather than from a literal here, so a
+    scaffold always matches the release it is created in.
+    """
+    text = (repo_root / CORE_FILE).read_text(encoding="utf-8")
+    match = re.search(r"(?m)^name: corejack:corejack:platform:(\d+\.\d+\.\d+)$", text)
+    if match is None:
+        fail(f"could not read the platform version from {CORE_FILE}")
+    return match.group(1)
+
+
 def create_core(args: argparse.Namespace) -> None:
     repo_root = args.repo_root.resolve()
+    args.version = platform_version(repo_root)
     require_identifier(args.core, "core")
     require_identifier(args.board, "board")
     require_identifier(args.integration_suffix, "integration suffix")

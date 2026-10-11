@@ -194,16 +194,17 @@ single, consistent FuseSoC version across every `.core` file.
 
 ### Conventions
 
-- VLNV in `.core` files is unprefixed SemVer: `corejack:corejack:platform:0.1.0`.
+- VLNV in `.core` files is unprefixed SemVer: `corejack:corejack:platform:X.Y.Z`.
   FuseSoC's SemVer parser does not accept a leading `v`.
-- Git tags use the `v` prefix: `v0.1.0`. This is the standard SemVer-meets-Git
+- Git tags use the `v` prefix: `vX.Y.Z`. This is the standard SemVer-meets-Git
   convention and is what `git describe` will surface in the bitstream
   manifest's `GIT_DESCRIBE_AT_MANIFEST` field.
 
 ### Checking for drift
 
-Every `.core` file (and the scaffold templates that emit new ones) must agree
-on a single VLNV version. Drift is caught by:
+Every `.core` file must agree on a single VLNV version, and it should match
+the latest release tag. The `make new-core` / `make new-board` scaffolds read
+the version from `corejack.core`, so they cannot drift. Drift is caught by:
 
 ```bash
 make version-check
@@ -215,9 +216,9 @@ This runs in CI on every push.
 
 ```bash
 make version-check                  # confirm starting state is consistent
-make bump-version VERSION=0.2.0     # rewrite every VLNV in lockstep
-git commit -am "Bump CoreJack version to 0.2.0"
-git tag -a v0.2.0 -m "CoreJack v0.2.0"
+make bump-version VERSION=X.Y.Z     # rewrite every VLNV in lockstep
+git commit -am "Bump CoreJack version to X.Y.Z"
+git tag -a vX.Y.Z -m "CoreJack vX.Y.Z"
 git push && git push --tags
 ```
 
@@ -226,7 +227,7 @@ A few notes on the git commands above:
 - `git commit -am "..."`: `-a` (short for `--all`) auto-stages modified and
   deleted *tracked* files before committing. It does **not** stage new
   (untracked) files. `make bump-version` only edits already-tracked
-  `.core` files and `bin/create_*.py` scaffolds, so `-am` captures the
+  `.core` files, so `-am` captures the
   whole bump in one step. The `-m` supplies the commit message inline.
 - `git tag -a vX.Y.Z -m "..."`: `-a` (short for `--annotate`) creates an
   **annotated tag** with a tagger, timestamp, and message stored as a

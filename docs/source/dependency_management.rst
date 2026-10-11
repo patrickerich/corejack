@@ -88,15 +88,14 @@ Project Versioning
 Every CoreJack ``.core`` file declares its own and its dependencies' versions
 through FuseSoC's VLNV format (``Vendor:Library:Name:Version``), and FuseSoC
 parses these strings verbatim - they cannot be inherited from an environment
-variable, so the version must be kept in sync across every ``.core`` file and
-across the scaffold templates that emit new ones.
+variable, so the version must be kept in sync across every ``.core`` file.
 
 The ``bin/bump_version.py`` helper performs this sync in one atomic sweep. It
 refuses to operate when the ``.core`` files disagree on a version (``--check`` is
-how the CI ``version-check`` job catches drift), and it walks both the
-top-level ``.core`` files and the ``bin/create_core.py`` / ``bin/create_board.py``
-scaffold templates so newly generated descriptors always start at the current
-version.
+how the CI ``version-check`` job catches drift). The ``bin/create_core.py`` /
+``bin/create_board.py`` scaffolds hold no version of their own: they read it from
+``corejack.core``'s ``name:`` line when they run, so newly generated ``.core``
+files always start at the current version.
 
 For the user-facing bump-and-tag workflow, including the conventions for
 unprefixed VLNV versions vs. ``v``-prefixed git tags and why release tags must
