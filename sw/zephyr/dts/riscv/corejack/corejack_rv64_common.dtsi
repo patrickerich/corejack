@@ -70,6 +70,22 @@
 			riscv,ndev = <3>;
 		};
 
+		/*
+		 * rtl/platform/soc_idma.sv: the iDMA register window, with its
+		 * completion flag on PLIC source 2. dma-channels logical channels
+		 * share the iDMA's one transfer queue; the driver is
+		 * sw/zephyr/drivers/dma/dma_corejack_idma.c.
+		 */
+		dma0: dma-controller@1000000 {
+			compatible = "corejack,idma";
+			reg = <0x0 0x01000000 0x0 0x1000>;
+			interrupt-parent = <&plic>;
+			interrupts = <2 1>;
+			#dma-cells = <1>;
+			dma-channels = <4>;
+			status = "okay";
+		};
+
 		mtimer: timer@200bff8 {
 			compatible = "riscv,machine-timer";
 			interrupts-extended = <&cpu0_intc 7>;

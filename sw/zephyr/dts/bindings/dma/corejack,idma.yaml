@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  CoreJack iDMA: the PULP iDMA engine behind its idma_reg32_3d register
+  frontend (rtl/platform/soc_idma.sv), with CoreJack's completion flag at
+  offset 0xf00 raising a PLIC interrupt. Memory-to-memory copies within RAM
+  only. dma-channels sets how many logical channels share the iDMA's single
+  transfer queue.
+
+compatible: "corejack,idma"
+
+include: dma-controller.yaml
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  dma-channels:
+    required: true
+
+  "#dma-cells":
+    const: 1
+
+dma-cells:
+  - channel

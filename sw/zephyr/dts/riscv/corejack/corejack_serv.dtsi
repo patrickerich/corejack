@@ -27,9 +27,14 @@
 
 /*
  * SERV has no machine external interrupt input (see its socket adapter), so the
- * PLIC cannot reach it: leave the PLIC out and keep the UART polled.
+ * PLIC cannot reach it: leave the PLIC out, keep the UART polled, and leave out
+ * the iDMA, whose driver relies on its completion interrupt.
  */
 &plic {
+	status = "disabled";
+};
+
+&dma0 {
 	status = "disabled";
 };
 
