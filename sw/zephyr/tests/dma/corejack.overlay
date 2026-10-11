@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Points Zephyr's DMA tests (tests/drivers/dma/chan_blen_transfer and
- * loop_transfer) at CoreJack's iDMA; see docs/source/zephyr_bringup.rst.
+ * Points Zephyr's DMA tests (tests/drivers/dma/chan_blen_transfer,
+ * loop_transfer and scatter_gather) at CoreJack's iDMA; see
+ * docs/source/zephyr_bringup.rst.
  */
 tst_dma0: &dma0 {
 	status = "okay";

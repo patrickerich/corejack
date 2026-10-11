@@ -218,8 +218,8 @@ The driver offers the standard Zephyr DMA API for memory-to-memory copies
    80 us for four 4 KiB blocks on the Arty A7-100T with Ibex), so prefer
    fewer, smaller blocks per transfer where interrupt latency matters.
 
-Zephyr's own DMA tests ``tests/drivers/dma/chan_blen_transfer`` and
-``tests/drivers/dma/loop_transfer`` run against it, with
+Zephyr's own DMA tests ``tests/drivers/dma/chan_blen_transfer``,
+``loop_transfer`` and ``scatter_gather`` run against it, with
 :repofile:`sw/zephyr/tests/dma/corejack.overlay` naming ``dma0`` as their
 ``tst_dma0``. With ``make openocd`` running in another terminal and a terminal
 open on the board UART:
@@ -234,6 +234,18 @@ open on the board UART:
 The UART shows ``PROJECT EXECUTION SUCCESSFUL`` when every test passes.
 ``loop_transfer`` skips its suspend/resume case, which the driver does not
 support.
+
+:repofile:`sw/zephyr/tests/dma/idma_stress` covers what those tests leave
+out: two channels with several blocks each sharing the queue, per-block
+callbacks, ``dma_get_status``, ``-EBUSY``, ``dma_stop``, and the rejected
+configurations, over 40 rounds of odd lengths and unaligned addresses. It
+uses ``dma0`` directly, so it needs no overlay, and ends with
+``DMA STRESS PASS`` or ``DMA STRESS FAIL``:
+
+.. code:: bash
+
+   make fpga-run-zephyr CORE=ibex BOARD=arty_a7_100t GDB_TIMEOUT=20 \
+     ZEPHYR_APP=dma_stress ZEPHYR_APP_DIR=sw/zephyr/tests/dma/idma_stress
 
 Current Bring-Up Limits
 -----------------------
