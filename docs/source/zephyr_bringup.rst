@@ -182,6 +182,71 @@ its directory and ``ZEPHYR_APP`` to a name for its build directory:
    make zephyr-build CORE=ibex BOARD=arty_a7_100t \
      ZEPHYR_APP=hello ZEPHYR_APP_DIR=.tools/zephyrproject/zephyr/samples/hello_world
 
+``ZEPHYR_EXTRA_ARGS`` adds CMake arguments to the build, such as an extra
+devicetree overlay or Kconfig fragment
+(``-DEXTRA_DTC_OVERLAY_FILE=...``, ``-DEXTRA_CONF_FILE=...``).
+
+DMA
+---
+
+The iDMA is the devicetree node ``dma0`` (``corejack,idma``, PLIC source 2),
+driven by CoreJack's Zephyr DMA driver
+:repofile:`sw/zephyr/drivers/dma/dma_corejack_idma.c`. The driver is built
+only into apps that set ``CONFIG_DMA=y``, so the demo app and the shell are
+unchanged. SERV's devicetree disables ``dma0``, because the driver relies on
+the completion interrupt.
+
+The driver offers the standard Zephyr DMA API for memory-to-memory copies
+(``dma_config``, ``dma_start``, ``dma_reload``, ``dma_stop``,
+``dma_get_status``), with these limits from the hardware:
+
+-  Source and destination must both lie in RAM; the iDMA reaches nothing
+   else. Any byte alignment and length is accepted.
+-  Four logical channels (``dma-channels``) share the iDMA's one transfer
+   queue, so their copies run one after another in launch order.
+-  A transfer is at most 16 blocks, each one queued copy. With
+   ``complete_callback_en``, the callback reports each block
+   (``DMA_STATUS_BLOCK``) before the final ``DMA_STATUS_COMPLETE``.
+-  The iDMA cannot cancel a queued copy: ``dma_stop`` waits for the channel's
+   copies to finish, without calling its callback.
+-  No cyclic transfers, scatter/gather, fixed or decrementing addresses, or
+   suspend/resume.
+-  ``dma_start`` queues all of a transfer's blocks with interrupts masked, and
+   the queue holds only a copy or two: once it is full, each further block
+   waits for a queued copy to finish. A start of many large blocks therefore
+   keeps interrupts masked for about as long as those copies take (about
+   80 us for four 4 KiB blocks on the Arty A7-100T with Ibex), so prefer
+   fewer, smaller blocks per transfer where interrupt latency matters.
+
+Zephyr's own DMA tests ``tests/drivers/dma/chan_blen_transfer``,
+``loop_transfer`` and ``scatter_gather`` run against it, with
+:repofile:`sw/zephyr/tests/dma/corejack.overlay` naming ``dma0`` as their
+``tst_dma0``. With ``make openocd`` running in another terminal and a terminal
+open on the board UART:
+
+.. code:: bash
+
+   make fpga-run-zephyr CORE=ibex BOARD=arty_a7_100t GDB_TIMEOUT=25 \
+     ZEPHYR_APP=dma_chan_blen_transfer \
+     ZEPHYR_APP_DIR=.tools/zephyrproject/zephyr/tests/drivers/dma/chan_blen_transfer \
+     ZEPHYR_EXTRA_ARGS="-DEXTRA_DTC_OVERLAY_FILE=$PWD/sw/zephyr/tests/dma/corejack.overlay"
+
+The UART shows ``PROJECT EXECUTION SUCCESSFUL`` when every test passes.
+``loop_transfer`` skips its suspend/resume case, which the driver does not
+support.
+
+:repofile:`sw/zephyr/tests/dma/idma_stress` covers what those tests leave
+out: two channels with several blocks each sharing the queue, per-block
+callbacks, ``dma_get_status``, ``-EBUSY``, ``dma_stop``, and the rejected
+configurations, over 40 rounds of odd lengths and unaligned addresses. It
+uses ``dma0`` directly, so it needs no overlay, and ends with
+``DMA STRESS PASS`` or ``DMA STRESS FAIL``:
+
+.. code:: bash
+
+   make fpga-run-zephyr CORE=ibex BOARD=arty_a7_100t GDB_TIMEOUT=20 \
+     ZEPHYR_APP=dma_stress ZEPHYR_APP_DIR=sw/zephyr/tests/dma/idma_stress
+
 Current Bring-Up Limits
 -----------------------
 

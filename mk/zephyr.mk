@@ -11,6 +11,9 @@ ZEPHYR_APP_DIR ?= $(CURDIR)/sw/zephyr
 # fpga-zephyr-shell: Zephyr's shell sample, left running for this many seconds.
 ZEPHYR_SHELL_APP_DIR ?= $(ZEPHYR_BASE)/samples/subsys/shell/shell_module
 ZEPHYR_SHELL_TIMEOUT ?= 3600
+# Extra CMake arguments for zephyr-build, e.g. an overlay a Zephyr test needs:
+# ZEPHYR_EXTRA_ARGS="-DEXTRA_DTC_OVERLAY_FILE=... -DEXTRA_CONF_FILE=...".
+ZEPHYR_EXTRA_ARGS ?=
 ZEPHYR_BOARD ?= corejack_$(CORE)_$(BOARD)
 ZEPHYR_BUILD_DIR ?= $(CURDIR)/sw/build/zephyr/$(ZEPHYR_BOARD)/$(ZEPHYR_APP)
 ZEPHYR_ELF ?= $(ZEPHYR_BUILD_DIR)/zephyr/zephyr.elf
@@ -64,7 +67,8 @@ zephyr-build: zephyr-check validate-target ## build Zephyr hello app for ZEPHYR_
 		-DDTS_ROOT="$(CURDIR)/sw/zephyr" \
 		-DCOREJACK_CORE="$(CORE)" \
 		-DCOREJACK_BOARD="$(BOARD)" \
-		-DDTS_EXTRA_CPPFLAGS="-DCOREJACK_RAM_BYTES=$(SOC_RAM_BYTES)"
+		-DDTS_EXTRA_CPPFLAGS="-DCOREJACK_RAM_BYTES=$(SOC_RAM_BYTES)" \
+		$(ZEPHYR_EXTRA_ARGS)
 
 fpga-run-zephyr: validate-target zephyr-build ## build/load/run Zephyr app for GDB_TIMEOUT seconds
 	@COREJACK_GDB_ENTRY_SYMBOL="__start" \

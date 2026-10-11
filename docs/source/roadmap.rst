@@ -29,7 +29,8 @@ Platform pieces:
    :doc:`axi4_fabric`.
 -  The iDMA system DMA moves memory-to-memory data as the platform's first
    non-CPU initiator; ``dma_smoke`` validates it in simulation and on both
-   boards' hardware.
+   boards' hardware. A Zephyr DMA driver drives it from Zephyr apps; see
+   :doc:`zephyr_bringup`.
 -  The ``soc_plic`` platform interrupt controller (standard RISC-V PLIC layout,
    M-mode, single context) aggregates peripheral interrupts onto every core's
    machine external interrupt line; ``plic-sim`` is its focused regression and

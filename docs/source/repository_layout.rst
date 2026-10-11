@@ -111,7 +111,8 @@ Testbenches And Software
    common runtime under ``sw/c/common/`` (UART, printf, sim_ctrl, and the
    iDMA and PLIC drivers ``dma.{c,h}`` / ``plic.{c,h}``).
 -  ``sw/zephyr/`` - out-of-tree Zephyr boards, SoC definitions, devicetree
-   fragments, and the CoreJack Zephyr smoke app.
+   fragments and bindings, the iDMA driver, overlays for Zephyr's own tests,
+   and the CoreJack Zephyr smoke app.
 
 Build Outputs (Ignored)
 -----------------------
