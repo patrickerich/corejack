@@ -28,8 +28,6 @@ VERIBLE_SHA256_LINUX_X86_64 ?= 1edc1f29c70d74213ed373e727183802d5a733e23f9ab9c74
 VERIBLE_SHA256_LINUX_ARM64 ?= e6184011e93eb843fe0b5f1ecc60dcb06eec0ca05784f5caff1a17814068bca1
 ZEPHYR_VERSION ?= v4.4.0
 ZEPHYR_APP ?= corejack_hello
-CVA6_REPO ?= https://github.com/openhwgroup/cva6.git
-CVA6_REV  ?= f0c274cad66b84cd58379880741680351c7ce9ab
 CVA6_PATCHES := patches/cva6/0001-fix-rv64-misa-mxl-width.patch
 
 BENDER_DIR := $(TOOLS_DIR)/bender-v$(BENDER_VERSION)

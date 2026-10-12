@@ -100,9 +100,7 @@ def sanitize_checkout(package: str, checkout: Path) -> None:
         (checkout / "picorv32.core").unlink(missing_ok=True)
 
 
-def checkout_dependency(
-    core: str, upstream_override: str | None = None, rev_override: str | None = None
-) -> None:
+def checkout_dependency(core: str) -> None:
     descriptor = CORE_DIR / f"{core}.yaml"
     if not descriptor.is_file():
         fail(f"unknown CORE '{core}'")
@@ -117,8 +115,6 @@ def checkout_dependency(
     path_text = yaml_path_scalar(text, ("dependency", "path"))
     upstream = yaml_path_scalar(text, ("dependency", "upstream"))
     rev = yaml_path_scalar(text, ("dependency", "rev"))
-    upstream = upstream_override or upstream
-    rev = rev_override or rev
     if not package or not path_text or not upstream or not rev:
         fail(f"CORE '{core}' dependency requires package, path, upstream, and rev")
 
@@ -159,11 +155,8 @@ def checkout_dependency(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--core", required=True)
-    # For make deps-cva6, whose pin lives in the Makefile (CVA6_REPO, CVA6_REV).
-    parser.add_argument("--upstream", help="override the descriptor's upstream URL")
-    parser.add_argument("--rev", help="override the descriptor's pinned revision")
     args = parser.parse_args()
-    checkout_dependency(args.core, args.upstream, args.rev)
+    checkout_dependency(args.core)
 
 
 if __name__ == "__main__":

@@ -108,7 +108,7 @@ deps-cv32e40s: deps-base ## fetch CV32E40S core dependency
 	@$(PY) bin/deps_core.py --core cv32e40s
 
 deps-cva6: deps-base ## fetch CVA6 core dependency
-	@$(PY) bin/deps_core.py --core cva6 --upstream "$(CVA6_REPO)" --rev "$(CVA6_REV)"
+	@$(PY) bin/deps_core.py --core cva6
 	@for patch in $(CVA6_PATCHES); do \
 		echo "Applying CVA6 patch $$patch"; \
 		git -C "$(CURDIR)/.bender/vendor/cva6" apply "$(CURDIR)/$$patch"; \
