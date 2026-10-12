@@ -42,6 +42,15 @@ Waivers live in ``cfg/verilator_lint_waivers.vlt``, each with its reason:
    Verilator also skips signals whose name contains ``unused``, the usual way
    to mark a deliberate sink.
 
+The simulation targets use the same waiver file instead of switching warnings
+off globally, so a warning in CoreJack-owned RTL or testbench code fails the
+simulation build too. Simulation shows a few warnings that lint does not -
+Verilator's scheduling (``UNOPTFLAT``) and signals made public for cocotb
+(``SPLITVAR``) - and these are waived in the same file. Warnings the testbench
+itself causes, such as the debug tests forcing ``soc_top`` signals, are waived
+in ``tb/verilator_sim_waivers.vlt``, which only the simulations that compile
+``tb/soc_dut.sv`` read, so ``make lint-rtl`` still checks those signals.
+
 Verible remains the intended style and format tool. The repository can install
 project-local Verible tools with ``make tool-verible``. Verible checks are
 intentionally not enforced yet.

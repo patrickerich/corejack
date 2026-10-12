@@ -180,7 +180,7 @@ module mem_ss_bench_dut
       if (all_done) begin
         run_q  <= 1'b0;
         done_o <= 1'b1;
-      end else if (cycles_o >= MaxCycles) begin
+      end else if (cycles_o >= 64'(MaxCycles)) begin
         run_q     <= 1'b0;
         done_o    <= 1'b1;
         timeout_o <= 1'b1;

@@ -119,10 +119,10 @@ module tb_mem_ss;
         @(negedge clk);
         req32[g] = 1;
         if (oor) begin
-          we32[g]   = ($urandom & 1);
+          we32[g]   = 1'($urandom & 1);
           addr32[g] = BaseAddr + TotalBytes + (w32 * 4);  // out of range
           wdata32[g] = $urandom; be32[g] = 4'hF;
-        end else if ($urandom & 1) begin                  // write
+        end else if (1'($urandom & 1)) begin              // write
           data = $urandom;
           we32[g] = 1; addr32[g] = BaseAddr + (w64*8) + (widx*4);
           wdata32[g] = data; be32[g] = 4'hF;
@@ -193,9 +193,9 @@ module tb_mem_ss;
         @(negedge clk);
         req64[g] = 1;
         if (oor) begin
-          we64[g] = ($urandom & 1); addr64[g] = BaseAddr + TotalBytes + (w64*8);
+          we64[g] = 1'($urandom & 1); addr64[g] = BaseAddr + TotalBytes + (w64*8);
           wdata64[g] = {$urandom, $urandom}; be64[g] = 8'hFF;
-        end else if ($urandom & 1) begin
+        end else if (1'($urandom & 1)) begin
           data = {$urandom, $urandom};
           we64[g] = 1; addr64[g] = BaseAddr + ((Base64 + g*RW64 + w64)*8);
           wdata64[g] = data; be64[g] = 8'hFF;

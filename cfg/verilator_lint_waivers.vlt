@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Waivers for make lint-rtl (the corejack.core lint target). Every waiver says
-// why it is safe; a new warning in CoreJack-owned RTL is either fixed or given
-// a waiver here with its reason. Waivers name the signal (-match) rather than
-// the line, so edits to a file do not silently move them onto other code.
+// Waivers for make lint-rtl (the corejack.core lint target) and for every
+// simulation target; those that compile the testbench also take
+// tb/verilator_sim_waivers.vlt. Every waiver says why it is safe; a new warning
+// in CoreJack-owned RTL is either fixed or given a waiver here with its reason.
+// Waivers name the signal (-match) rather than the line, so edits to a file do
+// not silently move them onto other code.
 
 `verilator_config
 
@@ -22,6 +24,7 @@ lint_off -rule SELRANGE -file "*/deps/*"
 lint_off -rule SYMRSVDWORD -file "*/deps/*"
 lint_off -rule TIMESCALEMOD -file "*/deps/*"
 lint_off -rule UNOPTFLAT -file "*/deps/*"
+lint_off -rule SPLITVAR -file "*/deps/*"
 lint_off -rule SELRANGE -file "*/corejack_ibex_design_*"
 lint_off -rule SYMRSVDWORD -file "*/corejack_ibex_design_*"
 lint_off -rule TIMESCALEMOD -file "*/corejack_ibex_design_*"
@@ -104,6 +107,14 @@ lint_off -rule UNUSEDSIGNAL -file "*/rtl/bus/soc_obi_to_axi.sv" -match "*'addr'*
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/platform/soc_plic.sv" -match "*'addr'*"
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/mem/soc_sram_slice_model.sv" -match "*'addr_i'*"
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/interfaces/accel_socket_if.sv" -match "*'csr_req'*"
+
+// Simulation only (lint does no scheduling): behind CVA6's AXI demux, the
+// bridge's admit signals look circular because Verilator schedules each AXI
+// request and response struct as one variable, so a ready field and a valid
+// field in the same struct appear to depend on each other. There is no loop
+// at bit level; Vivado reports none in the CVA6 build.
+lint_off -rule UNOPTFLAT -file "*/rtl/bus/soc_axi_to_mem.sv" -match "*'*.rd_admit'*"
+lint_off -rule UNOPTFLAT -file "*/rtl/bus/soc_axi_to_mem.sv" -match "*'*.wr_admit'*"
 
 // iDMA: only the 1-D frontend is used, so the N-D response is ignored.
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/platform/soc_idma.sv" -match "*'nd_rsp'*"
