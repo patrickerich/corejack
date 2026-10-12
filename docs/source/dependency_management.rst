@@ -165,20 +165,15 @@ across the bump, proven by the simulation and FPGA acceptance gates).
 ``make deps-update`` re-resolves and will prompt interactively to pick the
 ``^0.4.3`` requirement again.
 
-The current CVA6 pin is implemented by these Makefile variables:
-
-.. code:: make
-
-   CVA6_REPO ?= https://github.com/openhwgroup/cva6.git
-   CVA6_REV  ?= f0c274cad66b84cd58379880741680351c7ce9ab
-
-The target:
+The CVA6 pin is the ``dependency`` block of
+:repofile:`cfg/cores/cva6.yaml` (``upstream`` and ``rev``), as for every other
+core; change the pin there and nowhere else. The target:
 
 .. code:: bash
 
    make deps-cva6
 
-fetches ``CVA6_REV`` into ``.bender/vendor/cva6``, checks it out, applies the
+fetches that commit into ``.bender/vendor/cva6``, checks it out, applies the
 patches under ``patches/cva6/``, and creates ``deps/cva6``. Like the other core
 checkouts made by ``bin/deps_core.py``, a new checkout fetches only the pinned
 commit, without the upstream history (run ``git fetch --unshallow`` inside it if

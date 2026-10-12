@@ -187,9 +187,9 @@ module soc_dut;
     if (dbg_force_sba_req) begin
       force i_soc_top.gen_platform.sba_req   = dbg_sba_req;
       force i_soc_top.gen_platform.sba_we    = dbg_sba_we;
-      force i_soc_top.gen_platform.sba_be    = dbg_sba_be;
-      force i_soc_top.gen_platform.sba_addr  = dbg_sba_addr;
-      force i_soc_top.gen_platform.sba_wdata = dbg_sba_wdata;
+      force i_soc_top.gen_platform.sba_be    = 8'(dbg_sba_be);
+      force i_soc_top.gen_platform.sba_addr  = 64'(dbg_sba_addr);
+      force i_soc_top.gen_platform.sba_wdata = 64'(dbg_sba_wdata);
     end else begin
       release i_soc_top.gen_platform.sba_req;
       release i_soc_top.gen_platform.sba_we;
@@ -228,8 +228,8 @@ module soc_dut;
       i_soc_top.gen_platform.gen_cva6_core_path.i_cva6_core.i_cva6.i_frontend.npc_q;
   assign dbg_cva6_frontend_vaddr =
       i_soc_top.gen_platform.gen_cva6_core_path.i_cva6_core.i_cva6.i_frontend.icache_dreq_o.vaddr;
-  assign dbg_cva6_frontend_data =
-      i_soc_top.gen_platform.gen_cva6_core_path.i_cva6_core.i_cva6.i_frontend.icache_dreq_i.data;
+  assign dbg_cva6_frontend_data = 64'(
+      i_soc_top.gen_platform.gen_cva6_core_path.i_cva6_core.i_cva6.i_frontend.icache_dreq_i.data);
   assign dbg_cva6_axi_aw_valid = i_soc_top.gen_platform.cva6_axi_req.aw_valid;
   assign dbg_cva6_axi_aw_ready = i_soc_top.gen_platform.cva6_axi_rsp.aw_ready;
   assign dbg_cva6_axi_w_valid  = i_soc_top.gen_platform.cva6_axi_req.w_valid;

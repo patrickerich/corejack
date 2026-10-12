@@ -122,10 +122,16 @@ module axi_adapter_dut
     );
   end
 
+  // The windows are 32-bit; the crossbar rules take full AXI addresses.
+  typedef soc_bus_pkg::axi_addr_t axi_addr_t;
+
   assign addr_map = '{
-    '{idx: 0, start_addr: RamBaseAddr,   end_addr: RamBaseAddr + RamSize},
-    '{idx: 1, start_addr: UartBaseAddr,  end_addr: UartBaseAddr + UartSize},
-    '{idx: 2, start_addr: DebugBaseAddr, end_addr: DebugBaseAddr + DebugSize}
+    '{idx: 0, start_addr: axi_addr_t'(RamBaseAddr),
+              end_addr:   axi_addr_t'(RamBaseAddr) + axi_addr_t'(RamSize)},
+    '{idx: 1, start_addr: axi_addr_t'(UartBaseAddr),
+              end_addr:   axi_addr_t'(UartBaseAddr) + axi_addr_t'(UartSize)},
+    '{idx: 2, start_addr: axi_addr_t'(DebugBaseAddr),
+              end_addr:   axi_addr_t'(DebugBaseAddr) + axi_addr_t'(DebugSize)}
   };
 
   assign apb_rsp = '{

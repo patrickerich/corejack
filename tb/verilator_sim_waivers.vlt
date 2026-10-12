@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: Apache-2.0
+//
+// Waivers for the simulation targets that compile tb/soc_dut.sv, on top of
+// cfg/verilator_lint_waivers.vlt. They cover warnings the testbench
+// causes, so make lint-rtl, which builds soc_top without it, keeps checking
+// those signals.
+
+`verilator_config
+
+// With DEBUG_TEST_HOOKS, tb/soc_dut.sv forces and releases these soc_top
+// signals from an always_comb, which Verilator counts as a second writer.
+lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'instr_req'*"
+lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'instr_addr'*"
+lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'data_req'*"
+lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'data_we'*"
+lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'data_be'*"
+lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'data_addr'*"
+lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'data_wdata'*"
+lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'sba_*"
+lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'ndmreset'*"
+lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'debug_req_o'*"

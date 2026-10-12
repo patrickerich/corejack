@@ -100,6 +100,11 @@ filesets:
       - cfg/verilator_lint_waivers.vlt
     file_type: vlt
 
+  sim_waivers:
+    files:
+      - tb/verilator_sim_waivers.vlt
+    file_type: vlt
+
   tb_sv:
     files:
       - tb/smoke_dut.sv
@@ -215,20 +220,10 @@ targets:
       verilator_options:
         - trace_fst ? (--trace-fst --trace-structs)
         - trace_vcd ? (--trace --trace-structs)
-        - -Wno-WIDTHEXPAND
-        - -Wno-WIDTHTRUNC
-        # NOTE: these -Wno-* waivers are GLOBAL (they also cover CoreJack-native
-        # RTL, which is currently width-clean); they exist because axi_xbar
-        # dependencies (rr_arb_tree, lzc) raise these benign lints. Prefer a
-        # scoped waiver file if a per-file mechanism is adopted.
-        - -Wno-UNSIGNED
-        - -Wno-SPLITVAR
-        # iDMA dependencies (axi_burst_splitter_gran, id_queue) raise these.
-        - -Wno-IMPLICIT
-        - -Wno-PINMISSING
     filesets_append:
       - tb_sv
       - tb_cocotb
+      - lint_waivers
     toplevel: smoke_dut
 
   sw-sim:
@@ -261,42 +256,6 @@ targets:
         # on by default; SIM_ASSERTS=0 passes the asserts_off flag to disable
         # them. Plain SystemVerilog asserts are not affected by this define.
         - asserts_off ? (-DASSERTS_OFF)
-        - -Wno-MODDUP
-        - -Wno-REDEFMACRO
-        - -Wno-IMPLICIT
-        - -Wno-PINMISSING
-        - core_cv32e40p ? (-Wno-CASEINCOMPLETE)
-        - core_cv32e40x ? (-Wno-CASEINCOMPLETE)
-        - core_cv32e40s ? (-Wno-CASEINCOMPLETE)
-        - core_cva6 ? (-Wno-CASEINCOMPLETE)
-        - core_serv ? (-Wno-CASEINCOMPLETE)
-        - core_picorv32 ? (-Wno-CASEINCOMPLETE)
-        - core_cvw ? (-Wno-CASEINCOMPLETE)
-        - -Wno-LATCH
-        - core_cv32e40x ? (-Wno-MULTIDRIVEN)
-        - core_cv32e40s ? (-Wno-MULTIDRIVEN)
-        - core_cva6 ? (-Wno-MULTIDRIVEN)
-        - core_cv32e40x ? (-Wno-ASCRANGE)
-        - core_cv32e40s ? (-Wno-ASCRANGE)
-        - core_cva6 ? (-Wno-ASCRANGE)
-        - core_picorv32 ? (-Wno-TIMESCALEMOD)
-        - core_cvw ? (-Wno-TIMESCALEMOD)
-        - -Wno-UNOPTFLAT
-        - -Wno-WIDTHEXPAND
-        - -Wno-WIDTHTRUNC
-        # axi_xbar dependencies (rr_arb_tree, lzc) raise these benign lints
-        # unconditionally, independent of the selected core.
-        - -Wno-UNSIGNED
-        - -Wno-SPLITVAR
-        - core_cva6 ? (-Wno-IMPLICITSTATIC)
-        - core_cvw ? (-Wno-IMPLICITSTATIC)
-        - core_cva6 ? (-Wno-SELRANGE)
-        - core_cvw ? (-Wno-SELRANGE)
-        - core_cva6 ? (-Wno-CMPCONST)
-        - core_cvw ? (-Wno-CMPCONST)
-        - core_cva6 ? (-Wno-SPLITVAR)
-        - core_cvw ? (-Wno-SPLITVAR)
-        - core_cva6 ? (-Wno-SYMRSVDWORD)
     filesets_append:
       - core_ibex ? (core_ibex_rtl)
       - core_cv32e40p ? (core_cv32e40p_rtl)
@@ -309,6 +268,8 @@ targets:
       - core_region ? (core_region_rtl)
       - tb_sw_sv
       - tb_sw_cocotb
+      - lint_waivers
+      - sim_waivers
     toplevel: soc_dut
 
   debug-sim:
@@ -325,21 +286,6 @@ targets:
         - --x-initial-edge
         - -DDEBUG_TEST_HOOKS
         - asserts_off ? (-DASSERTS_OFF)
-        - -Wno-MODDUP
-        - -Wno-REDEFMACRO
-        - -Wno-IMPLICIT
-        - -Wno-PINMISSING
-        - -Wno-LATCH
-        - -Wno-MULTIDRIVEN
-        - -Wno-UNOPTFLAT
-        - -Wno-WIDTHEXPAND
-        - -Wno-WIDTHTRUNC
-        # NOTE: these -Wno-* waivers are GLOBAL (they also cover CoreJack-native
-        # RTL, which is currently width-clean); they exist because axi_xbar
-        # dependencies (rr_arb_tree, lzc) raise these benign lints. Prefer a
-        # scoped waiver file if a per-file mechanism is adopted.
-        - -Wno-UNSIGNED
-        - -Wno-SPLITVAR
     filesets_append:
       - core_ibex_rtl
       - core_cv32e40p_rtl
@@ -350,6 +296,8 @@ targets:
       - core_region_rtl
       - tb_sw_sv
       - tb_debug_cocotb
+      - lint_waivers
+      - sim_waivers
     toplevel: soc_dut
 
   # CVA6 reset isolation. Deliberately separate from debug-sim: that target
@@ -371,30 +319,15 @@ targets:
         - -DDEBUG_TEST_HOOKS
         - asserts_off ? (-DASSERTS_OFF)
         # Same global waiver list as debug-sim; CVA6 adds lint noise, not less.
-        - -Wno-MODDUP
-        - -Wno-REDEFMACRO
-        - -Wno-IMPLICIT
-        - -Wno-PINMISSING
-        - -Wno-LATCH
-        - -Wno-MULTIDRIVEN
-        - -Wno-UNOPTFLAT
-        - -Wno-WIDTHEXPAND
-        - -Wno-WIDTHTRUNC
-        - -Wno-UNSIGNED
-        - -Wno-SPLITVAR
         # CVA6-specific waivers, matching the core_cva6 set in sw-sim. This
         # target is CVA6-only, so they are unconditional here.
-        - -Wno-CASEINCOMPLETE
-        - -Wno-SELRANGE
-        - -Wno-ASCRANGE
-        - -Wno-IMPLICITSTATIC
-        - -Wno-CMPCONST
-        - -Wno-SYMRSVDWORD
     filesets_append:
       - core_cva6_rtl
       - core_region_rtl
       - tb_sw_sv
       - tb_cva6_reset_cocotb
+      - lint_waivers
+      - sim_waivers
     toplevel: soc_dut
 
   axi-adapter-sim:
@@ -408,23 +341,10 @@ targets:
         - trace_fst ? (--trace-fst --trace-structs)
         - trace_vcd ? (--trace --trace-structs)
         - asserts_off ? (-DASSERTS_OFF)
-        - -Wno-MODDUP
-        - -Wno-REDEFMACRO
-        - -Wno-IMPLICIT
-        - -Wno-PINMISSING
-        - -Wno-LATCH
-        - -Wno-UNOPTFLAT
-        - -Wno-WIDTHEXPAND
-        - -Wno-WIDTHTRUNC
-        # NOTE: these -Wno-* waivers are GLOBAL (they also cover CoreJack-native
-        # RTL, which is currently width-clean); they exist because axi_xbar
-        # dependencies (rr_arb_tree, lzc) raise these benign lints. Prefer a
-        # scoped waiver file if a per-file mechanism is adopted.
-        - -Wno-UNSIGNED
-        - -Wno-SPLITVAR
     filesets_append:
       - tb_axi_adapter_sv
       - tb_axi_adapter_cocotb
+      - lint_waivers
     toplevel: axi_adapter_dut
 
   uart-loader-sim:
@@ -436,11 +356,10 @@ targets:
       verilator_options:
         - trace_fst ? (--trace-fst --trace-structs)
         - trace_vcd ? (--trace --trace-structs)
-        - -Wno-WIDTHEXPAND
-        - -Wno-WIDTHTRUNC
     filesets:
       - tb_uart_loader_sv
       - tb_uart_loader_cocotb
+      - lint_waivers
     toplevel: uart_sram_loader_dut
 
   plic-sim:
@@ -452,16 +371,11 @@ targets:
       verilator_options:
         - trace_fst ? (--trace-fst --trace-structs)
         - trace_vcd ? (--trace --trace-structs)
-        - -Wno-WIDTHEXPAND
-        - -Wno-WIDTHTRUNC
-        - -Wno-PINMISSING
-        - -Wno-UNOPTFLAT
-        - -Wno-UNSIGNED
-        - -Wno-SPLITVAR
     filesets:
       - common_deps
       - tb_plic_sv
       - tb_plic_cocotb
+      - lint_waivers
     toplevel: plic_dut
 
   mem-ss-bench:
@@ -473,16 +387,11 @@ targets:
       verilator_options:
         - trace_fst ? (--trace-fst --trace-structs)
         - trace_vcd ? (--trace --trace-structs)
-        - -Wno-WIDTHEXPAND
-        - -Wno-WIDTHTRUNC
-        - -Wno-PINMISSING
-        - -Wno-UNOPTFLAT
-        - -Wno-UNSIGNED
-        - -Wno-SPLITVAR
     filesets:
       - common_deps
       - tb_mem_ss_bench_sv
       - tb_mem_ss_bench_cocotb
+      - lint_waivers
     toplevel: mem_ss_bench_dut
 
   # Self-checking SystemVerilog benches (make sv-tb TB=<bench>). The bench
@@ -498,16 +407,10 @@ targets:
         - --timing
         - asserts_off ? (-DASSERTS_OFF)
         - memimpl_xilinx ? (-DMEMIMPL_XILINX)
-        - -Wno-WIDTHEXPAND
-        - -Wno-WIDTHTRUNC
-        - -Wno-PINMISSING
-        - -Wno-UNOPTFLAT
-        - -Wno-UNSIGNED
-        - -Wno-SPLITVAR
-        - -Wno-CASEINCOMPLETE
     filesets:
       - common_deps
       - tb_sv_bench
+      - lint_waivers
     toplevel: tb_mem_ss ? (tb_mem_ss) tb_axi_to_mem ? (tb_axi_to_mem)
 
   # Verilator lint of soc_top for one core (make lint-rtl), configured as the

@@ -116,8 +116,10 @@ than `ubuntu-latest`.
 - `make lint-rtl` (Verilator `-Wall` on `soc_top`, once per core) runs in CI
   and fails on any warning not waived in `cfg/verilator_lint_waivers.vlt`. Fix
   a new warning in CoreJack-owned RTL, or waive that one signal there with its
-  reason. Verible (`make tool-verible`) is the intended style tool, not yet
-  enforced.
+  reason. The simulation targets read the same file (plus
+  `tb/verilator_sim_waivers.vlt` for testbench-caused warnings) and have no
+  global `-Wno-*`, so a new warning fails the simulation build as well.
+  Verible (`make tool-verible`) is the intended style tool, not yet enforced.
 - Changing a descriptor's support status requires regenerating
   `docs/source/support_matrix.rst` and committing it with the change; promote status
   only after [Core Acceptance Checklist](https://patrickerich.github.io/corejack/core_acceptance_checklist.html)
