@@ -318,9 +318,6 @@ targets:
         - -DCOREJACK_CORE_CVA6
         - -DDEBUG_TEST_HOOKS
         - asserts_off ? (-DASSERTS_OFF)
-        # Same global waiver list as debug-sim; CVA6 adds lint noise, not less.
-        # CVA6-specific waivers, matching the core_cva6 set in sw-sim. This
-        # target is CVA6-only, so they are unconditional here.
     filesets_append:
       - core_cva6_rtl
       - core_region_rtl
