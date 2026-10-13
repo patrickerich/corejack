@@ -196,29 +196,82 @@ The RV32 cores never own a fabric transaction. Their OBI buffers and
 finish the AXI side themselves; the buffers' core-facing ``s_rready_i`` is tied
 high, so responses always retire whether or not the core is alive to take them.
 
-**CVA6 is different: it is the AXI initiator itself.** ``soc_top`` therefore puts
-an ``axi_isolate`` stage on ``rst_ni`` in the CVA6 path, which blocks new
-transactions while the core is down and — with its response readies forced high
-for the duration — retires the outstanding ones without the core. The window is
-held until the drain completes rather than merely while ``core_rst_ni`` is low.
+**CVA6 is different: it is the AXI initiator itself**, so a core-only reset
+lands in the middle of the AXI link. Two rules of the AXI specification (AMBA
+AXI, ARM IHI 0022) matter here:
 
-One case cannot drain: a write committed on AW whose W beat was never sent.
-``axi_isolate`` waits on ``pending_w`` and does not inject the missing beat, so
-the drain would stall. No regression issues ``ndmreset`` with CVA6 traffic in
-that state today, and a simulation-only watchdog in ``soc_top``
-(``Cva6IsolateTimeout``) is what would surface it.
-The stage sits ahead of CVA6's request router (``axi_demux``), so both of its
-fabric-side legs - crossbar slave port 0 and the dedicated RAM bridge - drain
-under it; ``cva6-reset-sim`` watches both.
+1. **Handshake** ("Handshake process"): once a source asserts ``VALID``, it
+   keeps ``VALID`` asserted, and the information it qualifies stable, until the
+   handshake (``VALID`` and ``READY`` both high at a rising clock edge).
+2. **Reset** ("Reset"): while ``ARESETn`` is asserted, a manager drives
+   ``ARVALID``, ``AWVALID`` and ``WVALID`` low, and a subordinate drives
+   ``RVALID`` and ``BVALID`` low.
 
-Measured behaviour, from ``make cva6-reset-sim``: with CVA6 actively fetching,
-forcing ``ndmreset`` produces **no fabric-side response activity at all**. The
-reset synchroniser's delay exceeds the fabric response latency, so in-flight
-responses retire while CVA6 is still accepting them, and the orphan condition
-does not arise from ``ndmreset`` with RAM as the target. The isolation stage is
-therefore insurance that removes the dependency on that timing relationship
-holding — not a fix for an observed failure. A slower target (the APB UART is
-tens of cycles) has not been exercised; see :doc:`open_items`.
+Rule 2 is the one sanctioned way for ``VALID`` to drop before its handshake,
+and it assumes one reset per interface: both ends reset together and both
+forget the half-finished transfer. ``ndmreset`` breaks that assumption on
+purpose. CVA6 is reset (``core_rst_ni``) while the fabric is not (``rst_ni``),
+because the debug module needs the fabric during the reset. CVA6 correctly
+drops its valids under rule 2, but to the still-running fabric that is a rule-1
+violation.
+
+This is not hypothetical. A halted hart runs the riscv-dbg park loop, which
+stores to the debug module on every pass, and CVA6's AXI shim has the AW of
+each store accepted one cycle before its W. ``ndmreset`` landing in that gap
+lost the W: the write never completed, the isolation stage waiting for its B
+response never drained, and the hart never halted again. That was the
+intermittent ``Unable to halt`` after ``reset halt`` on the AXKU5 (one failure
+in 41 back-to-back resets in one measurement; a second ``ndmreset`` did not
+recover it).
+
+``soc_top`` therefore puts two stages on ``rst_ni`` in the CVA6 path, ahead of
+its request router:
+
+``soc_axi_reset_bridge`` makes the link compliant on **both** sides, each under
+its own reset:
+
+-  *Fabric side*, on ``rst_ni``, never reset by ``ndmreset``, so rule 1 binds.
+   The bridge copies any request (AW, W or AR) presented to the fabric without
+   its ``READY``, and from the next cycle drives that channel from the copy
+   until the handshake. A core reset can then neither drop ``VALID`` nor change
+   the payload, and a torn write completes with its own data. While isolated,
+   the bridge presents no new request, so it never raises a ``VALID`` it might
+   have to drop, and it forces ``BREADY`` and ``RREADY`` high so responses
+   retire without the core.
+-  *Core side*, in CVA6's reset domain, so rule 2 binds the bridge as the core's
+   subordinate. While isolated, ``BVALID`` and ``RVALID`` toward the core are
+   held low, and so are its ``READY`` signals. A core in reset, or just
+   restarted, never sees a response to a request issued before its reset, nor
+   an acknowledgement for a transfer the bridge completed on its behalf.
+
+``axi_isolate`` counts the outstanding transactions and reports when the last
+one has completed. The isolation window opens with the core reset (the same
+cycle - the reset asserts asynchronously, so the bridge's copy must already be
+in place) and closes only once that drain is complete, not merely when
+``core_rst_ni`` releases. Anything the bridge holds is part of that drain, so it
+always completes before the window closes.
+
+The bridge's module header states its contract with ``soc_top``, and
+simulation checks it: a protocol checker on the bridge's fabric side (rule 1
+through every core reset) and assertions inside the bridge.
+
+Measured behaviour, from ``make cva6-reset-sim``:
+
+-  With CVA6 actively fetching, forcing ``ndmreset`` produces no fabric-side
+   response activity at all: the reset synchroniser's delay exceeds the RAM
+   response latency, so in-flight responses retire while CVA6 is still
+   accepting them.
+-  With the hart halted and ``ndmreset`` forced between a store's AW and W
+   handshakes, three times in a row, the hart is back in debug mode 146 cycles
+   after each release - the same as a reset with no write in flight.
+
+On hardware, with the bridge in place, 1000 back-to-back ``reset halt``
+commands from OpenOCD on a halted CVA6 all succeed, on both the AXKU5 and the
+Arty A7. Before the fix, the AXKU5 first failed at the 41st.
+
+The bridge's AW/AR hold and its core-side response masking are not exercised:
+CVA6 does not leave an AW or AR waiting, or a response stalled toward itself,
+when the reset lands. See :doc:`open_items`.
 
 OpenOCD And GDB Flow
 --------------------

@@ -24,8 +24,8 @@ RTL
    (e.g. the ``cvw_*`` copies that avoid module-name collisions).
 -  ``rtl/bus/`` - fabric building blocks (``soc_obi_to_axi``, ``soc_axi_to_mem``,
    ``soc_axi_to_apb``, ``soc_axi_to_dm``, ``soc_axi_to_reg``,
-   ``soc_axi_protocol_checker``). The system crossbar itself is the PULP
-   ``axi_xbar`` from the Bender-managed ``axi`` dependency; see
+   ``soc_axi_reset_bridge``, ``soc_axi_protocol_checker``). The system
+   crossbar itself is the PULP ``axi_xbar`` from the Bender-managed ``axi`` dependency; see
    :doc:`axi4_fabric`.
 -  ``rtl/mem/`` - banked, interleaved SRAM subsystem (``soc_mem_ss``) built from
    per-bank elastic pipes (``soc_mem_bank``, fed by its synchronously reset

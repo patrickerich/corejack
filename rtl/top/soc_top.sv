@@ -403,26 +403,32 @@ module soc_top #(
       assign data_axi_rsp    = '0;
 
       // CVA6 is the only core that is itself the AXI initiator, so a core-only
-      // reset can orphan a transaction the fabric has already accepted. The
-      // RV32 path cannot: its bus-side blocks (OBI buffers, obi-to-axi bridges)
-      // sit on rst_ni and own the fabric transaction, and the buffers' core-side
+      // reset can tear a transaction the fabric has already seen. The RV32 path
+      // cannot: its bus-side blocks (OBI buffers, obi-to-axi bridges) sit on
+      // rst_ni and own the fabric transaction, and the buffers' core-side
       // s_rready_i is tied high so responses always retire. This is the AXI
-      // analogue of that arrangement - an isolation stage on rst_ni that owns
-      // the outstanding transactions, issues no new ones while the core is down,
-      // and retires in-flight responses without the core (see the forced
-      // response readies below), so the fabric is never left waiting.
+      // analogue of that arrangement, in two stages on rst_ni:
+      //
+      //   - soc_axi_reset_bridge keeps both sides of the link AXI-compliant
+      //     across the core-only reset: it completes a request the reset tore
+      //     (for example a W whose AW was already accepted), accepts no new
+      //     ones, retires responses without the core and hides them from it.
+      //     Its header explains why the reset alone breaks the protocol.
+      //   - axi_isolate counts the outstanding transactions and reports when
+      //     the last one has completed, which is what ends the window.
       //
       // The window is held until axi_isolate reports the drain complete, not
       // merely while core_rst_ni is low, so a slow response cannot land on a
-      // freshly released core. uart_loader_active also gates core_rst_ni, but
-      // the loader only serves cores without a debug interface (serv, picorv32,
-      // cvw) and never CVA6, so ~core_rst_ni covers that path. The stage sits
-      // ahead of the request router below, so both the xbar leg and the direct
-      // RAM leg drain under it.
+      // freshly released core: the bridge hides it until then. uart_loader_active
+      // also gates core_rst_ni, but the loader only serves cores without a debug
+      // interface (serv, picorv32, cvw) and never CVA6, so ~core_rst_ni covers
+      // that path. Both stages sit ahead of the request router below, so the
+      // xbar leg and the direct RAM leg drain under them.
       logic          cva6_isolate;
       logic          cva6_isolated;
       logic          cva6_isolate_q;
-      soc_axi_req_t  cva6_iso_req;
+      soc_axi_req_t  cva6_bridge_req;
+      soc_axi_resp_t cva6_bridge_rsp;
       soc_axi_req_t  cva6_iso_mst_req;
       soc_axi_resp_t cva6_iso_mst_rsp;
 
@@ -437,14 +443,30 @@ module soc_top #(
         end
       end
 
-      // The AXI analogue of the OBI buffers' s_rready_i tie-high: while the core
-      // is down, responses are accepted regardless of it, so axi_isolate's drain
-      // completes instead of stalling on a reset core that holds its readies low.
-      always_comb begin
-        cva6_iso_req         = cva6_axi_req;
-        cva6_iso_req.r_ready = cva6_axi_req.r_ready | cva6_isolate;
-        cva6_iso_req.b_ready = cva6_axi_req.b_ready | cva6_isolate;
-      end
+      // cva6_isolate must include ~core_rst_ni combinationally: the reset
+      // asserts asynchronously and the bridge has to take over that cycle.
+      soc_axi_reset_bridge i_cva6_reset_bridge (
+        .clk_i,
+        // rst_ni, not core_rst_ni: the bridge must outlive the core reset.
+        .rst_ni,
+        .isolate_i (cva6_isolate),
+        .slv_req_i (cva6_axi_req),
+        .slv_rsp_o (cva6_axi_rsp),
+        .mst_req_o (cva6_bridge_req),
+        .mst_rsp_i (cva6_bridge_rsp)
+      );
+
+`ifndef SYNTHESIS
+      // The bridge's fabric side must obey the handshake rule through every
+      // core reset; the core side may not (the core legally drops its valids
+      // in reset), so it is not checked on rst_ni.
+      soc_axi_protocol_checker i_cva6_bridge_axi_checker (
+        .clk_i,
+        .rst_ni,
+        .req_i (cva6_bridge_req),
+        .rsp_i (cva6_bridge_rsp)
+      );
+`endif
 
       axi_isolate #(
         // CVA6's outstanding capacity is bounded well below this by
@@ -468,8 +490,8 @@ module soc_top #(
         .clk_i,
         // rst_ni, not core_rst_ni: this stage must outlive the core reset.
         .rst_ni,
-        .slv_req_i  (cva6_iso_req),
-        .slv_resp_o (cva6_axi_rsp),
+        .slv_req_i  (cva6_bridge_req),
+        .slv_resp_o (cva6_bridge_rsp),
         .mst_req_o  (cva6_iso_mst_req),
         .mst_resp_i (cva6_iso_mst_rsp),
         .isolate_i  (cva6_isolate),
@@ -477,10 +499,11 @@ module soc_top #(
       );
 
 `ifndef SYNTHESIS
-      // The drain must finish. It cannot if a write was committed on AW without
-      // its W beat ever being sent, since axi_isolate waits on pending_w and
-      // does not inject one. No regression issues ndmreset with CVA6 traffic in
-      // flight today, so this watchdog is what would surface that corner.
+      // The drain must finish. It cannot if a request the fabric has seen is
+      // never completed - before the bridge, a W lost to the core reset after
+      // its AW was accepted (axi_isolate waits on pending_w and injects none).
+      // The window also covers the core reset itself, so a long ndmreset pulse
+      // can trip this without a stuck drain.
       localparam int unsigned Cva6IsolateTimeout = 1024;
       int unsigned cva6_isolate_cnt_q;
       always_ff @(posedge clk_i or negedge rst_ni) begin
