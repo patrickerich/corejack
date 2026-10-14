@@ -154,6 +154,12 @@ over PNG so diffs remain text-based; the export is deterministic and
 filenames are stable across tab insertions (the slug comes from the tab
 name, not the page index).
 
+drawio needs a display. On a machine without one (neither `DISPLAY` nor
+`WAYLAND_DISPLAY` set, e.g. a headless server over SSH), the target
+starts a private headless
+[weston](https://gitlab.freedesktop.org/wayland/weston) for the export
+and stops it afterwards, so weston must be installed there.
+
 ## Makefile Layout
 
 There is one Makefile, at the repository root, and it is the only entry point:

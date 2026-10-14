@@ -68,13 +68,26 @@ drawio-svg: ## export each docs/source/media/corejack_soc.drawio tab to its own 
 	stem=$$(basename "$(DRAWIO_SRC)" .drawio); \
 	pages=$$(grep -oE '<diagram [^>]*name="[^"]*"' "$(DRAWIO_SRC)" | sed -E 's/.*name="([^"]*)".*/\1/'); \
 	test -n "$$pages" || { echo "Error: no <diagram> pages found in $(DRAWIO_SRC)"; exit 1; }; \
+	ozone=; \
+	if [ -z "$${DISPLAY:-}$${WAYLAND_DISPLAY:-}" ]; then \
+		command -v weston >/dev/null 2>&1 || { echo "Error: no display (DISPLAY and WAYLAND_DISPLAY unset); install weston to export headless"; exit 1; }; \
+		sock=corejack-drawio-$$$$; \
+		log=$$(mktemp); \
+		weston --backend=headless --socket="$$sock" --idle-time=0 --log="$$log" >>"$$log" 2>&1 & weston_pid=$$!; \
+		trap 'kill $$weston_pid 2>/dev/null; wait $$weston_pid 2>/dev/null; rm -f "$$log"' EXIT; \
+		for _ in $$(seq 50); do [ -S "$${XDG_RUNTIME_DIR:-}/$$sock" ] && break; sleep 0.1; done; \
+		[ -S "$${XDG_RUNTIME_DIR:-}/$$sock" ] || { echo "Error: headless weston did not start:"; cat "$$log"; exit 1; }; \
+		echo "  WESTON  headless Wayland display $$sock"; \
+		export WAYLAND_DISPLAY="$$sock"; \
+		ozone=--ozone-platform=wayland; \
+	fi; \
 	idx=0; \
 	printf '%s\n' "$$pages" | while IFS= read -r name; do \
 		idx=$$((idx+1)); \
 		slug=$$(printf '%s' "$$name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g; s/^_//; s/_$$//'); \
 		out="$(DRAWIO_SVG_DIR)/$${stem}_$${slug}.svg"; \
 		echo "  EXPORT  $$out (page $$idx: $$name)"; \
-		"$(DRAWIO)" -x -f svg \
+		"$(DRAWIO)" $$ozone -x -f svg \
 			-p "$$idx" \
 			-b 20 \
 			-s 1 \
@@ -83,7 +96,7 @@ drawio-svg: ## export each docs/source/media/corejack_soc.drawio tab to its own 
 			--svg-theme light \
 			--svg-links-target auto \
 			-o "$$out" \
-			"$(DRAWIO_SRC)" 2>&1 | awk '!/vaInitialize|vaapi_wrapper|libva/'; \
+			"$(DRAWIO_SRC)" 2>&1 | awk '!/vaInitialize|vaapi_wrapper|libva|GDK_IS_SEAT|CreateCommandBuffer/'; \
 		$(PY) bin/postprocess_drawio_svg.py "$$out"; \
 	done
 

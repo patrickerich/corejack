@@ -18,15 +18,27 @@ ndmreset is kept only as a secondary assertion, because the crossbar's
 per-slave-port read paths are independent - SBA keeps working whether or not
 the CVA6 leg is orphaned, so it cannot distinguish the two.
 
-Scope, stated plainly: **this test does not construct the orphan condition.**
-It measures zero fabric-side response activity after ndmreset, because the
-reset synchroniser's delay exceeds the RAM response latency - every in-flight
-response retires while CVA6 is still accepting it. Running this file against
-the pre-isolation RTL produces identical numbers and passes, so it cannot tell
-a working axi_isolate stage from its absence. What it does cover is that a real
-CVA6 survives ndmreset without stalling the fabric or failing to restart, which
-is worth having and did not exist before. Constructing the condition needs a
-hook that stalls the target while the reset lands; see docs/source/open_items.rst.
+Two tests, covering different halves of the problem:
+
+- The traffic test does **not** construct an orphaned response. It measures
+  zero fabric-side response activity after ndmreset, because the reset
+  synchroniser's delay exceeds the RAM response latency - every in-flight
+  response retires while CVA6 is still accepting it. What it covers is that a
+  real CVA6 survives ndmreset without stalling the fabric or failing to restart.
+- The torn-write test **does** construct a torn request. A halted hart's park
+  loop stores to the debug module on every pass, and CVA6's AXI shim has its AW
+  accepted one cycle before its W. ndmreset landing in that gap used to drop W
+  before its handshake, so the write never completed, the isolation stage never
+  drained, and the hart never halted again (the intermittent "Hart 0 failed to
+  halt" seen on the AXKU5). soc_axi_reset_bridge now holds that W. The
+  protocol checkers on the fabric side are part of the check: their $error ends
+  the simulation.
+
+Not constructed here, because CVA6 never produces them on its own (measured:
+zero waiting cycles over 20000 park-loop cycles): an AW or AR still waiting for
+its ready when the reset lands, and a response still stalled toward the core.
+Both need a hook that stalls the target while the reset lands; see
+docs/source/open_items.rst.
 """
 
 import cocotb
@@ -43,6 +55,17 @@ WARMUP_CYCLES = 400
 DRAIN_LIMIT = 64
 # Total cycles to observe after asserting ndmreset.
 OBSERVE_CYCLES = 400
+# Torn writes to construct back to back, so a counter left off by one by the
+# first one shows up as a hang on a later one.
+TORN_WRITE_RESETS = 3
+# Cycles ndmreset is held, as a debugger pulse would be.
+NDMRESET_CYCLES = 50
+# Cycles to wait for the hart to (re-)enter debug mode. It takes about 150
+# after an ndmreset release.
+DEBUG_ENTRY_LIMIT = 5000
+# Park-loop cycles to search for the AW-without-W gap. It opens about once
+# every 120 cycles.
+GAP_SEARCH_LIMIT = 20000
 
 
 async def _reset(dut):
@@ -80,6 +103,70 @@ async def _observe_axi_traffic(dut, cycles):
         if int(dut.dbg_cva6_axi_ar_valid.value) and int(dut.dbg_cva6_axi_ar_ready.value):
             handshakes += 1
     return handshakes
+
+
+async def _wait_debug_mode(dut, limit: int) -> int | None:
+    """Return the cycles until CVA6 is in debug mode, or None after `limit`."""
+    for cycle in range(limit):
+        await RisingEdge(dut.clk_i)
+        await ReadOnly()
+        if int(dut.dbg_cva6_debug_mode.value):
+            return cycle
+    return None
+
+
+async def _wait_aw_without_w(dut) -> int:
+    """Wait for a cycle whose AW handshake completes without its W; return the address.
+
+    Returns in that cycle's ReadOnly phase, before the handshake edge.
+    """
+    for _ in range(GAP_SEARCH_LIMIT):
+        await RisingEdge(dut.clk_i)
+        await ReadOnly()
+        aw = int(dut.dbg_cva6_axi_aw_valid.value) and int(dut.dbg_cva6_axi_aw_ready.value)
+        w = int(dut.dbg_cva6_axi_w_valid.value) and int(dut.dbg_cva6_axi_w_ready.value)
+        if aw and not w:
+            return int(dut.dbg_cva6_axi_aw_addr.value)
+    raise AssertionError(
+        f"no AW handshake without its W in {GAP_SEARCH_LIMIT} park-loop cycles; "
+        "the torn-write condition was not constructed"
+    )
+
+
+@cocotb.test()
+async def ndmreset_between_aw_and_w_recovers_the_hart(dut):
+    await _reset(dut)
+    await RisingEdge(dut.clk_i)
+    # Held throughout, like OpenOCD's `reset halt`: haltreq stays set across
+    # ndmreset, so the hart must come back into debug mode after each release.
+    dut.dbg_force_debug_req.value = 1
+    cycles = await _wait_debug_mode(dut, DEBUG_ENTRY_LIMIT)
+    assert cycles is not None, "CVA6 never entered debug mode"
+
+    isolate = dut.i_soc_top.gen_platform.gen_cva6_core_path.cva6_isolate
+    for n in range(1, TORN_WRITE_RESETS + 1):
+        addr = await _wait_aw_without_w(dut)
+        # The AW handshake completes on this edge; the reset lands right after
+        # it, with the W still owed.
+        await RisingEdge(dut.clk_i)
+        dut.dbg_force_ndmreset.value = 1
+        for _ in range(NDMRESET_CYCLES):
+            await RisingEdge(dut.clk_i)
+        dut.dbg_force_ndmreset.value = 0
+
+        cycles = await _wait_debug_mode(dut, DEBUG_ENTRY_LIMIT)
+        assert cycles is not None, (
+            f"torn write {n} (AW to {addr:#x} accepted, W not): the hart did not "
+            f"re-enter debug mode within {DEBUG_ENTRY_LIMIT} cycles of ndmreset "
+            f"release (cva6_isolate={isolate.value})"
+        )
+        assert not int(isolate.value), (
+            f"torn write {n}: CVA6 is back in debug mode but its AXI isolation "
+            "window never closed"
+        )
+        dut._log.info("torn write %d (AW to %#x): debug mode %d cycles after release",
+                      n, addr, cycles)
+        await RisingEdge(dut.clk_i)
 
 
 @cocotb.test()

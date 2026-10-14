@@ -8,34 +8,18 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
--  **CVA6 on the AXKU5 intermittently fails to halt after ``monitor reset halt``.**
-   In the 2026-09-23 ``make fpga-accept`` run the first halt worked (GDB attached
-   at ``uart_putc``), but after the ``ndmreset``-based ``reset halt`` in
-   ``rtl/platform/fpga/scripts/run_elf.sh`` the hart stayed running
-   (``Unable to halt. dmcontrol=0x80000001, dmstatus=0x00000c82``, i.e. halt
-   requested, all harts running) and ``fpga-run-sw`` failed. Re-running the same
-   bitstream passed 13 times in a row, so the rate is roughly 1 in 14. The
-   failing attempt came straight after the cv32e40s session in the multi-core
-   sequence; every passing retry followed another CVA6 session. ``ndmreset``
-   resets only the core side (``core_rst_ni`` and the CVA6 ``axi_isolate``
-   window), not ``soc_mem_ss``, and the same core passed on the Arty in the same
-   run. Next step when it matters: capture the debug-module state
-   (``dmstatus`` ``allhavereset``/``anyunavail``, ``core_rst_ni``, the isolate
-   drain) with an ILA on a failing attempt, or loop the acceptance with cores
-   interleaved to find what the failing order does differently.
--  **The CVA6 orphaned-response condition is not constructed by any test.**
-   ``cva6-reset-sim`` runs a real CVA6 with ``ndmreset`` forced while it is fetching,
-   and measures zero fabric-side response activity: the reset synchroniser's
-   delay exceeds the RAM response latency, so nothing is ever left outstanding.
-   The test therefore guards against gross regressions but cannot distinguish a
-   working ``axi_isolate`` stage from its absence — verified by running it against
-   the pre-isolation RTL, which passes identically. Constructing the condition
-   needs a hook that stalls the *target* while the reset lands, for example
-   forcing ``mem_init_gnt[5]`` low to hold CVA6's dedicated RAM read engine (or
+-  **Parts of the CVA6 reset bridge are not exercised by any test.**
+   ``cva6-reset-sim`` constructs a torn write (``ndmreset`` between a store's AW
+   and W handshakes) and the bridge completes it, but CVA6 never leaves an AW or
+   AR waiting for its ``READY``, and never leaves a response stalled toward
+   itself, when the reset lands (measured: zero waiting cycles over 20000
+   park-loop cycles). So the bridge's AW/AR hold and its core-side ``BVALID``/
+   ``RVALID`` masking run only by construction, as does the case of a slow
+   target (the APB UART) still outstanding at reset. Constructing them needs a
+   hook that stalls the *target* while the reset lands, for example forcing
+   ``mem_init_gnt[5]`` low to hold CVA6's dedicated RAM read engine (or
    ``mem_init_gnt[0]`` for the crossbar leg), then releasing it after
-   ``core_rst_ni`` drops. That would also cover the untested
-   case of a slow target (the APB UART) still being outstanding at reset. See
-   the reset-ownership section in
+   ``core_rst_ni`` drops. See the reset-ownership section in
    :doc:`riscv_dbg_integration`.
 -  **Sim UART printf is baud-throttled, inflating simulation cycle counts.** The
    cocotb harness captures printf passively by tapping the APB write to the UART

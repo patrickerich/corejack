@@ -80,6 +80,7 @@ sources:
     - rtl/bus/soc_obi_to_axi.sv
     - rtl/bus/soc_axi_to_apb.sv
     - rtl/bus/soc_axi_to_dm.sv
+    - rtl/bus/soc_axi_reset_bridge.sv
     - rtl/bus/soc_axi_to_mem.sv
     - rtl/bus/soc_axi_to_reg.sv
     - rtl/platform/soc_uart_sram_loader.sv
