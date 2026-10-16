@@ -19,3 +19,11 @@ lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'data_wdata'*"
 lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'sba_*"
 lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'ndmreset'*"
 lint_off -rule MULTIDRIVEN -file "*/rtl/top/soc_top.sv" -match "*'debug_req_o'*"
+
+// The CVA6 leg gate and response-ready hold in tb/soc_dut.sv force single
+// fields of these structs. Verilator keeps a signal's forced values in one
+// vector, which each forcing block updates in part, so it reports a loop
+// through that vector that does not exist in the design.
+lint_off -rule UNOPTFLAT -file "*/rtl/top/soc_top.sv" -match "*'*cva6_route_req__VforceVal'*"
+lint_off -rule UNOPTFLAT -file "*/rtl/top/soc_top.sv" -match "*'*cva6_route_rsp__VforceVal'*"
+lint_off -rule UNOPTFLAT -file "*/rtl/top/soc_top.sv" -match "*'*cva6_axi_req__VforceVal'*"
