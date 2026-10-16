@@ -8,19 +8,6 @@ open items are latent gaps, tech debt, or design decisions parked for later.
 
 Add an entry when you choose not to fix something now; remove it once resolved.
 
--  **Parts of the CVA6 reset bridge are not exercised by any test.**
-   ``cva6-reset-sim`` constructs a torn write (``ndmreset`` between a store's AW
-   and W handshakes) and the bridge completes it, but CVA6 never leaves an AW or
-   AR waiting for its ``READY``, and never leaves a response stalled toward
-   itself, when the reset lands (measured: zero waiting cycles over 20000
-   park-loop cycles). So the bridge's AW/AR hold and its core-side ``BVALID``/
-   ``RVALID`` masking run only by construction, as does the case of a slow
-   target (the APB UART) still outstanding at reset. Constructing them needs a
-   hook that stalls the *target* while the reset lands, for example forcing
-   ``mem_init_gnt[5]`` low to hold CVA6's dedicated RAM read engine (or
-   ``mem_init_gnt[0]`` for the crossbar leg), then releasing it after
-   ``core_rst_ni`` drops. See the reset-ownership section in
-   :doc:`riscv_dbg_integration`.
 -  **Sim UART printf is baud-throttled, inflating simulation cycle counts.** The
    cocotb harness captures printf passively by tapping the APB write to the UART
    THR (``tb/uart_apb_tx_monitor.sv``), so capture does not decode the serial pin.

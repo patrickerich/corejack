@@ -46,6 +46,11 @@ module soc_dut;
   logic dbg_force_sba_req;
   logic dbg_force_debug_req;
   logic dbg_force_ndmreset;
+  // Stalls CVA6's two fabric legs; see the gate below.
+  logic dbg_cva6_gate;
+  logic dbg_cva6_gate_q;
+  // Holds CVA6's response readies low while it is isolated; see below.
+  logic dbg_cva6_hold_rsp_ready;
   logic dbg_instr_req;
   logic [31:0] dbg_instr_addr;
   logic dbg_data_req;
@@ -84,6 +89,14 @@ module soc_dut;
   logic dbg_cva6_ram_r_ready;
   logic dbg_cva6_ram_b_valid;
   logic dbg_cva6_ram_b_ready;
+  // Both sides of soc_axi_reset_bridge: responses toward the core
+  // (dbg_cva6_axi_*) and from the fabric (dbg_cva6_bridge_*), and the
+  // transactions the fabric side has accepted but not yet answered.
+  logic dbg_cva6_axi_b_valid;
+  logic dbg_cva6_axi_r_valid;
+  logic dbg_cva6_bridge_b_valid;
+  logic dbg_cva6_bridge_r_valid;
+  logic [7:0] dbg_cva6_outstanding_q;
   logic [63:0] dbg_cva6_frontend_npc;
   logic [63:0] dbg_cva6_frontend_vaddr;
   logic [63:0] dbg_cva6_frontend_data;
@@ -250,6 +263,126 @@ module soc_dut;
       i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[1].b_valid;
   assign dbg_cva6_ram_b_ready  =
       i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[1].b_ready;
+  assign dbg_cva6_axi_b_valid  = i_soc_top.gen_platform.cva6_axi_rsp.b_valid;
+  assign dbg_cva6_axi_r_valid  = i_soc_top.gen_platform.cva6_axi_rsp.r_valid;
+  assign dbg_cva6_bridge_b_valid =
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_rsp.b_valid;
+  assign dbg_cva6_bridge_r_valid =
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_rsp.r_valid;
+
+  // All CVA6 traffic is single-beat, so each accepted AR or AW is answered by
+  // exactly one R or B.
+  logic dbg_cva6_bridge_ar_fire;
+  logic dbg_cva6_bridge_aw_fire;
+  logic dbg_cva6_bridge_r_fire;
+  logic dbg_cva6_bridge_b_fire;
+
+  assign dbg_cva6_bridge_ar_fire =
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_req.ar_valid &&
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_rsp.ar_ready;
+  assign dbg_cva6_bridge_aw_fire =
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_req.aw_valid &&
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_rsp.aw_ready;
+  assign dbg_cva6_bridge_r_fire =
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_rsp.r_valid &&
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_req.r_ready;
+  assign dbg_cva6_bridge_b_fire =
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_rsp.b_valid &&
+      i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_req.b_ready;
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      dbg_cva6_outstanding_q <= '0;
+    end else begin
+      dbg_cva6_outstanding_q <= dbg_cva6_outstanding_q
+                                + 8'(dbg_cva6_bridge_ar_fire) + 8'(dbg_cva6_bridge_aw_fire)
+                                - 8'(dbg_cva6_bridge_r_fire) - 8'(dbg_cva6_bridge_b_fire);
+    end
+  end
+
+  // Gate on CVA6's two fabric legs behind its request router: route 0 to the
+  // crossbar, route 1 to the RAM bridge. While engaged, each leg looks like a
+  // target that has stopped answering: no request reaches the target and no
+  // request ready comes back, no response reaches the router and no response
+  // ready reaches the target. Both halves of every handshake are forced, so
+  // neither side completes a transfer the other did not see. Requests back up
+  // into soc_axi_reset_bridge and responses stay with the targets, which is
+  // what an ndmreset landing on a slow target looks like. The gate sits behind
+  // axi_isolate rather than in front of it so that every signal axi_isolate
+  // reads, its own outputs included, keeps its real value.
+  //
+  // It engages only at an edge where nothing waits on either leg, so no valid
+  // presented before the gate is withdrawn under the protocol checkers.
+  logic dbg_cva6_legs_busy;
+
+  always_comb begin
+    dbg_cva6_legs_busy = 1'b0;
+    for (int unsigned i = 0; i < 2; i++) begin
+      dbg_cva6_legs_busy |=
+          (i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].aw_valid &&
+           !i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].aw_ready) ||
+          (i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].w_valid &&
+           !i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].w_ready) ||
+          (i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].ar_valid &&
+           !i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].ar_ready) ||
+          (i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].b_valid &&
+           !i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].b_ready) ||
+          (i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].r_valid &&
+           !i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].r_ready);
+    end
+  end
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      dbg_cva6_gate_q <= 1'b0;
+    end else begin
+      dbg_cva6_gate_q <= dbg_cva6_gate && (dbg_cva6_gate_q || !dbg_cva6_legs_busy);
+    end
+  end
+
+  for (genvar i = 0; i < 2; i++) begin : gen_cva6_leg_gate
+    always_comb begin
+      if (dbg_cva6_gate_q) begin
+        force i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].aw_valid = 1'b0;
+        force i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].w_valid  = 1'b0;
+        force i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].ar_valid = 1'b0;
+        force i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].b_ready  = 1'b0;
+        force i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].r_ready  = 1'b0;
+        force i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].aw_ready = 1'b0;
+        force i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].w_ready  = 1'b0;
+        force i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].ar_ready = 1'b0;
+        force i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].b_valid  = 1'b0;
+        force i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].r_valid  = 1'b0;
+      end else begin
+        release i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].aw_valid;
+        release i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].w_valid;
+        release i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].ar_valid;
+        release i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].b_ready;
+        release i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[i].r_ready;
+        release i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].aw_ready;
+        release i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].w_ready;
+        release i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].ar_ready;
+        release i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].b_valid;
+        release i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[i].r_valid;
+      end
+    end
+  end
+
+  // The AXI reset rule constrains only VALIDs, so an initiator may hold BREADY
+  // and RREADY low in reset, and a restarted one may keep them low for a
+  // while. CVA6 drives both high in reset, which leaves soc_axi_reset_bridge's
+  // own retiring of responses unobservable; this models an initiator that
+  // does not. The core sees no B or R valid while isolated, so it completes
+  // no handshake either way.
+  always_comb begin
+    if (dbg_cva6_hold_rsp_ready && i_soc_top.gen_platform.gen_cva6_core_path.cva6_isolate) begin
+      force i_soc_top.gen_platform.cva6_axi_req.b_ready = 1'b0;
+      force i_soc_top.gen_platform.cva6_axi_req.r_ready = 1'b0;
+    end else begin
+      release i_soc_top.gen_platform.cva6_axi_req.b_ready;
+      release i_soc_top.gen_platform.cva6_axi_req.r_ready;
+    end
+  end
 `else
   assign dbg_cva6_debug_mode   = 1'b0;
   assign dbg_cva6_set_debug_pc = 1'b0;
@@ -276,6 +409,12 @@ module soc_dut;
   assign dbg_cva6_ram_r_ready  = 1'b0;
   assign dbg_cva6_ram_b_valid  = 1'b0;
   assign dbg_cva6_ram_b_ready  = 1'b0;
+  assign dbg_cva6_axi_b_valid  = 1'b0;
+  assign dbg_cva6_axi_r_valid  = 1'b0;
+  assign dbg_cva6_bridge_b_valid = 1'b0;
+  assign dbg_cva6_bridge_r_valid = 1'b0;
+  assign dbg_cva6_outstanding_q  = '0;
+  assign dbg_cva6_gate_q       = 1'b0;
 `endif
 `endif
 endmodule

@@ -264,14 +264,28 @@ Measured behaviour, from ``make cva6-reset-sim``:
 -  With the hart halted and ``ndmreset`` forced between a store's AW and W
    handshakes, three times in a row, the hart is back in debug mode 146 cycles
    after each release - the same as a reset with no write in flight.
+-  CVA6 alone never leaves an AW or AR waiting when the reset lands, so the
+   testbench stalls its targets. A gate behind the request router stops both
+   fabric legs, as a target that has stopped answering would. With the hart
+   halted, the gate engages at 42 phases of the debug park loop and
+   ``ndmreset`` lands about 20 cycles later. Across the phases the bridge is
+   holding an AR (16 phases) or an AW with its W (2 phases), and in 32 phases a
+   request the fabric accepted is still unanswered. The gate opens either halfway
+   through the reset or 300 cycles after it, which leaves the restarted core
+   waiting behind isolation. In every phase, both ways, the hart returns to
+   debug mode with isolation closed. The core sees no response while isolated,
+   and no request from the restarted core is accepted until isolation ends.
+-  CVA6 keeps ``BREADY`` and ``RREADY`` high even in reset, which would hide
+   whether the bridge retires responses on its own. Rule 2 does not require
+   that, so these tests also hold CVA6's readies low while it is isolated.
+   Removing any one of the bridge's four functions - the request hold, the
+   response masking toward the core, the forced response readies, or the
+   request-ready masking toward the core - makes at least one of these tests
+   fail.
 
 On hardware, with the bridge in place, 1000 back-to-back ``reset halt``
 commands from OpenOCD on a halted CVA6 all succeed, on both the AXKU5 and the
 Arty A7. Before the fix, the AXKU5 first failed at the 41st.
-
-The bridge's AW/AR hold and its core-side response masking are not exercised:
-CVA6 does not leave an AW or AR waiting, or a response stalled toward itself,
-when the reset lands. See :doc:`open_items`.
 
 OpenOCD And GDB Flow
 --------------------
