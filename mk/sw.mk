@@ -9,6 +9,7 @@
 # after TARGET and SW_APP, and make expands target names when it reads the
 # Makefile - before a target-specific TARGET (sim-run-sw's, fpga-load-sw's)
 # would apply - so only a fresh invocation builds into the right directory.
+# For TARGET=sim it passes SIM_UART_BAUD (see mk/sim.mk) as UART_BAUD.
 SW_CMAKE_BUILD_DIR = $(SW_BUILD_DIR)/cmake
 SW_DIS             = $(SW_BUILD_DIR)/$(SW_APP).dis
 # Marker token written into each CMake build dir after a successful configure.
@@ -32,7 +33,7 @@ SW_TOOLCHAIN_PATH := $(COREJACK_RISCV_TOOLCHAIN)/bin:
 SW_CROSS_COMPILE  := riscv64-unknown-elf-
 
 sw-build: ## build SW_APP and emit ELF/bin/disassembly/banked RAM hex
-	@$(MAKE) --no-print-directory sw-image SW_APP="$(SW_APP)" TARGET="$(TARGET)" CORE="$(CORE)" BOARD="$(BOARD)" TOOLCHAIN="$(TOOLCHAIN)" MARCH="$(MARCH)" MABI="$(MABI)" SOC_CLK_HZ="$(SOC_CLK_HZ)" UART_BAUD="$(UART_BAUD)" SOC_RAM_BYTES="$(SOC_RAM_BYTES)"
+	@$(MAKE) --no-print-directory sw-image SW_APP="$(SW_APP)" TARGET="$(TARGET)" CORE="$(CORE)" BOARD="$(BOARD)" TOOLCHAIN="$(TOOLCHAIN)" MARCH="$(MARCH)" MABI="$(MABI)" SOC_CLK_HZ="$(SOC_CLK_HZ)" UART_BAUD="$(if $(filter sim,$(TARGET)),$(SIM_UART_BAUD),$(UART_BAUD))" SOC_RAM_BYTES="$(SOC_RAM_BYTES)"
 ## select software platform with TARGET=fpga|sim
 
 sw-build-hello: ## build the hello_world firmware image

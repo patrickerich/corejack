@@ -328,7 +328,13 @@ per 64-bit word                     9.08 cycles  1.18 cycles  **1.06 cycles**
 CPU/DMA overlap (1000 = serialized) 1114         1853         **1849**
 =================================== ============ ============ ================
 
-That is ~95% of the one-word-per-cycle ceiling. At a bound of 8, a waveform put
+The CPU-side figures depend on the benchmark's code layout, because Ibex's
+instruction fetch is sensitive to loop alignment. A 2-byte code shift, from
+changing the simulated UART baud constant, moved the CPU loop alone from 3164 to
+3605 cycles and with it the overlap from 1849 to 1956; the copy moved only from
+3244 to 3258. Compare runs of the same build rather than against these figures.
+
+The bound-10 copy is ~95% of the one-word-per-cycle ceiling. At a bound of 8, a waveform put
 384 of the 544 cycles above the ideal on the bound itself: admit-to-response
 takes eight cycles on the Xilinx slice, so each engine stalled one cycle in
 nine. Of the remaining 172, 135 are the CSR launch and ``DONE_ID`` polling
