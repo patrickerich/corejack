@@ -194,12 +194,12 @@ state/checksum:
 
 For the iDMA system DMA there is ``dma_smoke``, which drives aligned, unaligned,
 and 1 KiB memory-to-memory copies through ``sw/c/common/dma.h`` and verifies the
-destination buffers. Its UART output makes it slower than the default
-simulation budget, so give it more cycles:
+destination buffers. It fits the default simulation budget on Ibex; CVW and SERV
+need more cycles (about 1.5M and 4.4M):
 
 .. code:: bash
 
-   make sim-run-sw SW_APP=dma_smoke SIM_TIMEOUT_CYCLES=2000000
+   make sim-run-sw SW_APP=dma_smoke
 
 For the PLIC there is ``plic_smoke``, which validates poll-mode claim/complete,
 threshold masking, and interrupt-driven delivery of the UART interrupt through

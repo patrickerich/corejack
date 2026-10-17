@@ -388,8 +388,9 @@ Two things are intentionally **not** done:
    is a core limit rather than a fabric one: Ibex's instruction-fetch unit has a
    lower-level outstanding-fetch option its top-level parameter list does not
    expose. Worth measuring before assuming it pays — in ``mem-bw-bench`` the CPU
-   streaming loop costs ~24 cycles per memory operation on Ibex, which is the
-   core's execution rate, not memory latency. Raising it means editing vendored
+   streaming loop costs ~25-28 cycles per memory operation on Ibex (the figure
+   moves with code alignment), which is the core's execution rate, not memory
+   latency. Raising it means editing vendored
    core RTL and needs to be a deliberate, separately validated change.
 
 Software Ecosystem

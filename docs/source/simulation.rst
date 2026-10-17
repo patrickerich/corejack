@@ -311,9 +311,20 @@ Other Knobs
 
 -  ``SIM_TIMEOUT_CYCLES`` (default ``1000000``) bounds a software simulation; it is
    passed through to the testbench as the ``COREJACK_TIMEOUT_CYCLES`` cocotb
-   environment variable. Print-heavy apps need more than the default -
-   ``dma_smoke`` and ``plic_smoke`` run with ``SIM_TIMEOUT_CYCLES=2000000`` (the FPGA
-   acceptance script accepts the same variable).
+   environment variable. ``plic_smoke`` needs more than the default - its fixed
+   spin loops alone take most of it - so run it with
+   ``SIM_TIMEOUT_CYCLES=2000000``, and the slower cores (CVW, SERV) need more for
+   ``dma_smoke`` too (the FPGA acceptance script accepts the same variable).
+-  ``SIM_UART_BAUD`` (default ``SOC_CLK_HZ / 32``, 781250 at 25 MHz) replaces the
+   board's UART baud in every ``TARGET=sim`` software build. ``uart_init`` rounds
+   it to divisor 2, the fastest the vendored UART runs: its baud generator treats
+   divisor 1 as unset and never sends. ``uart_putc`` waits for each character to
+   go out, so a printed character costs ~320 cycles instead of ~2240 at 115200
+   baud; ``hello_world`` on Ibex passes in ~55k cycles instead of ~351k. The
+   testbench takes UART output from the APB write, so capture does not depend
+   on the baud. The image does change: the different constant moves code, so
+   cycle-timed output such as ``mem-bw-bench``'s figures can shift. Set
+   ``SIM_UART_BAUD=115200`` to simulate at the board's baud.
 -  ``SW_APP`` selects the bare-metal application for ``sim-run-sw``; ``make list-apps``
    lists the available apps under ``sw/c/``.
 -  ``CORE`` / ``BOARD`` select the descriptor-driven target; ``AXI_SMOKE_CORES``

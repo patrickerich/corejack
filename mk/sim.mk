@@ -5,6 +5,15 @@
 
 SIM_TIMEOUT_CYCLES ?= 1000000
 MEM_BW_TIMEOUT_CYCLES ?= 4000000
+# Software built with TARGET=sim programs the UART at SOC_CLK_HZ/32, which
+# uart_init rounds to divisor 2: the fastest the vendored UART runs, because its
+# baud generator treats divisor 1 as unset and never sends. uart_putc waits for
+# each character to go out, so this cuts every printed character from ~2240
+# cycles at 115200 baud to ~320. The testbench reads UART output from the APB
+# write, so capture does not depend on the baud. The different constant does
+# move code, so cycle-timed figures such as mem-bw-bench's can shift. Set
+# SIM_UART_BAUD=115200 to simulate at the board's baud.
+SIM_UART_BAUD ?= $(if $(SOC_CLK_HZ),$(shell expr $(SOC_CLK_HZ) / 32))
 SIM_FUSESOC_WORK_ROOT ?= $(CURDIR)/build/sim/fusesoc/$(CORE)/$(SIM_FUSESOC_TARGET)
 SIM_WAVES      ?= 0
 SIM_WAVE_FORMAT ?= fst
