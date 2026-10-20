@@ -69,6 +69,26 @@ else()
   set(COREJACK_HAS_EXT_IRQ 1)
 endif()
 
+# PicoRV32 is built without interrupts (ENABLE_IRQ=0 in its socket adapter) and
+# has no machine-mode CSRs, so it halts on the first csrw mtvec; apps skip
+# their timer-interrupt test cases on this.
+if(COREJACK_CORE STREQUAL "picorv32")
+  set(COREJACK_HAS_TIMER_IRQ 0)
+else()
+  set(COREJACK_HAS_TIMER_IRQ 1)
+endif()
+
+# SERV takes every trap at the mtvec base (no vectored mode) and decodes wfi
+# as ebreak. Apps that wait for an interrupt point mtvec straight at the
+# handler and spin instead of sleeping when these are 0.
+if(COREJACK_CORE STREQUAL "serv")
+  set(COREJACK_HAS_VECTORED_MTVEC 0)
+  set(COREJACK_HAS_WFI 0)
+else()
+  set(COREJACK_HAS_VECTORED_MTVEC 1)
+  set(COREJACK_HAS_WFI 1)
+endif()
+
 add_subdirectory(common)
 
 file(GLOB app_main_files CONFIGURE_DEPENDS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "*/main.c")
@@ -96,5 +116,8 @@ foreach(app_main ${app_main_files})
     COREJACK_UART_BAUD=${COREJACK_UART_BAUD}u
     COREJACK_HAS_JTAG_DEBUG=${COREJACK_HAS_JTAG_DEBUG}
     COREJACK_HAS_EXT_IRQ=${COREJACK_HAS_EXT_IRQ}
+    COREJACK_HAS_TIMER_IRQ=${COREJACK_HAS_TIMER_IRQ}
+    COREJACK_HAS_VECTORED_MTVEC=${COREJACK_HAS_VECTORED_MTVEC}
+    COREJACK_HAS_WFI=${COREJACK_HAS_WFI}
   )
 endforeach()

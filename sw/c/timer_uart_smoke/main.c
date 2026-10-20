@@ -13,6 +13,7 @@
 #define MSTATUS_MIE (1u << 3)
 #define MIE_MTIE    (1u << 7)
 
+#if COREJACK_HAS_TIMER_IRQ
 static volatile uint32_t timer_seen;
 
 static inline uint32_t mmio_read32(uint32_t addr) {
@@ -79,7 +80,8 @@ static void write_mtimecmp(uint64_t value) {
 }
 
 /* crt0.S vector table; mtvec points here in vectored mode, which is what
- * the vectored-only cores (Ibex, CV32E40*) require. */
+ * the vectored-only cores (Ibex, CV32E40*) require. SERV has no vectored
+ * mode, so there mtvec points straight at the handler instead. */
 extern const char _vectors[];
 
 /* Timer slot of the crt0 vector table (overrides the weak default). */
@@ -88,16 +90,22 @@ void corejack_timer_vector(void) {
   timer_seen = 1u;
   write_mtimecmp(UINT64_MAX);
 }
+#endif
 
 int main(void) {
-  uint64_t now;
-
   uart_init(UART0_BASE, COREJACK_CORE_CLK_HZ, COREJACK_UART_BAUD);
   printf("timer_uart_smoke start\n");
   printf("Core: " COREJACK_CORE "\n");
 
+#if COREJACK_HAS_TIMER_IRQ
+  uint64_t now;
+
   timer_seen = 0u;
+#if COREJACK_HAS_VECTORED_MTVEC
   csr_write_mtvec((uint32_t)(uintptr_t)_vectors | 1u);  /* vectored mode */
+#else
+  csr_write_mtvec((uint32_t)(uintptr_t)corejack_timer_vector);  /* direct mode */
+#endif
 
   now = read_mtime();
   write_mtimecmp(now + 1000u);
@@ -106,13 +114,18 @@ int main(void) {
   csr_set_mstatus(MSTATUS_MIE);
 
   while (timer_seen == 0u) {
+#if COREJACK_HAS_WFI
     __asm__ volatile("wfi");
+#endif
   }
 
   csr_clear_mstatus(MSTATUS_MIE);
   csr_clear_mie(MIE_MTIE);
 
   printf("timer_uart_smoke timer interrupt observed\n");
+#else
+  printf("timer_uart_smoke timer interrupt skipped (core has no interrupts)\n");
+#endif
   printf("timer_uart_smoke pass\n");
   sim_ctrl_pass();
 

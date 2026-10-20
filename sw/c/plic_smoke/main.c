@@ -17,9 +17,6 @@
 
 #define SPIN_LIMIT 200000u
 
-static volatile uint32_t ext_seen;
-static volatile uint32_t ext_claimed_id;
-
 static inline void mmio_write8(uint32_t addr, uint8_t value) {
   *(volatile uint8_t *)(uintptr_t)addr = value;
 }
@@ -64,6 +61,10 @@ static int str_eq(const char *lhs, const char *rhs) {
   return *lhs == *rhs;
 }
 
+#if COREJACK_HAS_EXT_IRQ
+static volatile uint32_t ext_seen;
+static volatile uint32_t ext_claimed_id;
+
 /* crt0.S vector table; mtvec points here in vectored mode, which is what
  * the vectored-only cores (Ibex, CV32E40*) require. */
 extern const char _vectors[];
@@ -84,6 +85,7 @@ void corejack_external_vector(void) {
   ext_claimed_id = id;
   ext_seen = 1u;
 }
+#endif
 
 /* Poll-mode claim/complete with the core's interrupts left disabled. */
 static int run_case_poll(void) {
@@ -106,6 +108,7 @@ static int run_case_poll(void) {
   return 0;
 }
 
+#if COREJACK_HAS_EXT_IRQ
 /* With the threshold at the maximum, the pending source must not reach the
  * core even though interrupts are globally enabled. */
 static int run_case_masked(void) {
@@ -147,6 +150,7 @@ static int run_case_interrupt(void) {
          ext_claimed_id);
   return 0;
 }
+#endif
 
 int main(void) {
   int failures = 0;
@@ -166,6 +170,7 @@ int main(void) {
 
   failures += run_case_poll();
 
+#if COREJACK_HAS_EXT_IRQ
   csr_write_mtvec((uintptr_t)_vectors | 1u);  /* vectored mode */
   csr_set_mie(MIE_MEIE);
   csr_set_mstatus(MSTATUS_MIE);
@@ -174,6 +179,9 @@ int main(void) {
   failures += run_case_interrupt();
 
   csr_clear_mstatus(MSTATUS_MIE);
+#else
+  printf("PLIC cases masked, interrupt: skipped (no external interrupt input)\n");
+#endif
   plic_disable(PLIC_SRC_UART0);
 
   if (failures != 0) {
@@ -181,7 +189,11 @@ int main(void) {
            failures == 1 ? "" : "s");
     sim_ctrl_fail(1u);
   } else {
+#if COREJACK_HAS_EXT_IRQ
     printf("PLIC external interrupt path is alive.\n");
+#else
+    printf("PLIC claim/complete path is alive.\n");
+#endif
     if (str_eq(COREJACK_TARGET, "sim")) {
       printf("UART and sim_ctrl path are alive.\n");
     } else if (COREJACK_HAS_JTAG_DEBUG) {
