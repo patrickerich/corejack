@@ -15,6 +15,14 @@ MEM_BW_TIMEOUT_CYCLES ?= 4000000
 # SIM_UART_BAUD=115200 to simulate at the board's baud.
 SIM_UART_BAUD ?= $(if $(SOC_CLK_HZ),$(shell expr $(SOC_CLK_HZ) / 32))
 SIM_FUSESOC_WORK_ROOT ?= $(CURDIR)/build/sim/fusesoc/$(CORE)/$(SIM_FUSESOC_TARGET)
+# cocotb ends the simulator with exit code 0 whether its tests pass or fail, and
+# writes the outcome to the JUnit file named by COCOTB_RESULTS_FILE. cocotb's own
+# makefiles then check that file; FuseSoC does not. So each cocotb target below
+# deletes its results file, runs, and checks the file with sim_check_results: a
+# failing test, or a run that stops before writing the file, fails make.
+SIM_RESULTS_DIR ?= $(CURDIR)/build/sim/results
+sim_check_results = "$(VENV_PY)" -m cocotb_tools.check_results "$(1)" || \
+	{ echo "Error: cocotb tests failed, or the simulation wrote no results: $(1)"; exit 1; }
 SIM_WAVES      ?= 0
 SIM_WAVE_FORMAT ?= fst
 SIM_WAVE_DIR   ?= $(CURDIR)/build/waves
@@ -61,10 +69,14 @@ sim-run-sw: deps-core sw-build ## build TARGET=sim SW_APP and run cocotb softwar
 		echo "Waveform: $$wave_file"; \
 		run_options="$$run_options --trace --trace-file $$wave_file"; \
 	fi; \
+	results="$(SIM_RESULTS_DIR)/$(SIM_FUSESOC_TARGET)-$(CORE)-$(SW_APP).xml"; \
+	mkdir -p "$(SIM_RESULTS_DIR)"; rm -f "$$results"; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" \
 		COREJACK_TIMEOUT_CYCLES='$(SIM_TIMEOUT_CYCLES)' \
 		CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) --run_options="$$run_options"
+		COCOTB_RESULTS_FILE="$$results" \
+		fusesoc --cores-root . run --clean --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) --run_options="$$run_options" && \
+	$(call sim_check_results,$$results)
 ## tests must use sim_ctrl_pass()/sim_ctrl_fail() and print via UART
 ## set SIM_WAVES=1 SIM_WAVE_FORMAT=fst|vcd to dump optional waveforms
 ## set SIM_ASSERTS=0 to disable the common_cells IP assertions
@@ -78,8 +90,12 @@ cva6-reset-sim: deps-base deps-cva6 ## run CVA6 AXI reset-isolation regression
 		echo "Waveform: $$wave_file"; \
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
+	results="$(SIM_RESULTS_DIR)/cva6-reset-sim.xml"; \
+	mkdir -p "$(SIM_RESULTS_DIR)"; rm -f "$$results"; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target cva6-reset-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		COCOTB_RESULTS_FILE="$$results" \
+		fusesoc --cores-root . run --clean --target cva6-reset-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
+	$(call sim_check_results,$$results)
 
 # Appends the ibex, cv32e40p and cv32e40s filesets (see corejack.core), so it
 # needs those cores fetched -- deps-base alone leaves fusesoc unable to find
@@ -93,8 +109,12 @@ debug-sim: deps-base deps-cv32e40p deps-cv32e40s ## run debug-window and SBA int
 		echo "Waveform: $$wave_file"; \
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
+	results="$(SIM_RESULTS_DIR)/debug-sim.xml"; \
+	mkdir -p "$(SIM_RESULTS_DIR)"; rm -f "$$results"; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target debug-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		COCOTB_RESULTS_FILE="$$results" \
+		fusesoc --cores-root . run --clean --target debug-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
+	$(call sim_check_results,$$results)
 
 axi-adapter-sim: deps-base ## run OBI-to-AXI and AXI-to-memory adapter regressions
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -105,8 +125,12 @@ axi-adapter-sim: deps-base ## run OBI-to-AXI and AXI-to-memory adapter regressio
 		echo "Waveform: $$wave_file"; \
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
+	results="$(SIM_RESULTS_DIR)/axi-adapter-sim.xml"; \
+	mkdir -p "$(SIM_RESULTS_DIR)"; rm -f "$$results"; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target axi-adapter-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		COCOTB_RESULTS_FILE="$$results" \
+		fusesoc --cores-root . run --clean --target axi-adapter-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
+	$(call sim_check_results,$$results)
 
 uart-loader-sim: deps-base ## run side-path UART SRAM loader protocol regression
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -117,8 +141,12 @@ uart-loader-sim: deps-base ## run side-path UART SRAM loader protocol regression
 		echo "Waveform: $$wave_file"; \
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
+	results="$(SIM_RESULTS_DIR)/uart-loader-sim.xml"; \
+	mkdir -p "$(SIM_RESULTS_DIR)"; rm -f "$$results"; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target uart-loader-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		COCOTB_RESULTS_FILE="$$results" \
+		fusesoc --cores-root . run --clean --target uart-loader-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
+	$(call sim_check_results,$$results)
 
 plic-sim: deps-base ## run soc_plic claim/complete and gateway regression
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -129,8 +157,12 @@ plic-sim: deps-base ## run soc_plic claim/complete and gateway regression
 		echo "Waveform: $$wave_file"; \
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
+	results="$(SIM_RESULTS_DIR)/plic-sim.xml"; \
+	mkdir -p "$(SIM_RESULTS_DIR)"; rm -f "$$results"; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target plic-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		COCOTB_RESULTS_FILE="$$results" \
+		fusesoc --cores-root . run --clean --target plic-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
+	$(call sim_check_results,$$results)
 
 # System-level memory-bandwidth benchmark: a CPU streaming loop against a
 # concurrent iDMA copy, timed with the mcycle CSR so the figures are unaffected
@@ -149,8 +181,12 @@ mem-ss-bench: deps-base ## measure soc_mem_ss words/cycle vs active ports/banks
 		echo "Waveform: $$wave_file"; \
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
+	results="$(SIM_RESULTS_DIR)/mem-ss-bench.xml"; \
+	mkdir -p "$(SIM_RESULTS_DIR)"; rm -f "$$results"; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target mem-ss-bench --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		COCOTB_RESULTS_FILE="$$results" \
+		fusesoc --cores-root . run --clean --target mem-ss-bench --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
+	$(call sim_check_results,$$results)
 
 # Self-checking SystemVerilog benches with no cocotb side (tb/tb_mem_ss.sv,
 # tb/tb_axi_to_mem.sv). The bench prints PASS/FAIL and exits nonzero on
@@ -178,7 +214,7 @@ axi-addr-map-check: ## check AXI fabric address windows for overlap
 axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench sv-tb-smoke mem-bw-bench debug-sim cva6-reset-sim ## run AXI fabric regressions and supported-core SW sims
 	@for core in $(AXI_SMOKE_CORES); do \
 		echo "AXI smoke: sim-run-sw CORE=$$core"; \
-		$(MAKE) sim-run-sw CORE="$$core" SW_APP=hello_world SIM_TIMEOUT_CYCLES="$(SIM_TIMEOUT_CYCLES)"; \
+		$(MAKE) sim-run-sw CORE="$$core" SW_APP=hello_world SIM_TIMEOUT_CYCLES="$(SIM_TIMEOUT_CYCLES)" || exit 1; \
 	done
 
 smoke: deps-base ## run FuseSoC cocotb+Verilator smoke target
@@ -191,7 +227,11 @@ smoke: deps-base ## run FuseSoC cocotb+Verilator smoke target
 		echo "Waveform: $$wave_file"; \
 		extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
 	fi; \
+	results="$(SIM_RESULTS_DIR)/smoke.xml"; \
+	mkdir -p "$(SIM_RESULTS_DIR)"; rm -f "$$results"; \
 	PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
-		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}"
+		COCOTB_RESULTS_FILE="$$results" \
+		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
+	$(call sim_check_results,$$results)
 
 .PHONY: sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke smoke
