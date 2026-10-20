@@ -25,8 +25,13 @@ flows compile a bare-metal application and run it on the full platform, so they
 additionally need a RISC-V GNU toolchain.
 
 Simulation outputs are written under the ignored ``build/`` tree: the FuseSoC work
-root is ``build/sim/fusesoc/<core>/<target>/``, and optional waveforms land in
-``build/waves/``.
+root is ``build/sim/fusesoc/<core>/<target>/``, cocotb results files land in
+``build/sim/results/``, and optional waveforms land in ``build/waves/``.
+
+cocotb exits with status 0 even when a test fails; it records the outcome in its
+results file instead. Each cocotb target therefore checks that file after the run
+and fails if any test failed or the file is missing, so ``make`` (and CI) fails
+whenever a simulation does.
 
 Prerequisites
 -------------
