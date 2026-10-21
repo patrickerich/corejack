@@ -28,6 +28,13 @@ Simulation outputs are written under the ignored ``build/`` tree: the FuseSoC wo
 root is ``build/sim/fusesoc/<core>/<target>/``, cocotb results files land in
 ``build/sim/results/``, and optional waveforms land in ``build/waves/``.
 
+``sim-run-sw`` keeps that work root between runs, because the software only
+reaches the model at run time. Running another app, or the same one again, on a
+core therefore reuses its compiled model; FuseSoC and Verilator rebuild it only
+when a source, flag, or parameter changed. This saves about 20 s per run. A file
+whose content changed without a newer timestamp (copied with ``cp -p`` or
+unpacked from an archive) is not noticed; ``make clean`` forces a full rebuild.
+
 cocotb exits with status 0 even when a test fails; it records the outcome in its
 results file instead. Each cocotb target therefore checks that file after the run
 and fails if any test failed or the file is missing, so ``make`` (and CI) fails
