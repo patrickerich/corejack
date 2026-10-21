@@ -323,10 +323,8 @@ Other Knobs
 
 -  ``SIM_TIMEOUT_CYCLES`` (default ``1000000``) bounds a software simulation; it is
    passed through to the testbench as the ``COREJACK_TIMEOUT_CYCLES`` cocotb
-   environment variable. ``plic_smoke`` needs more than the default - its fixed
-   spin loops alone take most of it - so run it with
-   ``SIM_TIMEOUT_CYCLES=2000000``, and the slower cores (CVW, SERV) need more for
-   ``dma_smoke`` too (the FPGA acceptance script accepts the same variable).
+   environment variable. The slower cores (CVW, SERV) need more for
+   ``dma_smoke`` (the FPGA acceptance script accepts the same variable).
 -  ``SIM_UART_BAUD`` (default ``SOC_CLK_HZ / 32``, 781250 at 25 MHz) replaces the
    board's UART baud in every ``TARGET=sim`` software build. ``uart_init`` rounds
    it to divisor 2, the fastest the vendored UART runs: its baud generator treats
