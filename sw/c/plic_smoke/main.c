@@ -17,6 +17,12 @@
 
 #define SPIN_LIMIT 200000u
 
+/* The masked case waits this many loop iterations for an interrupt that must
+ * not arrive. The UART raises THR-empty at most one character after the last
+ * printf (~2240 cycles at 115200 baud and 25 MHz); 2000 iterations take over
+ * 60k cycles on every core. */
+#define MASKED_WAIT_ITERS 2000u
+
 static inline void mmio_write8(uint32_t addr, uint8_t value) {
   *(volatile uint8_t *)(uintptr_t)addr = value;
 }
@@ -116,7 +122,7 @@ static int run_case_masked(void) {
   plic_set_threshold(7u);
   mmio_write8(UART_IER, UART_IER_THR_EMPTY);
 
-  for (volatile uint32_t i = 0; i < SPIN_LIMIT / 10u; i++) {
+  for (volatile uint32_t i = 0; i < MASKED_WAIT_ITERS; i++) {
   }
 
   if (ext_seen != 0u) {
