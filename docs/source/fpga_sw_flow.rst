@@ -204,7 +204,7 @@ need more cycles (about 1.5M and 4.4M):
 For the PLIC there is ``plic_smoke``, which validates poll-mode claim/complete,
 threshold masking, and interrupt-driven delivery of the UART interrupt through
 ``sw/c/common/plic.h`` and the crt0 vector table. SERV and PicoRV32 have no
-external interrupt input, so they run only the poll case. CVW needs about 5.2M
+external interrupt input, so they run only the poll case. CVW needs about 2.6M
 cycles:
 
 .. code:: bash
