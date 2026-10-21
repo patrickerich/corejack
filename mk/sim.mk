@@ -59,6 +59,12 @@ $(error Unsupported SIM_WAVE_FORMAT='$(SIM_WAVE_FORMAT)'. Use fst or vcd)
 endif
 endif
 
+# The software only reaches the model at run time (+MEM_PATH), so sim-run-sw
+# keeps each core's work root between runs instead of passing --clean: FuseSoC
+# re-copies only changed sources, and Verilator rebuilds only when a source,
+# flag, or parameter changed. A rerun skips the ~20 s model build. FuseSoC
+# keeps each source's timestamp, so a file changed without a newer timestamp
+# (cp -p, an unpacked archive) is not seen; make clean forces a full rebuild.
 sim-run-sw: TARGET := sim
 sim-run-sw: deps-core sw-build ## build TARGET=sim SW_APP and run cocotb software simulation
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -75,7 +81,7 @@ sim-run-sw: deps-core sw-build ## build TARGET=sim SW_APP and run cocotb softwar
 		COREJACK_TIMEOUT_CYCLES='$(SIM_TIMEOUT_CYCLES)' \
 		CCACHE_DISABLE=1 \
 		COCOTB_RESULTS_FILE="$$results" \
-		fusesoc --cores-root . run --clean --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) --run_options="$$run_options" && \
+		fusesoc --cores-root . run --target "$(SIM_FUSESOC_TARGET)" --tool verilator --work-root "$(SIM_FUSESOC_WORK_ROOT)" $(FUSESOC_FLAG_ARGS) $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) --run_options="$$run_options" && \
 	$(call sim_check_results,$$results)
 ## tests must use sim_ctrl_pass()/sim_ctrl_fail() and print via UART
 ## set SIM_WAVES=1 SIM_WAVE_FORMAT=fst|vcd to dump optional waveforms
