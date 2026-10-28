@@ -78,14 +78,19 @@ else()
   set(COREJACK_HAS_TIMER_IRQ 1)
 endif()
 
-# SERV takes every trap at the mtvec base (no vectored mode) and decodes wfi
-# as ebreak. Apps that wait for an interrupt point mtvec straight at the
-# handler and spin instead of sleeping when these are 0.
+# SERV takes every trap at the mtvec base (no vectored mode). Apps that wait
+# for an interrupt point mtvec straight at the handler when this is 0.
 if(COREJACK_CORE STREQUAL "serv")
   set(COREJACK_HAS_VECTORED_MTVEC 0)
-  set(COREJACK_HAS_WFI 0)
 else()
   set(COREJACK_HAS_VECTORED_MTVEC 1)
+endif()
+
+# SERV decodes wfi as ebreak and PicoRV32 has no wfi (it halts on it as an
+# illegal instruction). Apps spin instead of sleeping when this is 0.
+if(COREJACK_CORE STREQUAL "serv" OR COREJACK_CORE STREQUAL "picorv32")
+  set(COREJACK_HAS_WFI 0)
+else()
   set(COREJACK_HAS_WFI 1)
 endif()
 

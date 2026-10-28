@@ -8,6 +8,9 @@
 
 void sim_ctrl_write(uint32_t code);
 void sim_ctrl_pass(void);
+/* Report a failure. The testbench prints code, which may be any value below
+ * 2^31: the status word carries it in bits 31:1, because bit 0 is the pass
+ * flag. */
 void sim_ctrl_fail(uint32_t code);
 
 #endif

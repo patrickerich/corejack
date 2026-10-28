@@ -35,6 +35,15 @@ SIM_ASSERTS    ?= 1
 # the Xilinx SRAM slice (1) or the simulation model (0).
 TB             ?=
 SV_TB_XILINX_SRAM ?= 0
+# sim-sweep: which cores and apps it runs, the per-run budget (the slowest run,
+# bench_smoke on SERV, needs ~7.0M cycles), where the per-run logs go, and the
+# core/app pairs it skips. mem_bw_smoke reads the mcycle CSR, which SERV and
+# PicoRV32 lack.
+SIM_SWEEP_CORES          ?= $(AXI_SMOKE_CORES)
+SIM_SWEEP_APPS           ?= $(SW_APPS)
+SIM_SWEEP_TIMEOUT_CYCLES ?= 8000000
+SIM_SWEEP_LOG_DIR        ?= $(CURDIR)/build/sim/sweep
+SIM_SWEEP_SKIP           ?= serv/mem_bw_smoke picorv32/mem_bw_smoke
 
 # Edalize builds the verilated model with a plain `make -f Vtop.mk`, i.e. serial.
 # Measured: a full axi-smoke took the same 148s per core on 4 CPUs as on 16,
@@ -223,6 +232,34 @@ axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-be
 		$(MAKE) sim-run-sw CORE="$$core" SW_APP=hello_world SIM_TIMEOUT_CYCLES="$(SIM_TIMEOUT_CYCLES)" || exit 1; \
 	done
 
+# Runs sim-run-sw for every app on every core, one at a time, and keeps going
+# past a failure so one run shows every broken pair. Each run's output goes to
+# its own log; the terminal gets one PASS/FAIL/SKIP line per run.
+sim-sweep: ## run every SW app on every core in SIM_SWEEP_CORES, logs in build/sim/sweep
+	@mkdir -p "$(SIM_SWEEP_LOG_DIR)"; \
+	failed=""; \
+	for core in $(SIM_SWEEP_CORES); do \
+		for app in $(SIM_SWEEP_APPS); do \
+			case " $(SIM_SWEEP_SKIP) " in \
+				*" $$core/$$app "*) printf 'SKIP %-9s %s\n' "$$core" "$$app"; continue;; \
+			esac; \
+			log="$(SIM_SWEEP_LOG_DIR)/$$core-$$app.log"; \
+			start=$$(date +%s); \
+			if $(MAKE) --no-print-directory sim-run-sw CORE="$$core" SW_APP="$$app" \
+				SIM_TIMEOUT_CYCLES="$(SIM_SWEEP_TIMEOUT_CYCLES)" > "$$log" 2>&1; then \
+				result=PASS; \
+			else \
+				result=FAIL; failed="$$failed $$core/$$app"; \
+			fi; \
+			printf '%s %-9s %-17s %4ss\n' "$$result" "$$core" "$$app" "$$(( $$(date +%s) - start ))"; \
+		done; \
+	done; \
+	if [ -n "$$failed" ]; then \
+		echo "sim-sweep: FAILED:$$failed (logs in $(SIM_SWEEP_LOG_DIR))"; \
+		exit 1; \
+	fi; \
+	echo "sim-sweep: all runs passed (logs in $(SIM_SWEEP_LOG_DIR))"
+
 smoke: deps-base ## run FuseSoC cocotb+Verilator smoke target
 	@test -x "$(VENV_PY)" || { echo "Error: venv not found. Run: source ./sourceme.sh"; exit 1; }
 	@wave_file="$(SIM_WAVE_FILE)"; \
@@ -240,4 +277,4 @@ smoke: deps-base ## run FuseSoC cocotb+Verilator smoke target
 		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
 	$(call sim_check_results,$$results)
 
-.PHONY: sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke smoke
+.PHONY: sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke sim-sweep smoke

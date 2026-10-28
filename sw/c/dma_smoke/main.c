@@ -241,7 +241,7 @@ int main(void) {
   }
 
   while (1) {
-#if COREJACK_HAS_JTAG_DEBUG
+#if COREJACK_HAS_WFI
     __asm__ volatile("wfi");
 #else
     __asm__ volatile("");

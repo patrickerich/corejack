@@ -56,6 +56,13 @@ static inline uint32_t read_mcycle(void) {
   return c;
 }
 
+/* CV32E40P and CV32E40S come out of reset with mcountinhibit.CY set, which
+ * stops mcycle until software clears it. */
+static inline void enable_mcycle(void) {
+  __asm__ volatile(".option arch,+zicsr\n"
+                   "csrci mcountinhibit, 1\n");
+}
+
 /* Reset the CPU buffer to a fixed pattern so each timed run starts from an
  * identical state and must return the same checksum. */
 static void cpu_buf_init(void) {
@@ -116,6 +123,7 @@ int main(void) {
   uart_init(UART0_BASE, COREJACK_CORE_CLK_HZ, COREJACK_UART_BAUD);
   printf("mem_bw start\n");
 
+  enable_mcycle();
   dma_src_mark();
 
   /* --- CPU stream alone --------------------------------------------------- */
