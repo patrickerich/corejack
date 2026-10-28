@@ -31,6 +31,9 @@ COREJACK_RISCV_TOOLCHAIN ?= $(TOOLS_DIR)/riscv
 # riscv-multilib is the only TOOLCHAIN; sw-toolchain-check rejects any other.
 SW_TOOLCHAIN_PATH := $(COREJACK_RISCV_TOOLCHAIN)/bin:
 SW_CROSS_COMPILE  := riscv64-unknown-elf-
+# The C apps: every sw/c directory with a main.c, the rule the CMake project
+# discovers them by. list-apps prints this list and sim-sweep runs it.
+SW_APPS := $(sort $(patsubst sw/c/%/main.c,%,$(wildcard sw/c/*/main.c)))
 
 sw-build: ## build SW_APP and emit ELF/bin/disassembly/banked RAM hex
 	@$(MAKE) --no-print-directory sw-image SW_APP="$(SW_APP)" TARGET="$(TARGET)" CORE="$(CORE)" BOARD="$(BOARD)" TOOLCHAIN="$(TOOLCHAIN)" MARCH="$(MARCH)" MABI="$(MABI)" SOC_CLK_HZ="$(SOC_CLK_HZ)" UART_BAUD="$(if $(filter sim,$(TARGET)),$(SIM_UART_BAUD),$(UART_BAUD))" SOC_RAM_BYTES="$(SOC_RAM_BYTES)"
@@ -40,7 +43,7 @@ sw-build-hello: ## build the hello_world firmware image
 	@$(MAKE) sw-build SW_APP=hello_world
 
 list-apps: ## list C apps available via SW_APP=<name>
-	@find sw/c -mindepth 1 -maxdepth 1 -type d ! -name common -printf '%f\n' | sort
+	@printf '%s\n' $(SW_APPS)
 
 sw-clean: ## remove all software build outputs (sw/build)
 	rm -rf "$(CURDIR)/sw/build"
