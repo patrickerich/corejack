@@ -204,12 +204,12 @@ need more cycles (about 1.5M and 4.4M):
 For the PLIC there is ``plic_smoke``, which validates poll-mode claim/complete,
 threshold masking, and interrupt-driven delivery of the UART interrupt through
 ``sw/c/common/plic.h`` and the crt0 vector table. SERV and PicoRV32 have no
-external interrupt input, so they run only the poll case. CVW needs about 2.6M
-cycles:
+external interrupt input, so they run only the poll case. It fits the default
+simulation budget on every core:
 
 .. code:: bash
 
-   make sim-run-sw SW_APP=plic_smoke SIM_TIMEOUT_CYCLES=2000000
+   make sim-run-sw SW_APP=plic_smoke
 
 ``timer_uart_smoke`` takes one CLINT machine-timer interrupt. PicoRV32 is built
 without interrupts and skips it. SERV has no vectored ``mtvec`` mode and decodes
