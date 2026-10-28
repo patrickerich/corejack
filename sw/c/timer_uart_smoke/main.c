@@ -130,7 +130,9 @@ int main(void) {
   sim_ctrl_pass();
 
   while (1) {
+#if COREJACK_HAS_WFI
     __asm__ volatile("wfi");
+#endif
   }
 
   return 0;

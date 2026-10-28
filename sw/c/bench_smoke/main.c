@@ -20,7 +20,9 @@ static void fail_u32(const char *name, uint32_t got, uint32_t expected,
            expected);
     sim_ctrl_fail(code);
     while (1) {
+#if COREJACK_HAS_WFI
       __asm__ volatile("wfi");
+#endif
     }
   }
 }
@@ -50,7 +52,9 @@ int main(void) {
   sim_ctrl_pass();
 
   while (1) {
+#if COREJACK_HAS_WFI
     __asm__ volatile("wfi");
+#endif
   }
 
   return 0;
