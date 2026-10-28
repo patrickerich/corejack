@@ -72,42 +72,42 @@ Simulation Targets
      - build a bare-metal app and run it on the full platform
      - ``soc_dut`` / ``test_soc_sw``
      - yes
-     - :doc:``fpga_sw_flow``
+     - :doc:`fpga_sw_flow`
    * - ``make debug-sim``
      - debug ROM and system-bus-access (SBA) regression
      - ``soc_dut`` / ``test_debug_integration``
      - no
-     - :doc:``riscv_dbg_integration``
+     - :doc:`riscv_dbg_integration`
    * - ``make axi-adapter-sim``
      - AXI adapters, the ``axi_xbar`` system crossbar (incl. cross-target concurrency and same-target arbitration), protocol checker, and 32-to-64-bit lane behavior
      - ``axi_adapter_dut`` / ``test_axi_adapters``
      - no
-     - :doc:``axi4_fabric``
+     - :doc:`axi4_fabric`
    * - ``make uart-loader-sim``
      - UART SRAM loader protocol regression
      - ``uart_sram_loader_dut`` / ``test_uart_sram_loader``
      - no
-     - :doc:``uart_sram_loader``
+     - :doc:`uart_sram_loader`
    * - ``make plic-sim``
      - ``soc_plic`` claim/complete, gateway, and threshold regression
      - ``plic_dut`` / ``test_plic``
      - no
-     - :doc:``axi4_fabric``
+     - :doc:`axi4_fabric`
    * - ``make mem-ss-bench``
      - ``soc_mem_ss`` words/cycle against active ports and banks
      - ``mem_ss_bench_dut`` / ``test_mem_ss_bench``
      - no
-     - :doc:``mem_ss_redesign``
+     - :doc:`mem_ss_redesign`
    * - ``make mem-bw-bench``
      - system CPU + iDMA memory bandwidth, timed with the ``mcycle`` CSR
      - ``soc_dut`` / ``mem_bw_smoke`` app
      - yes
-     - :doc:``axi4_fabric``
+     - :doc:`axi4_fabric`
    * - ``make sv-tb TB=<bench>``
      - a self-checking SystemVerilog bench, no cocotb: ``tb_mem_ss`` (``soc_mem_ss`` guarantees) or ``tb_axi_to_mem`` (``soc_axi_to_mem`` against ``soc_mem_ss``); ``SV_TB_XILINX_SRAM=1`` selects the Xilinx SRAM slice
      - ``tb_mem_ss`` / ``tb_axi_to_mem`` (no cocotb)
      - no
-     - :doc:``mem_ss_redesign``, :doc:``axi4_fabric``
+     - :doc:`mem_ss_redesign`, :doc:`axi4_fabric`
    * - ``make sv-tb-smoke``
      - the ``sv-tb`` runs in ``axi-smoke``: ``tb_mem_ss``, and ``tb_axi_to_mem`` on both SRAM slices
      - (composite)
@@ -117,12 +117,12 @@ Simulation Targets
      - CVA6 AXI behaviour across an ``ndmreset`` (see its scope note)
      - ``soc_dut`` / ``test_cva6_reset_isolation``
      - no
-     - :doc:``riscv_dbg_integration``
+     - :doc:`riscv_dbg_integration`
    * - ``make axi-smoke``
      - aggregate gate: address-map check, every focused sim above, then ``hello_world`` on each supported core
      - (composite)
      - yes
-     - :doc:``axi4_fabric``
+     - :doc:`axi4_fabric`
    * - ``make sim-sweep``
      - every app on every core in ``AXI_SMOKE_CORES``, one ``sim-run-sw`` at a time; local only, not run in CI
      - ``soc_dut`` / ``test_soc_sw``
