@@ -577,8 +577,9 @@ async def run_soc_software(dut):
             if status_pass:
                 dut._log.info("SW reported PASS with status 0x%08x", status_code)
                 return
+            # sim_ctrl_fail() puts its code in bits 31:1; bit 0 is the pass flag.
             raise AssertionError(
-                f"Software reported FAIL with status 0x{status_code:08x}. "
+                f"Software reported FAIL with code 0x{status_code >> 1:x}. "
                 f"Captured: {current!r}"
             )
 
