@@ -3,151 +3,70 @@
 CV32E40X first accepted instruction fetch after boot is ``boot_addr_i + 4``
 ===========================================================================
 
-Summary
+Status: resolved. The cause was CoreJack's own ``cv32e40x_clock_gate`` shim, not
+the CV32E40X core. Upstream issue
+`#993 <https://github.com/openhwgroup/cv32e40x/issues/993>`_ reported this as a
+possible core bug before the cause was known.
+
+CV32E40X stays out of CoreJack's default regressions until it has passed the
+:doc:`core acceptance checklist <core_acceptance_checklist>`.
+
+Symptom
 -------
 
-When integrating CV32E40X through its documented instruction interface, the first
-accepted instruction fetch after reset appears to use ``boot_addr_i + 4`` instead
-of ``boot_addr_i``.
+With ``boot_addr_i = 0x80000080``, the first fetch the memory accepted was
+``0x80000084``, while the IF stage tracked the returned data as PC
+``0x80000080``. Later fetches stayed one word off in the same way, so the adapter
+carried a workaround that subtracted 4 from ``instr_addr_o``.
 
-This is tracked upstream as:
+Cause
+-----
 
-.. code:: text
-
-   https://github.com/openhwgroup/cv32e40x/issues/993
-
-Project status: CV32E40X is currently excluded from CoreJack's supported
-regression set. Keep it treated as experimental until the upstream behavior is
-clarified or fixed.
-
-With:
-
-.. code:: text
-
-   boot_addr_i = 0x80000080
-
-the first accepted external instruction request observed at the CV32E40X
-boundary is:
-
-.. code:: text
-
-   instr_req_o && instr_gnt_i
-   instr_addr_o = 0x80000084
-
-However, the core IF stage tracks the corresponding instruction as:
-
-.. code:: text
-
-   pc_if_o = 0x80000080
-
-This suggests that the core requests instruction memory word ``0x80000084``, but
-then treats the returned instruction data as belonging to PC ``0x80000080``.
-
-Expected Behavior
------------------
-
-For an instruction request accepted by:
-
-.. code:: text
-
-   instr_req_o && instr_gnt_i
-
-the accepted ``instr_addr_o`` value should identify the instruction memory word
-whose data will later be returned on ``instr_rdata_i``.
-
-Therefore, after reset with:
-
-.. code:: text
-
-   boot_addr_i = 0x80000080
-
-the first accepted instruction fetch is expected to request:
-
-.. code:: text
-
-   instr_addr_o = 0x80000080
-
-Observed Behavior
------------------
-
-An opt-in simulation checker records every accepted raw CV32E40X instruction
-request and compares it with the IF-stage PC for the consumed instruction word.
-
-The first observed transaction is:
-
-.. code:: text
-
-   cv32e40x-if accept cycle=5 raw_addr=0x80000084 adapted_addr=0x80000080
-   cv32e40x-if consume cycle=8 pc_if=0x80000080 pc_word=0x80000080 raw_requested=no
-
-   CV32E40X IF contract mismatch:
-   consumed instruction PC 0x80000080, but the raw core boundary never accepted
-   an instruction fetch for word address 0x80000080.
-   Accepted raw fetch words: 0x80000084
-
-The ``adapted_addr`` field is a local SoC wrapper workaround and is not part of
-the raw CV32E40X interface. It subtracts 4 from ``instr_addr_o`` so that the SoC
-memory receives the address expected by the IF-stage PC tracking. With that
-workaround disabled, the software image does not execute correctly.
-
-Suspected RTL Area
-------------------
-
-The suspicious logic is in ``cv32e40x_prefetcher.sv``:
+The shim was a bare AND gate:
 
 .. code:: systemverilog
 
-   assign trans_addr_incr = {trans_addr_q[31:1], 1'b0} + 32'd4;
+   assign clk_o = clk_i & (en_i | scan_cg_en_i);
 
-   if (fetch_branch_i) begin
-     trans_addr_o = fetch_branch_addr_i;
-   end else begin
-     trans_addr_o = trans_addr_incr;
-   end
+``en_i`` comes from flops in ``cv32e40x_sleep_unit`` that run on the ungated
+clock, so it rises just after a rising clock edge, while ``clk_i`` is high. The
+AND gate opens at that moment and gives the core a late rising edge, after the
+rest of the SoC has already sampled that clock edge.
 
-   ...
-
-   if (fetch_branch_i || (trans_valid_o && trans_ready_i)) begin
-     trans_addr_q <= trans_addr_o;
-   end
-
-This appears to update ``trans_addr_q`` on a boot/branch redirect even when no
-instruction request was accepted in that cycle. If the redirect address is
-stored without an accepted request, the next accepted request can become
-``fetch_branch_addr_i + 4``.
-
-Reproduction Context
---------------------
-
-The failing observation was reproduced with current upstream ``HEAD``:
+The first fetch request appears in that same gap:
 
 .. code:: text
 
-   CV32E40X revision: d952cd63bc1b4eb58cd893c28ef8283c781e345e
-   RV32I configuration
-   M extension enabled
-   CLIC disabled
-   fetch_enable_i tied high
-   Verilator simulation
+   clock edge N       memory samples  req=0
+   late core edge     core samples    req=1 gnt=1 addr=0x80000080
+   clock edge N+1     memory samples  req=1 gnt=1 addr=0x80000084
 
-The same behavior was originally observed on the ``0.10.0`` tag:
+The core counts the fetch of ``boot_addr_i`` as granted, but the memory never saw
+it. The core then has one outstanding transaction with no bus transaction behind
+it, and that count never recovers:
 
-.. code:: text
+-  Each response is matched to the fetch before the one that produced it, which
+   is the one-word offset.
+-  The alignment buffer allows two outstanding fetches, so only one real fetch
+   can be in flight, which reduces fetch bandwidth.
 
-   CV32E40X 0.10.0 revision: 18c88fd78a37f270c8301c552f5fd0f564d0ab20
+The fetch is lost only if ``instr_gnt_i`` is high at the late edge. If the grant
+comes a cycle later, the core holds its request and the memory still sees it.
 
-The instruction memory side accepts requests using:
+Fix
+---
 
-.. code:: text
+``cv32e40x_clock_gate`` now passes the clock through, like the CV32E40P shim, and
+the adapter connects ``instr_addr_o`` directly, with no address adjustment. Fetch
+is also faster: CoreJack's software apps take 2-27% fewer simulated cycles.
 
-   instr_req_o && instr_gnt_i
+A future real clock gate must not let ``clk_o`` rise while ``clk_i`` is high.
+Upstream's simulation gate, ``bhv/cv32e40x_sim_clock_gate.sv``, uses a latch for
+this reason, and it also runs correctly without the address adjustment.
 
-Questions
----------
+Checking It
+-----------
 
-1. Is ``instr_addr_o`` intended to be the address of the instruction memory word
-   being requested?
-2. If yes, should ``trans_addr_q`` only advance from a boot/branch target after
-   the request for that target has been accepted?
-3. Is there an existing configuration requirement or integration constraint that
-   would explain why the first accepted instruction request is ``boot_addr_i + 4``?
+Setting ``COREJACK_CHECK_CV32E40X_IF_CONTRACT=1`` makes ``tb/test_soc_sw.py`` fail
+if the IF stage delivers an instruction whose word was never accepted at the core
+boundary. ``COREJACK_TRACE_CV32E40X_IF=1`` logs the fetches it compares.

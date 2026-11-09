@@ -115,9 +115,9 @@ The initial build produces an RV32 ELF with entry point ``0x80000000``, matching
 the CoreJack SRAM base.
 
 CV32E40X has an out-of-tree Zephyr board directory from earlier bring-up, but
-it is not part of the supported Zephyr set. Keep it disabled until the upstream
-core behavior around instruction fetch and interrupt vector handling is
-resolved.
+it is not part of the supported Zephyr set. Notes of interrupt vector differences
+predate the :doc:`clock-gate fix <cv32e40x_boot_issue>`, so keep it disabled until
+they have been rechecked.
 
 SERV has an out-of-tree Zephyr board and boots the CoreJack timer-smoke sample
 through the UART SRAM loader:

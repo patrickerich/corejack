@@ -175,17 +175,16 @@ async def run_soc_software(dut):
         if cv32e40x_adapter is not None and (trace_cv32e40x_if or check_cv32e40x_if):
             raw_req = _safe_int(getattr(cv32e40x_adapter, "instr_req_o", None), 0)
             raw_gnt = _safe_int(getattr(cv32e40x_adapter, "instr_gnt_i", None), 0)
-            raw_addr = _safe_int(getattr(cv32e40x_adapter, "raw_instr_addr", None))
+            raw_addr = _safe_int(getattr(cv32e40x_adapter, "instr_addr_o", None))
 
             if raw_req and raw_gnt and raw_addr is not None:
                 raw_word = raw_addr & ~0x3
                 cv32e40x_raw_fetch_words.add(raw_word)
                 if trace_armed and trace_cv32e40x_if and trace_count < trace_limit:
                     dut._log.info(
-                        "cv32e40x-if accept cycle=%d raw_addr=0x%08x adapted_addr=0x%08x",
+                        "cv32e40x-if accept cycle=%d raw_addr=0x%08x",
                         cycle,
                         raw_word,
-                        _safe_int(getattr(cv32e40x_adapter, "instr_addr_o", None), 0) & ~0x3,
                     )
                     trace_count += 1
 
@@ -291,7 +290,7 @@ async def run_soc_software(dut):
                         msg += f" dbg_pc_valid={debug_pc_valid} dbg_pc=0x{debug_pc:08x}"
                     if core_sleep is not None:
                         msg += f" core_sleep={core_sleep}"
-                    raw_instr_addr = _safe_int(getattr(cv32e40x_adapter, "raw_instr_addr", None))
+                    raw_instr_addr = _safe_int(getattr(cv32e40x_adapter, "instr_addr_o", None))
                     if raw_instr_addr is not None:
                         msg += f" raw_iaddr=0x{raw_instr_addr:08x}"
                 if cv32e40x_if is not None:

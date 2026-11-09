@@ -153,9 +153,10 @@ than `ubuntu-latest`.
   `mk/sw.mk` reads it back via `validate_target.py --mem-num-banks` to split
   the `bank_<n>.hex` preload, so don't write the number anywhere else. See
   [Memory Subsystem Redesign](https://patrickerich.github.io/corejack/mem_ss_redesign.html).
-- **CV32E40X is intentionally excluded** from default regressions — see
-  [CV32E40X boot issue](https://patrickerich.github.io/corejack/cv32e40x_boot_issue.html). Do not re-enable
-  it in regression sets without resolving that.
+- **CV32E40X is excluded** from default regressions until it passes the
+  [Core Acceptance Checklist](https://patrickerich.github.io/corejack/core_acceptance_checklist.html). Its
+  [boot issue](https://patrickerich.github.io/corejack/cv32e40x_boot_issue.html) was a CoreJack clock-gate
+  bug and is fixed.
 - External IP is fetched, not vendored-in-tree: PULP `axi`, `apb`,
   `common_cells`, `idma`, `clint`, `obi`, `apb_uart`, `riscv-dbg` via Bender;
   cores `serv`/`picorv32`/`cvw`/`cv32e40p`/`cv32e40x`/`cv32e40s` via Bender

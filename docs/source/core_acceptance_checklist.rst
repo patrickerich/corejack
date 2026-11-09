@@ -248,11 +248,11 @@ Expected result:
 Core-Specific Debug Notes
 -------------------------
 
-CV32E40X is currently excluded from the supported core set. Earlier bring-up
-required a core-local instruction-fetch address adaptation, and later
-Zephyr/timer testing exposed additional vector/interrupt behavior that does not
-match the other supported cores. Keep it out of default regressions until the
-upstream behavior is clarified or fixed.
+CV32E40X is currently excluded from the supported core set. Its instruction-fetch
+offset was a CoreJack clock-gate bug, now fixed; see
+:doc:`CV32E40X boot issue <cv32e40x_boot_issue>`. Earlier Zephyr/timer testing
+also noted vector/interrupt behavior that differed from the other supported
+cores. That predates the fix and still needs rechecking during promotion.
 
 CV32E40S reports a sticky reset-status flag through ``debug_havereset_o``. The
 adapter does not forward it: ``dm_top.unavailable_i`` is tied low, and reset
