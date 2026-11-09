@@ -124,7 +124,7 @@ Simulation Targets
      - yes
      - :doc:`axi4_fabric`
    * - ``make sim-sweep``
-     - every app on every core in ``AXI_SMOKE_CORES``, one ``sim-run-sw`` at a time; local only, not run in CI
+     - every app on every core in ``AXI_SMOKE_CORES``, one ``sim-run-sw`` at a time, or ``SIM_SWEEP_JOBS`` cores at once; local only, not run in CI
      - ``soc_dut`` / ``test_soc_sw``
      - yes
      - :doc:`fpga_sw_flow`
@@ -136,12 +136,13 @@ Simulation Targets
 see :doc:`support_matrix`.
 
 ``make sim-sweep`` runs ``sim-run-sw`` for every app that ``make list-apps``
-prints on every core in ``AXI_SMOKE_CORES``, one run at a time, each with a
-budget of ``SIM_SWEEP_TIMEOUT_CYCLES`` (default ``8000000``; the slowest run,
-``bench_smoke`` on SERV, needs about 7.0M). It keeps going past
+prints on every core in ``AXI_SMOKE_CORES``, by default one run at a time, each
+with a budget of ``SIM_SWEEP_TIMEOUT_CYCLES`` (default ``8000000``; the slowest
+run, ``bench_smoke`` on SERV, needs about 7.0M). It keeps going past
 a failure, prints one ``PASS``, ``FAIL`` or ``SKIP`` line per run, writes each
 run's output to ``build/sim/sweep/<core>-<app>.log``, and fails at the end if any
-run failed. ``SIM_SWEEP_SKIP`` lists the pairs it skips: ``mem_bw_smoke`` on
+run failed, listing the failed pairs (also kept in ``build/sim/sweep/failed.txt``).
+``SIM_SWEEP_SKIP`` lists the pairs it skips: ``mem_bw_smoke`` on
 SERV and PicoRV32, which have no ``mcycle`` CSR. ``SIM_SWEEP_CORES`` and
 ``SIM_SWEEP_APPS`` narrow it, for example to one core after a change to its
 adapter:
@@ -150,9 +151,25 @@ adapter:
 
    make sim-sweep SIM_SWEEP_CORES=serv
 
-A full sweep took about 61 minutes on a 16-core workstation with every core's
-model already built: SERV took about 23 of them and CVW about 11. If a core's
-model is not built yet, its first run builds it, which adds that build time.
+A full sweep, one run at a time, took about 61 minutes on a 16-core
+workstation with every core's model already built: SERV took about 23 of them
+and CVW about 11. If a core's model is not built yet, its first run builds it,
+which adds that build time.
+
+``SIM_SWEEP_JOBS`` (default ``1``) runs that many cores at once. A core's own
+apps still run one at a time, because they share its model, so a full sweep
+with ``SIM_SWEEP_JOBS=7`` took about 24 minutes on the same workstation: as
+long as SERV's runs alone. The cores running at once split ``SIM_BUILD_JOBS``
+between them for any model builds. The sweep fetches every core's dependencies
+once before the first run (output in ``build/sim/sweep/deps.log``), so the runs
+never fetch them at the same time. Lines print as runs finish, so with more
+than one job the cores' lines mix. Cores start in ``SIM_SWEEP_CORES`` order, so
+with fewer jobs than cores, list SERV first:
+
+.. code:: bash
+
+   make sim-sweep SIM_SWEEP_JOBS=7
+   make sim-sweep SIM_SWEEP_JOBS=4 SIM_SWEEP_CORES="serv cvw cva6 ibex cv32e40p cv32e40s picorv32"
 
 What a full ``axi-smoke`` actually costs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

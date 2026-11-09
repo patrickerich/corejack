@@ -36,14 +36,15 @@ SIM_ASSERTS    ?= 1
 TB             ?=
 SV_TB_XILINX_SRAM ?= 0
 # sim-sweep: which cores and apps it runs, the per-run budget (the slowest run,
-# bench_smoke on SERV, needs ~7.0M cycles), where the per-run logs go, and the
-# core/app pairs it skips. mem_bw_smoke reads the mcycle CSR, which SERV and
-# PicoRV32 lack.
+# bench_smoke on SERV, needs ~7.0M cycles), where the per-run logs go, the
+# core/app pairs it skips, and how many cores it runs at once. mem_bw_smoke
+# reads the mcycle CSR, which SERV and PicoRV32 lack.
 SIM_SWEEP_CORES          ?= $(AXI_SMOKE_CORES)
 SIM_SWEEP_APPS           ?= $(SW_APPS)
 SIM_SWEEP_TIMEOUT_CYCLES ?= 8000000
 SIM_SWEEP_LOG_DIR        ?= $(CURDIR)/build/sim/sweep
 SIM_SWEEP_SKIP           ?= serv/mem_bw_smoke picorv32/mem_bw_smoke
+SIM_SWEEP_JOBS           ?= 1
 
 # Edalize builds the verilated model with a plain `make -f Vtop.mk`, i.e. serial.
 # Measured: a full axi-smoke took the same 148s per core on 4 CPUs as on 16,
@@ -232,33 +233,61 @@ axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-be
 		$(MAKE) sim-run-sw CORE="$$core" SW_APP=hello_world SIM_TIMEOUT_CYCLES="$(SIM_TIMEOUT_CYCLES)" || exit 1; \
 	done
 
-# Runs sim-run-sw for every app on every core, one at a time, and keeps going
-# past a failure so one run shows every broken pair. Each run's output goes to
-# its own log; the terminal gets one PASS/FAIL/SKIP line per run.
+# Runs sim-run-sw for every app on every core and keeps going past a failure, so
+# one sweep shows every broken pair. Each run's output goes to its own log; the
+# terminal gets one PASS/FAIL/SKIP line per run. xargs runs SIM_SWEEP_JOBS cores
+# at once, each through sim-sweep-core, and they split SIM_BUILD_JOBS between
+# them for any model builds. A core's own apps run one at a time, because they
+# share its model. The dependencies are fetched once, up front, and the runs
+# skip that step (make -o deps-core): runs on several cores would otherwise all
+# run bender checkout at the same time. xargs fails only if a sim-sweep-core
+# stops early; failed runs are listed in failed.txt.
 sim-sweep: ## run every SW app on every core in SIM_SWEEP_CORES, logs in build/sim/sweep
-	@mkdir -p "$(SIM_SWEEP_LOG_DIR)"; \
-	failed=""; \
+	@if ! [ "$(SIM_SWEEP_JOBS)" -ge 1 ] 2>/dev/null; then \
+		echo "Error: SIM_SWEEP_JOBS='$(SIM_SWEEP_JOBS)' must be a whole number, 1 or more"; \
+		exit 1; \
+	fi; \
+	mkdir -p "$(SIM_SWEEP_LOG_DIR)"; \
+	rm -f "$(SIM_SWEEP_LOG_DIR)/failed.txt" "$(SIM_SWEEP_LOG_DIR)/deps.log"; \
 	for core in $(SIM_SWEEP_CORES); do \
-		for app in $(SIM_SWEEP_APPS); do \
-			case " $(SIM_SWEEP_SKIP) " in \
-				*" $$core/$$app "*) printf 'SKIP %-9s %s\n' "$$core" "$$app"; continue;; \
-			esac; \
-			log="$(SIM_SWEEP_LOG_DIR)/$$core-$$app.log"; \
-			start=$$(date +%s); \
-			if $(MAKE) --no-print-directory sim-run-sw CORE="$$core" SW_APP="$$app" \
-				SIM_TIMEOUT_CYCLES="$(SIM_SWEEP_TIMEOUT_CYCLES)" > "$$log" 2>&1; then \
-				result=PASS; \
-			else \
-				result=FAIL; failed="$$failed $$core/$$app"; \
-			fi; \
-			printf '%s %-9s %-17s %4ss\n' "$$result" "$$core" "$$app" "$$(( $$(date +%s) - start ))"; \
-		done; \
+		$(MAKE) --no-print-directory deps-core CORE="$$core" >> "$(SIM_SWEEP_LOG_DIR)/deps.log" 2>&1 || { \
+			echo "sim-sweep: fetching the dependencies for $$core failed (log in $(SIM_SWEEP_LOG_DIR)/deps.log)"; \
+			exit 1; \
+		}; \
 	done; \
-	if [ -n "$$failed" ]; then \
-		echo "sim-sweep: FAILED:$$failed (logs in $(SIM_SWEEP_LOG_DIR))"; \
+	build_jobs=$$(( $(SIM_BUILD_JOBS) / $(SIM_SWEEP_JOBS) )); \
+	[ "$$build_jobs" -ge 1 ] || build_jobs=1; \
+	printf '%s\n' $(SIM_SWEEP_CORES) | xargs -P "$(SIM_SWEEP_JOBS)" -I{} \
+		$(MAKE) --no-print-directory sim-sweep-core CORE={} SIM_BUILD_JOBS="$$build_jobs"; \
+	xargs_rc=$$?; \
+	if [ -s "$(SIM_SWEEP_LOG_DIR)/failed.txt" ]; then \
+		echo "sim-sweep: FAILED: $$(tr '\n' ' ' < "$(SIM_SWEEP_LOG_DIR)/failed.txt")(logs in $(SIM_SWEEP_LOG_DIR))"; \
+		exit 1; \
+	fi; \
+	if [ "$$xargs_rc" -ne 0 ]; then \
+		echo "sim-sweep: FAILED: a core stopped before finishing its runs, see the errors above"; \
 		exit 1; \
 	fi; \
 	echo "sim-sweep: all runs passed (logs in $(SIM_SWEEP_LOG_DIR))"
+## set SIM_SWEEP_JOBS=<n> to run n cores at once
+
+# One core's part of sim-sweep: runs CORE's apps in order, prints a line per
+# run, and adds each failed pair to failed.txt.
+sim-sweep-core:
+	@for app in $(SIM_SWEEP_APPS); do \
+		case " $(SIM_SWEEP_SKIP) " in \
+			*" $(CORE)/$$app "*) printf 'SKIP %-9s %s\n' "$(CORE)" "$$app"; continue;; \
+		esac; \
+		log="$(SIM_SWEEP_LOG_DIR)/$(CORE)-$$app.log"; \
+		start=$$(date +%s); \
+		if $(MAKE) --no-print-directory -o deps-core sim-run-sw CORE="$(CORE)" SW_APP="$$app" \
+			SIM_TIMEOUT_CYCLES="$(SIM_SWEEP_TIMEOUT_CYCLES)" > "$$log" 2>&1; then \
+			result=PASS; \
+		else \
+			result=FAIL; echo "$(CORE)/$$app" >> "$(SIM_SWEEP_LOG_DIR)/failed.txt"; \
+		fi; \
+		printf '%s %-9s %-17s %4ss\n' "$$result" "$(CORE)" "$$app" "$$(( $$(date +%s) - start ))"; \
+	done
 
 smoke: deps-base ## run FuseSoC cocotb+Verilator smoke target
 	@test -x "$(VENV_PY)" || { echo "Error: venv not found. Run: source ./sourceme.sh"; exit 1; }
@@ -277,4 +306,4 @@ smoke: deps-base ## run FuseSoC cocotb+Verilator smoke target
 		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
 	$(call sim_check_results,$$results)
 
-.PHONY: sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke sim-sweep smoke
+.PHONY: sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke sim-sweep sim-sweep-core smoke
