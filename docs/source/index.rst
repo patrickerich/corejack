@@ -85,8 +85,8 @@ Software
 Core-Specific Notes
 -------------------
 
--  :doc:`CV32E40X boot issue <cv32e40x_boot_issue>` - current reason CV32E40X is
-   not part of the supported regression set.
+-  :doc:`CV32E40X boot issue <cv32e40x_boot_issue>` - how a CoreJack clock-gate
+   bug looked like a core fetch bug, and the fix.
 
 .. toctree::
    :hidden:

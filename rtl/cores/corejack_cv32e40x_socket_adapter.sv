@@ -55,10 +55,6 @@ module corejack_cv32e40x_socket_adapter #(
   logic        debug_pc_valid_unused;
   logic [31:0] debug_pc_unused;
   logic        unused_irq_nm;
-  logic [31:0] raw_instr_addr;
-  logic        raw_instr_in_dm_region;
-  logic        raw_instr_after_debug_resume_q;
-  logic        raw_instr_after_debug_resume_d;
   localparam logic [31:0] DmRegionStart = (DmBaseAddr == 32'h0) ? 32'h0000_0001 : DmBaseAddr;
   localparam logic [31:0] DmRegionEnd = DmBaseAddr + 32'h0000_0fff;
 
@@ -217,7 +213,7 @@ module corejack_cv32e40x_socket_adapter #(
     .instr_req_o          (instr_req_o),
     .instr_gnt_i          (instr_gnt_i),
     .instr_rvalid_i       (instr_rvalid_i),
-    .instr_addr_o         (raw_instr_addr),
+    .instr_addr_o         (instr_addr_o),
     .instr_memtype_o      (instr_memtype_unused),
     .instr_prot_o         (instr_prot_unused),
     .instr_dbg_o          (instr_dbg_unused),
@@ -263,31 +259,4 @@ module corejack_cv32e40x_socket_adapter #(
     .fetch_enable_i       (1'b1),
     .core_sleep_o         (core_sleep_o)
   );
-
-  assign raw_instr_in_dm_region = ((raw_instr_addr - DmBaseAddr) < 32'h0000_1000);
-
-  always_comb begin
-    raw_instr_after_debug_resume_d = raw_instr_after_debug_resume_q;
-
-    if (debug_halted_unused) begin
-      raw_instr_after_debug_resume_d = 1'b1;
-    end
-  end
-
-  always_ff @(posedge clk_i or negedge rst_ni) begin
-    if (!rst_ni) begin
-      raw_instr_after_debug_resume_q <= 1'b0;
-    end else begin
-      raw_instr_after_debug_resume_q <= raw_instr_after_debug_resume_d;
-    end
-  end
-
-  // CV32E40X updates its prefetch address register on a boot/branch redirect
-  // even when no instruction transaction is issued in that cycle. The first
-  // visible OBI request is therefore the incremented word address. Debug entry
-  // and debug-resumed execution do not show that offset, so keep those fetches
-  // at their raw address.
-  assign instr_addr_o =
-      (raw_instr_in_dm_region || raw_instr_after_debug_resume_q)
-        ? raw_instr_addr : raw_instr_addr - 32'd4;
 endmodule
