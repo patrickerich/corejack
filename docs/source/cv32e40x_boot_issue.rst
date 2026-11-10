@@ -8,8 +8,8 @@ the CV32E40X core. Upstream issue
 `#993 <https://github.com/openhwgroup/cv32e40x/issues/993>`_ reported this as a
 possible core bug before the cause was known.
 
-CV32E40X is now supported in simulation and runs in CoreJack's default
-regressions. Its FPGA and debug support are still planned.
+CV32E40X is now supported in simulation, on FPGA and for debug, and runs in
+CoreJack's default regressions.
 
 Symptom
 -------
