@@ -59,7 +59,7 @@ UART_LOADER_ADDR ?= 0x80000000
 UART_LOADER_CHUNK_SIZE ?= 4096
 UART_LOADER_TIMEOUT ?= 2
 UART_LOADER_EXPECT ?=
-AXI_SMOKE_CORES ?= ibex cv32e40p cv32e40s cva6 serv picorv32 cvw
+AXI_SMOKE_CORES ?= ibex cv32e40p cv32e40s cv32e40x cva6 serv picorv32 cvw
 
 TARGET_CONFIG := $(shell $(PY) bin/validate_target.py --core "$(CORE)" --board "$(BOARD)" --make --allow-planned 2>/dev/null)
 $(eval $(TARGET_CONFIG))

@@ -115,10 +115,10 @@ ALINX AXKU5 (``axku5``)
      - yes
    * - ``cv32e40x``
      - CV32E40X
+     - supported
      - planned
-     - unsupported
      - none
-     - unsupported
+     - planned
      - no
    * - ``cv32e40s``
      - CV32E40S

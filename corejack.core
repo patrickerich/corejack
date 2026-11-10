@@ -290,9 +290,8 @@ targets:
     filesets_append:
       - core_ibex_rtl
       - core_cv32e40p_rtl
-      # CV32E40X is currently unsupported in the default regression.
-      # Re-enable once it is promoted to the supported-core set.
-      # - core_cv32e40x_rtl
+      # No CV32E40X: this target sets no core define, so soc_dut builds Ibex
+      # and the fileset would only add a dependency fetch.
       - core_cv32e40s_rtl
       - core_region_rtl
       - tb_sw_sv

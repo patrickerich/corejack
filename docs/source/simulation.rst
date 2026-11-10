@@ -132,7 +132,7 @@ Simulation Targets
 ``make axi-smoke`` runs ``axi-addr-map-check``, ``axi-adapter-sim``,
 ``uart-loader-sim``, ``plic-sim``, ``mem-ss-bench``, ``sv-tb-smoke``, ``mem-bw-bench``, ``debug-sim`` and
 ``cva6-reset-sim``, then ``sim-run-sw`` for each core in ``AXI_SMOKE_CORES`` (default
-``ibex cv32e40p cv32e40s cva6 serv picorv32 cvw``). Unsupported cores are intentionally excluded;
+``ibex cv32e40p cv32e40s cv32e40x cva6 serv picorv32 cvw``). Unsupported cores are intentionally excluded;
 see :doc:`support_matrix`.
 
 ``make sim-sweep`` runs ``sim-run-sw`` for every app that ``make list-apps``
@@ -177,7 +177,7 @@ What a full ``axi-smoke`` actually costs
 The unit of cost is the **simulation**, not the test. Each simulation builds its
 own Verilator model; a model is never shared between simulations, because each
 one differs in either its toplevel, its cocotb module, or its compile-time core
-select (``-DCOREJACK_CORE_*``). A full run is 17 simulations, so 17 Verilator
+select (``-DCOREJACK_CORE_*``). A full run is 18 simulations, so 18 Verilator
 builds:
 
 .. list-table::
@@ -223,12 +223,12 @@ builds:
      - ``test_cva6_reset_isolation``
      - CVA6
      - 1
-   * - core sweep, 7x
+   * - core sweep, 8x
      - ``test_soc_sw`` (``hello_world``)
      - one per ``AXI_SMOKE_CORES`` entry
      - 1 each
 
-That is **17 simulations and 35 cocotb tests**; the three ``sv-tb`` runs report
+That is **18 simulations and 36 cocotb tests**; the three ``sv-tb`` runs report
 PASS or FAIL themselves. The counts differ because a testbench
 file holds one or more ``@cocotb.test()`` functions and they all share the one
 model that simulation built - ``test_axi_adapters.py`` alone contributes 17. Tests

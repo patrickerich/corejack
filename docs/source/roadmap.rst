@@ -92,11 +92,11 @@ The authoritative descriptor-derived matrix lives in
    else via the crossbar); simulation, FPGA, and OpenOCD/GDB
    load/run/single-step validated on both boards with the dedicated RAM path.
    Zephyr initial (RV64).
--  **CV32E40X** - not yet in the supported set. The instruction-fetch offset
-   that demoted it was a CoreJack clock-gate bug, now fixed; see
-   :doc:`cv32e40x_boot_issue`. It stays out of default regressions until it
-   passes the :doc:`core_acceptance_checklist`. Notes of vector behavior
-   differences predate the fix and still need rechecking.
+-  **CV32E40X** - supported in simulation and back in the default regressions.
+   The instruction-fetch offset that demoted it was a CoreJack clock-gate bug,
+   now fixed; see :doc:`cv32e40x_boot_issue`. FPGA and debug support are next.
+   Notes of vector behavior differences predate the fix and still need
+   rechecking on hardware.
 -  **SERV** - bit-serial low-area core. Bare-metal ``hello_world`` runs in
    simulation through a local socket adapter and on FPGA through the UART
    SRAM loader. Zephyr boots through the same loader path with a
