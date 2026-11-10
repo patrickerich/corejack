@@ -387,7 +387,7 @@ Debug-capable cores use OpenOCD/GDB in that gate. Supported cores without a
 RISC-V debug interface use the UART SRAM loader. The crossbar fabric, with every
 core's RAM traffic on direct ``soc_mem_ss`` ports (including CVA6's ``axi_demux``
 leg), has passed this gate on both boards (AXKU5 and Arty A7-100T) across all
-seven FPGA-supported cores, and closes timing at the 25 MHz default on both. Vivado
+eight supported cores, and closes timing at the 25 MHz default on both. Vivado
 reports no LUTLP-1 combinational loop on the CVA6 leg, which has no spill
 registers.
 

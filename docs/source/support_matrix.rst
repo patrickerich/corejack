@@ -46,6 +46,13 @@ Digilent Arty A7-100T (``arty_a7_100t``)
      - OpenOCD/GDB
      - supported
      - yes
+   * - ``cv32e40x``
+     - CV32E40X
+     - supported
+     - supported
+     - OpenOCD/GDB
+     - supported
+     - yes
    * - ``cv32e40s``
      - CV32E40S
      - supported
@@ -116,10 +123,10 @@ ALINX AXKU5 (``axku5``)
    * - ``cv32e40x``
      - CV32E40X
      - supported
-     - planned
-     - none
-     - planned
-     - no
+     - supported
+     - OpenOCD/GDB
+     - supported
+     - yes
    * - ``cv32e40s``
      - CV32E40S
      - supported
@@ -189,7 +196,7 @@ Core ISA Summary
      - ``rv32imc``
      - ``ilp32``
      - unsupported
-     - ``axku5``
+     - ``axku5``, ``arty_a7_100t``
    * - ``cva6``
      - CVA6
      - ``rv64``

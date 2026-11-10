@@ -153,8 +153,8 @@ than `ubuntu-latest`.
   `mk/sw.mk` reads it back via `validate_target.py --mem-num-banks` to split
   the `bank_<n>.hex` preload, so don't write the number anywhere else. See
   [Memory Subsystem Redesign](https://patrickerich.github.io/corejack/mem_ss_redesign.html).
-- **CV32E40X is supported in simulation only.** FPGA and debug are still
-  planned, so its FPGA targets need `ALLOW_PLANNED=1`. Its
+- **CV32E40X has no Zephyr support yet.** Simulation, FPGA and debug are
+  supported on both boards. Its
   [boot issue](https://patrickerich.github.io/corejack/cv32e40x_boot_issue.html) was a CoreJack clock-gate
   bug and is fixed.
 - External IP is fetched, not vendored-in-tree: PULP `axi`, `apb`,

@@ -43,14 +43,15 @@ against Chipyard, LiteX, Rocket Chip, OpenTitan, and Cheshire/Carfield, see
 - FPGA boards: `axku5` (Alinx AXKU5, Kintex UltraScale+) and `arty_a7_100t`
   (Digilent Arty A7-100T, Artix-7, 256 KiB SRAM) - both validated across the
   supported core set
-- Supported cores: Ibex, CV32E40P, CV32E40S, CVA6, SERV, PicoRV32, CVW/Wally
+- Supported cores: Ibex, CV32E40P, CV32E40X, CV32E40S, CVA6, SERV, PicoRV32,
+  CVW/Wally
 - SoC clock `25 MHz`; RAM at `0x80000000`; APB UART at `0x10000000`,
   `115200` baud
 - iDMA system DMA is the first tenant of the accelerator socket; PLIC at
   `0x0C000000`; external JTAG debug through `riscv-dbg`
 
-CV32E40X is supported in simulation; its FPGA and debug support are still
-planned. Its [boot issue](https://patrickerich.github.io/corejack/cv32e40x_boot_issue.html) is fixed.
+CV32E40X has no Zephyr support yet. Its
+[boot issue](https://patrickerich.github.io/corejack/cv32e40x_boot_issue.html) is fixed.
 
 The descriptor-derived per-core/board status table is the
 [support matrix](https://patrickerich.github.io/corejack/support_matrix.html)

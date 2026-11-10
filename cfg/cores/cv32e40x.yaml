@@ -3,8 +3,8 @@ display_name: CV32E40X
 
 integration:
   sim: supported
-  fpga: planned
-  debug: planned
+  fpga: supported
+  debug: supported
 
 dependency:
   manager: bender_vendor_package
@@ -38,7 +38,7 @@ reset:
   mtvec_addr: 0x80000000
 
 debug:
-  supported: false
+  supported: true
   hart_count: 1
   hartsel: 0
   halt_addr: 0x00000800
@@ -49,8 +49,8 @@ buses:
   data: obi
 
 clocking:
-  validated_min_hz: 0
-  validated_max_hz: 0
+  validated_min_hz: 25000000
+  validated_max_hz: 25000000
 
 software:
   default_target: fpga
@@ -60,3 +60,4 @@ software:
 
 compatible_boards:
   - axku5
+  - arty_a7_100t

@@ -13,8 +13,8 @@ Both FPGA board targets - ``axku5`` (ALINX AXKU5, Kintex UltraScale+) and
 ``arty_a7_100t`` (Arty A7-100T, Artix-7) - are hardware-validated across the
 supported core set with the crossbar fabric: a full ``make fpga-accept``
 regression builds a bitstream, programs the board, and runs bare-metal
-``hello_world`` for all seven cores - OpenOCD/GDB load/run for the
-debug-capable cores (ibex, cv32e40p, cv32e40s, cva6) and the UART SRAM loader
+``hello_world`` for all eight cores - OpenOCD/GDB load/run for the
+debug-capable cores (ibex, cv32e40p, cv32e40x, cv32e40s, cva6) and the UART SRAM loader
 for the rest (serv, picorv32, cvw). Zephyr console/timer smoke on Arty is
 validated with Ibex.
 
@@ -92,11 +92,11 @@ The authoritative descriptor-derived matrix lives in
    else via the crossbar); simulation, FPGA, and OpenOCD/GDB
    load/run/single-step validated on both boards with the dedicated RAM path.
    Zephyr initial (RV64).
--  **CV32E40X** - supported in simulation and back in the default regressions.
-   The instruction-fetch offset that demoted it was a CoreJack clock-gate bug,
-   now fixed; see :doc:`cv32e40x_boot_issue`. FPGA and debug support are next.
-   Notes of vector behavior differences predate the fix and still need
-   rechecking on hardware.
+-  **CV32E40X** - simulation, FPGA, and OpenOCD/GDB load/run/single-step
+   validated on both boards. The instruction-fetch offset that demoted it was
+   a CoreJack clock-gate bug, now fixed; see :doc:`cv32e40x_boot_issue`.
+   Zephyr is next. Notes of vector behavior differences predate the fix and
+   still need rechecking with Zephyr on hardware.
 -  **SERV** - bit-serial low-area core. Bare-metal ``hello_world`` runs in
    simulation through a local socket adapter and on FPGA through the UART
    SRAM loader. Zephyr boots through the same loader path with a
@@ -142,7 +142,7 @@ Software and validation flow:
    prebuilt RISC-V toolchain from the ``toolchain-v1`` release and runs the full
    ``make axi-smoke`` set: ``.github/workflows/smoke.yml`` guards every PR in about
    a minute, and ``.github/workflows/regression.yml`` runs the ten focused
-   simulations plus ``hello_world`` on all seven supported cores, split across
+   simulations plus ``hello_world`` on all eight supported cores, split across
    runners so the wall time is about six minutes. ``axi-smoke`` is therefore
    enforced rather than left to contributor discipline.
 
@@ -174,7 +174,7 @@ Platform Architecture Direction
    the banked memory. This paid off with the *existing* initiator set - it was
    not blocked on AXI-native burst initiators arriving. Validated by the full
    ``make axi-smoke`` simulation set and by full ``make fpga-accept`` regressions on
-   both boards (AXKU5 and Arty A7-100T) across all seven supported cores; the
+   both boards (AXKU5 and Arty A7-100T) across all eight supported cores; the
    crossbar closes timing at the 25 MHz default on both. See
    :doc:`axi4_fabric`.
 -  Adopt a layered interconnect as the platform endpoint, structured as
