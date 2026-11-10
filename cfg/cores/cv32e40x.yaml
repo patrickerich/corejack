@@ -2,9 +2,9 @@ name: cv32e40x
 display_name: CV32E40X
 
 integration:
-  sim: planned
-  fpga: unsupported
-  debug: unsupported
+  sim: supported
+  fpga: planned
+  debug: planned
 
 dependency:
   manager: bender_vendor_package

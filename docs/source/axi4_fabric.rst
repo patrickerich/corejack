@@ -371,8 +371,8 @@ Run the full AXI fabric smoke:
 -  ``hello_world`` simulation on each supported core
 
 The default supported-core simulation set is controlled by ``AXI_SMOKE_CORES``
-in the Makefile and currently covers ``ibex``, ``cv32e40p``, ``cv32e40s``, ``cva6``,
-``serv``, ``picorv32``, and ``cvw``.
+in the Makefile and currently covers ``ibex``, ``cv32e40p``, ``cv32e40s``,
+``cv32e40x``, ``cva6``, ``serv``, ``picorv32``, and ``cvw``.
 
 Unsupported cores are not part of the default AXI smoke target and their
 optional RTL dependencies are not required for the default ``debug-sim`` gate.
@@ -387,7 +387,7 @@ Debug-capable cores use OpenOCD/GDB in that gate. Supported cores without a
 RISC-V debug interface use the UART SRAM loader. The crossbar fabric, with every
 core's RAM traffic on direct ``soc_mem_ss`` ports (including CVA6's ``axi_demux``
 leg), has passed this gate on both boards (AXKU5 and Arty A7-100T) across all
-seven supported cores, and closes timing at the 25 MHz default on both. Vivado
+seven FPGA-supported cores, and closes timing at the 25 MHz default on both. Vivado
 reports no LUTLP-1 combinational loop on the CVA6 leg, which has no spill
 registers.
 

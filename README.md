@@ -49,9 +49,8 @@ against Chipyard, LiteX, Rocket Chip, OpenTitan, and Cheshire/Carfield, see
 - iDMA system DMA is the first tenant of the accelerator socket; PLIC at
   `0x0C000000`; external JTAG debug through `riscv-dbg`
 
-CV32E40X is excluded from default regressions until it passes the
-[core acceptance checklist](https://patrickerich.github.io/corejack/core_acceptance_checklist.html);
-its [boot issue](https://patrickerich.github.io/corejack/cv32e40x_boot_issue.html) is fixed.
+CV32E40X is supported in simulation; its FPGA and debug support are still
+planned. Its [boot issue](https://patrickerich.github.io/corejack/cv32e40x_boot_issue.html) is fixed.
 
 The descriptor-derived per-core/board status table is the
 [support matrix](https://patrickerich.github.io/corejack/support_matrix.html)
