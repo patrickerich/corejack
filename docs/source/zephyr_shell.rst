@@ -112,7 +112,7 @@ A few commands that show the platform underneath the shell:
 .. code:: text
 
    uart:~$ demo board
-   corejack_ibex_arty_a7_100t
+   corejack_arty_a7_100t
    uart:~$ kernel version
    Zephyr version 4.4.0
    uart:~$ kernel uptime

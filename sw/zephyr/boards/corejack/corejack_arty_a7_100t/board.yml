@@ -1,0 +1,6 @@
+board:
+  name: corejack_arty_a7_100t
+  full_name: CoreJack on Arty A7-100T
+  vendor: corejack
+  socs:
+    - name: corejack_ibex

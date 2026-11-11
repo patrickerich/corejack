@@ -2,7 +2,7 @@ zephyr_sources(
   ${ZEPHYR_BASE}/soc/common/riscv-privileged/soc_irq.S
   ${ZEPHYR_BASE}/soc/common/riscv-privileged/vector.S
 )
-zephyr_sources_ifdef(CONFIG_BOARD_COREJACK_SERV_AXKU5 spin_cpu_idle.c)
+zephyr_sources_ifdef(CONFIG_SOC_COREJACK_SERV spin_cpu_idle.c)
 
 zephyr_include_directories(.)
 

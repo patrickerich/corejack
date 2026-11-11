@@ -1,0 +1,11 @@
+board:
+  name: corejack_axku5
+  full_name: CoreJack on AXKU5
+  vendor: corejack
+  socs:
+    - name: corejack_ibex
+    - name: corejack_cv32e40p
+    - name: corejack_cv32e40x
+    - name: corejack_cv32e40s
+    - name: corejack_cva6
+    - name: corejack_serv
