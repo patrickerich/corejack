@@ -252,7 +252,8 @@ CV32E40X is supported in simulation, on FPGA and for debug on both boards.
 Its instruction-fetch offset was a CoreJack clock-gate bug, now fixed; see
 :doc:`CV32E40X boot issue <cv32e40x_boot_issue>`. Earlier Zephyr/timer testing
 also noted vector/interrupt behavior that differed from the other supported
-cores. That predates the fix and still needs rechecking with Zephyr on hardware.
+cores. That did not reproduce after the fix: the Zephyr timer and PLIC
+interrupt smoke passes on the AXKU5.
 
 CV32E40S reports a sticky reset-status flag through ``debug_havereset_o``. The
 adapter does not forward it: ``dm_top.unavailable_i`` is tied low, and reset

@@ -56,7 +56,7 @@ software:
   default_target: fpga
   toolchain: riscv-multilib
   zephyr:
-    status: unsupported
+    status: initial_supported
 
 compatible_boards:
   - axku5

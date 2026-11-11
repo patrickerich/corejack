@@ -23,11 +23,13 @@ Initial Target
 -  Zephyr workspace: ``TOOLS_DIR/zephyrproject``; ``TOOLS_DIR`` defaults to ``.tools``
 -  Zephyr app and platform files: ``sw/zephyr``
 -  Zephyr boards: ``corejack_ibex_axku5``, ``corejack_cv32e40p_axku5``,
-   ``corejack_cv32e40s_axku5``, ``corejack_cva6_axku5``,
-   ``corejack_serv_axku5``, and ``corejack_ibex_arty_a7_100t``
+   ``corejack_cv32e40x_axku5``, ``corejack_cv32e40s_axku5``,
+   ``corejack_cva6_axku5``, ``corejack_serv_axku5``, and
+   ``corejack_ibex_arty_a7_100t``
 -  CoreJack core/board pairs: ``CORE=ibex BOARD=axku5``,
-   ``CORE=cv32e40p BOARD=axku5``, ``CORE=cv32e40s BOARD=axku5``,
-   ``CORE=cva6 BOARD=axku5``, ``CORE=serv BOARD=axku5``,
+   ``CORE=cv32e40p BOARD=axku5``, ``CORE=cv32e40x BOARD=axku5``,
+   ``CORE=cv32e40s BOARD=axku5``, ``CORE=cva6 BOARD=axku5``,
+   ``CORE=serv BOARD=axku5``,
    ``CORE=ibex BOARD=arty_a7_100t``
 -  SERV is loaded through the UART SRAM loader rather than OpenOCD/GDB
 -  AXKU5 executable image region: ``0x80000000`` to ``0x8003ffff``
@@ -97,6 +99,7 @@ Build the initial Zephyr application:
 
    make zephyr-build CORE=ibex BOARD=axku5
    make zephyr-build CORE=cv32e40p BOARD=axku5
+   make zephyr-build CORE=cv32e40x BOARD=axku5
    make zephyr-build CORE=cv32e40s BOARD=axku5
    make zephyr-build CORE=cva6 BOARD=axku5
    make zephyr-build CORE=serv BOARD=axku5
@@ -113,11 +116,6 @@ Expected ELF:
 
 The initial build produces an RV32 ELF with entry point ``0x80000000``, matching
 the CoreJack SRAM base.
-
-CV32E40X has an out-of-tree Zephyr board directory from earlier bring-up, but
-it is not part of the supported Zephyr set. Notes of interrupt vector differences
-predate the :doc:`clock-gate fix <cv32e40x_boot_issue>`, so keep it disabled until
-they have been rechecked.
 
 SERV has an out-of-tree Zephyr board and boots the CoreJack timer-smoke sample
 through the UART SRAM loader:
