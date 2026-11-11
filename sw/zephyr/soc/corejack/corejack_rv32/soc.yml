@@ -1,2 +1,6 @@
 socs:
-  - name: corejack_rv32
+  - name: corejack_ibex
+  - name: corejack_cv32e40p
+  - name: corejack_cv32e40x
+  - name: corejack_cv32e40s
+  - name: corejack_serv

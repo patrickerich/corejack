@@ -1,10 +1,11 @@
-/dts-v1/;
-
-#include <corejack/corejack_cva6.dtsi>
+/*
+ * What every core shares on this board. A core's corejack_axku5_corejack_<core>.dts
+ * includes its CPU description first, then this file.
+ */
 
 / {
-	model = "CoreJack CVA6 on AXKU5";
-	compatible = "corejack,corejack-cva6-axku5";
+	model = "CoreJack on AXKU5";
+	compatible = "corejack,corejack-axku5";
 
 	chosen {
 		zephyr,console = &uart0;

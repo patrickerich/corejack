@@ -1,5 +1,31 @@
+# Each core is a Zephyr SoC of its own; they all build on the shared
+# CoreJack RV32 platform.
 config SOC_COREJACK_RV32
 	bool
 
+config SOC_COREJACK_IBEX
+	bool
+	select SOC_COREJACK_RV32
+
+config SOC_COREJACK_CV32E40P
+	bool
+	select SOC_COREJACK_RV32
+
+config SOC_COREJACK_CV32E40X
+	bool
+	select SOC_COREJACK_RV32
+
+config SOC_COREJACK_CV32E40S
+	bool
+	select SOC_COREJACK_RV32
+
+config SOC_COREJACK_SERV
+	bool
+	select SOC_COREJACK_RV32
+
 config SOC
-	default "corejack_rv32" if SOC_COREJACK_RV32
+	default "corejack_ibex" if SOC_COREJACK_IBEX
+	default "corejack_cv32e40p" if SOC_COREJACK_CV32E40P
+	default "corejack_cv32e40x" if SOC_COREJACK_CV32E40X
+	default "corejack_cv32e40s" if SOC_COREJACK_CV32E40S
+	default "corejack_serv" if SOC_COREJACK_SERV

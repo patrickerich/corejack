@@ -57,7 +57,7 @@ int main(void)
 	}
 #endif
 	/* SERV loops rather than returning from main; other cores return cleanly. */
-#if !defined(CONFIG_BOARD_COREJACK_SERV_AXKU5)
+#if !defined(CONFIG_SOC_COREJACK_SERV)
 	return 0;
 #endif
 

@@ -18,4 +18,29 @@ config NUM_IRQS
 config UART_INTERRUPT_DRIVEN
 	default y if PLIC
 
+# Settings a board's defconfig would normally carry. Zephyr reads one defconfig
+# per board target and never merges them, so they are defaults here instead of
+# a copy per core and board.
+config SERIAL
+	default y
+
+config CONSOLE
+	default y
+
+config UART_CONSOLE
+	default y
+
+config MAIN_STACK_SIZE
+	default 2048
+
+config LINKER_USE_RELAX
+	default n
+
+# The CLINT counts at half the 25 MHz system clock.
+config SYS_CLOCK_HW_CYCLES_PER_SEC
+	default 12500000
+
+config ROM_START_OFFSET
+	default 0x80
+
 endif

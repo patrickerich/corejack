@@ -22,10 +22,11 @@ Initial Target
    ``4f50f0ba8905f27b2f60123d0ee0934fda6fe134``
 -  Zephyr workspace: ``TOOLS_DIR/zephyrproject``; ``TOOLS_DIR`` defaults to ``.tools``
 -  Zephyr app and platform files: ``sw/zephyr``
--  Zephyr boards: ``corejack_ibex_axku5``, ``corejack_cv32e40p_axku5``,
-   ``corejack_cv32e40x_axku5``, ``corejack_cv32e40s_axku5``,
-   ``corejack_cva6_axku5``, ``corejack_serv_axku5``, and
-   ``corejack_ibex_arty_a7_100t``
+-  Zephyr boards: ``corejack_axku5`` and ``corejack_arty_a7_100t``, one per FPGA
+   board. Each core is a Zephyr SoC, so a board target reads
+   ``corejack_<board>/corejack_<core>``, for example
+   ``corejack_axku5/corejack_ibex``. ``make zephyr-build`` derives it from
+   ``CORE`` and ``BOARD``.
 -  CoreJack core/board pairs: ``CORE=ibex BOARD=axku5``,
    ``CORE=cv32e40p BOARD=axku5``, ``CORE=cv32e40x BOARD=axku5``,
    ``CORE=cv32e40s BOARD=axku5``, ``CORE=cva6 BOARD=axku5``,
@@ -53,6 +54,13 @@ same CoreJack RV32 SoC, memory, and UART definitions, with small per-core
 devicetree files for CPU ISA details. CVA6 uses a separate CoreJack RV64 SoC and
 sets ``CONFIG_ROM_START_OFFSET=0x80`` so the ELF entry point matches the platform
 CVA6 boot address ``0x80000080``.
+
+There is one board folder per FPGA board under ``sw/zephyr/boards/corejack``.
+It holds what the cores share on that board, plus a two-line devicetree file
+per core, which Zephyr requires. Settings that belong to a core, and the
+console defaults a board's defconfig would normally carry, are in
+``sw/zephyr/soc/corejack``, so they exist once rather than once per core and
+board.
 
 CVA6 uses the platform ``rv64imc/lp64`` profile. The project-local RISC-V
 toolchain must therefore include an ``rv64imc-lp64`` multilib; older local

@@ -1,0 +1,4 @@
+/dts-v1/;
+
+#include <corejack/corejack_serv.dtsi>
+#include "corejack_axku5.dtsi"

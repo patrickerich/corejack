@@ -14,8 +14,9 @@ ZEPHYR_SHELL_TIMEOUT ?= 3600
 # Extra CMake arguments for zephyr-build, e.g. an overlay a Zephyr test needs:
 # ZEPHYR_EXTRA_ARGS="-DEXTRA_DTC_OVERLAY_FILE=... -DEXTRA_CONF_FILE=...".
 ZEPHYR_EXTRA_ARGS ?=
-ZEPHYR_BOARD ?= corejack_$(CORE)_$(BOARD)
-ZEPHYR_BUILD_DIR ?= $(CURDIR)/sw/build/zephyr/$(ZEPHYR_BOARD)/$(ZEPHYR_APP)
+# Zephyr board target: one board per FPGA board, with the core as its SoC.
+ZEPHYR_BOARD ?= corejack_$(BOARD)/corejack_$(CORE)
+ZEPHYR_BUILD_DIR ?= $(CURDIR)/sw/build/zephyr/corejack_$(CORE)_$(BOARD)/$(ZEPHYR_APP)
 ZEPHYR_ELF ?= $(ZEPHYR_BUILD_DIR)/zephyr/zephyr.elf
 ZEPHYR_BIN ?= $(ZEPHYR_BUILD_DIR)/zephyr/zephyr.bin
 
