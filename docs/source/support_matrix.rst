@@ -195,7 +195,7 @@ Core ISA Summary
      - ``rv32``
      - ``rv32imc``
      - ``ilp32``
-     - unsupported
+     - initial_supported
      - ``axku5``, ``arty_a7_100t``
    * - ``cva6``
      - CVA6

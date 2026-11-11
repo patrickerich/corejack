@@ -44,7 +44,7 @@ zephyr-check: ## check Zephyr workspace/tooling assumptions
 
 zephyr-build: zephyr-check validate-target ## build Zephyr hello app for ZEPHYR_BOARD
 	@test "$(BOARD)" = "axku5" -o "$(BOARD)" = "arty_a7_100t" || { echo "Error: initial Zephyr support is BOARD=axku5 or BOARD=arty_a7_100t only"; exit 1; }
-	@test "$(CORE)" = "ibex" -o "$(CORE)" = "cv32e40p" -o "$(CORE)" = "cv32e40s" -o "$(CORE)" = "cva6" -o "$(CORE)" = "serv" || { echo "Error: Zephyr support is CORE=ibex, CORE=cv32e40p, CORE=cv32e40s, CORE=cva6, or CORE=serv only"; exit 1; }
+	@test "$(CORE)" = "ibex" -o "$(CORE)" = "cv32e40p" -o "$(CORE)" = "cv32e40x" -o "$(CORE)" = "cv32e40s" -o "$(CORE)" = "cva6" -o "$(CORE)" = "serv" || { echo "Error: Zephyr support is CORE=ibex, CORE=cv32e40p, CORE=cv32e40x, CORE=cv32e40s, CORE=cva6, or CORE=serv only"; exit 1; }
 	@multilib_dir="$$("$(RISCV_TOOLCHAIN_PREFIX)/bin/riscv64-unknown-elf-gcc" -march=rv64imc -mabi=lp64 -print-multi-directory 2>/dev/null)"; \
 	if [ "$(CORE)" = "cva6" ] && { [ -z "$$multilib_dir" ] || [ "$$multilib_dir" = "." ]; }; then \
 		echo "Error: CVA6 Zephyr requires the rv64imc/lp64 multilib."; \

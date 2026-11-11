@@ -50,9 +50,6 @@ against Chipyard, LiteX, Rocket Chip, OpenTitan, and Cheshire/Carfield, see
 - iDMA system DMA is the first tenant of the accelerator socket; PLIC at
   `0x0C000000`; external JTAG debug through `riscv-dbg`
 
-CV32E40X has no Zephyr support yet. Its
-[boot issue](https://patrickerich.github.io/corejack/cv32e40x_boot_issue.html) is fixed.
-
 The descriptor-derived per-core/board status table is the
 [support matrix](https://patrickerich.github.io/corejack/support_matrix.html)
 (regenerate with `make support-matrix`). For the active direction across
