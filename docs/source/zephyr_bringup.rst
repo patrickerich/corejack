@@ -1,14 +1,14 @@
 Zephyr Bring-Up
 ===============
 
-CoreJack's Zephyr targets are the supported cores on AXKU5, plus Ibex on the
-Arty A7-100T. The goal is to reuse the validated FPGA hardware path and add a
-Zephyr software stack on top of it. Zephyr support is a per-core capability (see
+CoreJack's Zephyr targets are the supported cores on both FPGA boards, AXKU5
+and Arty A7-100T. The goal is to reuse the validated FPGA hardware path and add
+a Zephyr software stack on top of it. Zephyr support is a per-core capability (see
 the Core ISA Summary in :doc:`support_matrix`); a board only
 needs to bring up and have enough RAM to hold the image.
 
 Zephyr support is tracked in each core descriptor under
-``software.zephyr.status``. The current supported AXKU5 cores are marked
+``software.zephyr.status``. The current supported cores are marked
 ``initial_supported``, meaning the Zephyr board target builds, the ELF can be
 loaded through the accepted FPGA software loading flow for that core, and UART
 prints the Zephyr/CoreJack timer-smoke output. Debug-capable cores use
@@ -27,11 +27,9 @@ Initial Target
    ``corejack_<board>/corejack_<core>``, for example
    ``corejack_axku5/corejack_ibex``. ``make zephyr-build`` derives it from
    ``CORE`` and ``BOARD``.
--  CoreJack core/board pairs: ``CORE=ibex BOARD=axku5``,
-   ``CORE=cv32e40p BOARD=axku5``, ``CORE=cv32e40x BOARD=axku5``,
-   ``CORE=cv32e40s BOARD=axku5``, ``CORE=cva6 BOARD=axku5``,
-   ``CORE=serv BOARD=axku5``,
-   ``CORE=ibex BOARD=arty_a7_100t``
+-  CoreJack core/board pairs: ``CORE=ibex``, ``cv32e40p``, ``cv32e40x``,
+   ``cv32e40s``, ``cva6``, or ``serv``, each with ``BOARD=axku5`` or
+   ``BOARD=arty_a7_100t``
 -  SERV is loaded through the UART SRAM loader rather than OpenOCD/GDB
 -  AXKU5 executable image region: ``0x80000000`` to ``0x8003ffff``
 -  AXKU5 Zephyr RAM region: ``0x80040000`` to ``0x800fffff``
@@ -101,17 +99,12 @@ Check the workspace and toolchain:
 
    make zephyr-check
 
-Build the initial Zephyr application:
+Build the initial Zephyr application for any of those pairs, for example:
 
 .. code:: bash
 
    make zephyr-build CORE=ibex BOARD=axku5
-   make zephyr-build CORE=cv32e40p BOARD=axku5
-   make zephyr-build CORE=cv32e40x BOARD=axku5
-   make zephyr-build CORE=cv32e40s BOARD=axku5
-   make zephyr-build CORE=cva6 BOARD=axku5
-   make zephyr-build CORE=serv BOARD=axku5
-   make zephyr-build CORE=ibex BOARD=arty_a7_100t
+   make zephyr-build CORE=cva6 BOARD=arty_a7_100t
 
 The build passes ``BOARD_ROOT``, ``SOC_ROOT``, and ``DTS_ROOT`` to point Zephyr at
 the out-of-tree CoreJack platform files in ``sw/zephyr``.
@@ -120,7 +113,7 @@ Expected ELF:
 
 .. code:: text
 
-   sw/build/zephyr/corejack_<core>_axku5/corejack_hello/zephyr/zephyr.elf
+   sw/build/zephyr/corejack_<core>_<board>/corejack_hello/zephyr/zephyr.elf
 
 The initial build produces an RV32 ELF with entry point ``0x80000000``, matching
 the CoreJack SRAM base.
@@ -136,7 +129,7 @@ through the UART SRAM loader:
      UART_DEV=/dev/serial/by-id/<uart-device> \
      UART_LOADER_EXPECT="Machine timer interrupt path is alive."
 
-SERV uses a board-specific idle override to avoid Zephyr's default RISC-V
+SERV uses its own idle override to avoid Zephyr's default RISC-V
 ``wfi`` idle instruction. The upstream SERV Zephyr support uses the same approach
 because SERV can trap or lock up on ``wfi``.
 
@@ -158,7 +151,7 @@ The first Zephyr smoke app should print:
    === CoreJack Zephyr Demo ===
    Target: zephyr
    Core: <core>
-   Board: axku5
+   Board: <board>
    UART and Zephyr console path are alive.
    Machine timer interrupt path is alive.
    PLIC external interrupt path is alive.

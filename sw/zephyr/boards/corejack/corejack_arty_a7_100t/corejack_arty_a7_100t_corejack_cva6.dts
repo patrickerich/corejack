@@ -1,0 +1,5 @@
+/dts-v1/;
+
+#include "corejack_arty_a7_100t_ram_split.h"
+#include <corejack/corejack_cva6.dtsi>
+#include "corejack_arty_a7_100t.dtsi"
