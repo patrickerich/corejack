@@ -15,8 +15,8 @@ supported core set with the crossbar fabric: a full ``make fpga-accept``
 regression builds a bitstream, programs the board, and runs bare-metal
 ``hello_world`` for all eight cores - OpenOCD/GDB load/run for the
 debug-capable cores (ibex, cv32e40p, cv32e40x, cv32e40s, cva6) and the UART SRAM loader
-for the rest (serv, picorv32, cvw). Zephyr console/timer smoke on Arty is
-validated with Ibex.
+for the rest (serv, picorv32, cvw). Zephyr console/timer smoke is validated on
+both boards for the six Zephyr-capable cores.
 
 Platform pieces:
 

@@ -1,6 +1,6 @@
 /*
  * What every core shares on this board. A core's corejack_arty_a7_100t_corejack_<core>.dts
- * includes its CPU description first, then this file.
+ * includes the RAM split and its CPU description first, then this file.
  */
 
 / {
