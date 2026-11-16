@@ -94,6 +94,14 @@ The default RISC-V GNU toolchain source is pinned to the upstream
 resolves to a different commit, the build stops instead of silently accepting
 the changed source.
 
+The support libraries (libgcc and Newlib) are built with the ``medany`` code
+model, through upstream's ``--with-cmodel=medany``. CoreJack's RAM starts at
+``0x80000000``, which the default ``medlow`` model cannot address on RV64, and
+both the bare-metal and the Zephyr builds compile with ``-mcmodel=medany``. A
+``medlow`` library routine that addresses its data absolutely then fails to
+link into an RV64 image; Zephyr's shell on CVA6 hit this through libgcc's
+``__clzdi2``.
+
 Upstream tags this repository as automated nightlies rather than curated
 releases, so a pin bump buys no described fix - treat it as its own change with
 its own validation, never as a rider on unrelated work.
@@ -141,7 +149,7 @@ that no text file still contains the build prefix, and a relocation self-test
 that moves the tree to a throwaway path and compiles every multilib from there.
 
 Each tarball carries a ``MANIFEST`` recording the upstream repo, ref, resolved
-commit, multilib generator, and build timestamp. It doubles as the
+commit, multilib generator, library code model, and build timestamp. It doubles as the
 corresponding-source pointer required when publishing GCC binaries under
 GPLv3. With ``TOOLCHAIN_SKIP_BUILD=1`` the manifest records the pin as
 ``UNVERIFIED``, because skipping the build also skips the commit check - the
