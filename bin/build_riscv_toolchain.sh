@@ -28,6 +28,7 @@ prefix="${RISCV_TOOLCHAIN_PREFIX:-${repo_dir}/.tools/riscv}"
 jobs="${RISCV_TOOLCHAIN_JOBS:-$(nproc 2>/dev/null || echo 4)}"
 multilib_generator="${RISCV_MULTILIB_GENERATOR:-rv32i-ilp32--;rv32imc-ilp32--;rv32imcb-ilp32--;rv64imc-lp64--;rv64gc-lp64d--}"
 tuple="${RISCV_TOOLCHAIN_TUPLE:-riscv64-unknown-elf}"
+cmodel="medany"
 dist_dir="${RISCV_TOOLCHAIN_DIST_DIR:-${repo_dir}/.tools/dist}"
 
 keep_dist="${RISCV_TOOLCHAIN_KEEP_DIST:-0}"
@@ -51,6 +52,7 @@ echo "  ref:    ${toolchain_ref}"
 echo "  source: ${src_dir}"
 echo "  prefix: ${prefix}"
 echo "  jobs:   ${jobs}"
+echo "  library code model: ${cmodel}"
 if [[ -n "${multilib_generator}" ]]; then
   echo "  multilib generator: ${multilib_generator}"
 else
@@ -104,7 +106,11 @@ if [[ "${skip_build}" == "0" ]]; then
   done
   git -C "${src_dir}" "${skip_args[@]}" submodule update --init --recursive
 
-  configure_args=("--prefix=${prefix}")
+  # CoreJack's RAM is at 0x8000_0000, which the default medlow code model
+  # cannot reach on RV64, and both the bare-metal and the Zephyr builds compile
+  # with -mcmodel=medany. Build libgcc and newlib to match, or an RV64 image
+  # that pulls in a library routine with absolute addressing fails to link.
+  configure_args=("--prefix=${prefix}" "--with-cmodel=${cmodel}")
   if [[ -n "${multilib_generator}" ]]; then
     configure_args+=("--with-multilib-generator=${multilib_generator}")
   else
@@ -247,6 +253,7 @@ upstream ref:       ${toolchain_ref}
 upstream commit:    ${actual_commit:-unknown}
 pin state:          ${pin_state}
 multilib generator: ${multilib_generator}
+library code model: ${cmodel}
 built:              $(date -u +%Y-%m-%dT%H:%M:%SZ)
 built by:           bin/build_riscv_toolchain.sh
 MANIFEST_EOF

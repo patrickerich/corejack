@@ -73,22 +73,22 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq libmpc3 libmpfr6
 
-      # Keyed on the release tag: publishing toolchain-v2 means bumping the key
+      # Keyed on the release tag: publishing toolchain-v3 means bumping the key
       # and the URL below together.
       - name: Cache RISC-V toolchain
         id: riscv-toolchain
         uses: actions/cache@v6
         with:
           path: .tools/riscv
-          key: riscv-toolchain-v1
+          key: riscv-toolchain-v2
 
       - name: Download RISC-V toolchain
         if: steps.riscv-toolchain.outputs.cache-hit != 'true'
         shell: bash
         run: |
           curl -fsSL --retry 5 --retry-max-time 60 -o toolchain.tar.xz \
-            https://github.com/patrickerich/corejack/releases/download/toolchain-v1/corejack-riscv-toolchain-16.1.0-x86_64.tar.xz
-          echo "14369c17d88f567665dc23fb0f6fba19098595e530e616060aa5d3e9c254231b  toolchain.tar.xz" \
+            https://github.com/patrickerich/corejack/releases/download/toolchain-v2/corejack-riscv-toolchain-16.1.0-x86_64.tar.xz
+          echo "6ffbcc2a9dc771162a8abfd3525a804df5ef8adbe9fde2060bf57c1470b4545e  toolchain.tar.xz" \
             | sha256sum -c -
           mkdir -p .tools
           tar -C .tools -xf toolchain.tar.xz

@@ -194,9 +194,8 @@ Other Cores And Boards
 ----------------------
 
 The same three commands work for the other Zephyr targets loaded over JTAG:
-``CORE=cv32e40p``, ``cv32e40x``, or ``cv32e40s`` on the Arty, and
-``CORE=ibex``, ``cv32e40p``, ``cv32e40x``, ``cv32e40s``, or ``cva6`` with
-``BOARD=axku5``. On the AXKU5 the debug adapter is a Tigard and the console is
+``CORE=ibex``, ``cv32e40p``, ``cv32e40x``, ``cv32e40s``, or ``cva6``, on
+either board. On the AXKU5 the debug adapter is a Tigard and the console is
 a separate CP2102N USB UART; :doc:`External JTAG wiring <jtag_wiring>` has both
 boards. SERV has no JTAG debug path, so ``fpga-zephyr-shell`` rejects it.
 
