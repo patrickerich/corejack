@@ -22,16 +22,6 @@ set_switching_activity -static_probability 1.0 -toggle_rate 0.0 [get_ports sys_r
 # high-fanout synchronized reset nets; this activity constraint records the
 # board-level intent for power analysis.
 
-# Core reset is asserted asynchronously and released through rstgen. Avoid
-# same-edge recovery/removal checks from that synchronizer output into
-# downstream async reset pins.
-set_false_path \
-  -from [get_pins -hierarchical -quiet -filter {NAME =~ *i_rstgen_core/i_rstgen_bypass/synch_regs_q_reg[3]/C}] \
-  -through [get_pins -hierarchical -quiet {*/CLR}]
-set_false_path \
-  -from [get_pins -hierarchical -quiet -filter {NAME =~ *i_rstgen_core/i_rstgen_bypass/synch_regs_q_reg[3]/C}] \
-  -through [get_pins -hierarchical -quiet {*/PRE}]
-
 # User LEDs (LD4-LD7).
 set_property PACKAGE_PIN H5 [get_ports {led[0]}]
 set_property PACKAGE_PIN J5 [get_ports {led[1]}]
