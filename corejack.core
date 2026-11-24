@@ -135,6 +135,10 @@ filesets:
     files:
       - tb/test_cva6_reset_isolation.py : {file_type : user, copyto : .}
 
+  tb_core_reset_cocotb:
+    files:
+      - tb/test_core_reset.py : {file_type : user, copyto : .}
+
   tb_axi_adapter_sv:
     files:
       - tb/axi_adapter_dut.sv
@@ -323,6 +327,35 @@ targets:
       - core_region_rtl
       - tb_sw_sv
       - tb_cva6_reset_cocotb
+      - lint_waivers
+      - sim_waivers
+    toplevel: soc_dut
+
+  # Core-only reset on the cores that reset synchronously. One build per core,
+  # selected by the core_serv or core_picorv32 flag (make core-reset-sim runs
+  # both).
+  core-reset-sim:
+    <<: *default
+    flow: sim
+    flow_options:
+      tool: verilator
+      cocotb_module: test_core_reset
+      timescale: 1ns/1ps
+      verilator_options:
+        - trace_fst ? (--trace-fst --trace-structs)
+        - trace_vcd ? (--trace --trace-structs)
+        # As in sw-sim, so the platform starts the way it does there.
+        - --x-initial-edge
+        - core_serv ? (-DCOREJACK_CORE_SERV)
+        - core_picorv32 ? (-DCOREJACK_CORE_PICORV32)
+        - -DDEBUG_TEST_HOOKS
+        - asserts_off ? (-DASSERTS_OFF)
+    filesets_append:
+      - core_serv ? (core_serv_rtl)
+      - core_picorv32 ? (core_picorv32_rtl)
+      - core_region_rtl
+      - tb_sw_sv
+      - tb_core_reset_cocotb
       - lint_waivers
       - sim_waivers
     toplevel: soc_dut

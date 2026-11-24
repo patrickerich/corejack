@@ -55,6 +55,9 @@ SIM_MAKE_OPTIONS ?= --make_options=-j$(SIM_BUILD_JOBS)
 
 SIM_ASSERT_FUSESOC_FLAGS := $(if $(filter 0,$(SIM_ASSERTS)),--flag asserts_off,)
 
+# core-reset-sim: the cores that reset synchronously.
+CORE_RESET_SIM_CORES := serv picorv32
+
 SV_TB_BENCHES := tb_mem_ss tb_axi_to_mem
 SV_TB_SLICE   := $(if $(filter 1,$(SV_TB_XILINX_SRAM)),xilinx,model)
 
@@ -112,6 +115,25 @@ cva6-reset-sim: deps-base deps-cva6 ## run CVA6 AXI reset-isolation regression
 		COCOTB_RESULTS_FILE="$$results" \
 		fusesoc --cores-root . run --clean --target cva6-reset-sim --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
 	$(call sim_check_results,$$results)
+
+# One build and one waveform dump per core, so SIM_WAVE_FILE is not used here.
+core-reset-sim: deps-base deps-serv deps-picorv32 ## run core-only reset regression on SERV and PicoRV32
+	@for core in $(CORE_RESET_SIM_CORES); do \
+		echo "core-reset-sim: CORE=$$core"; \
+		wave_file="$(SIM_WAVE_DIR)/core-reset-sim-$$core.$(SIM_WAVE_FORMAT)"; \
+		extra_args=(); \
+		if [ "$(SIM_WAVES)" = "1" ]; then \
+			mkdir -p "$$(dirname "$$wave_file")"; \
+			echo "Waveform: $$wave_file"; \
+			extra_args+=(--run_options="--trace --trace-file $$wave_file"); \
+		fi; \
+		results="$(SIM_RESULTS_DIR)/core-reset-sim-$$core.xml"; \
+		mkdir -p "$(SIM_RESULTS_DIR)"; rm -f "$$results"; \
+		PATH="$(CURDIR)/.venv/bin:$$PATH" VIRTUAL_ENV="$(CURDIR)/.venv" CCACHE_DISABLE=1 \
+			COCOTB_RESULTS_FILE="$$results" \
+			fusesoc --cores-root . run --clean --target core-reset-sim --tool verilator --flag "core_$$core" $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
+		$(call sim_check_results,$$results) || exit 1; \
+	done
 
 # Appends the ibex, cv32e40p and cv32e40s filesets (see corejack.core), so it
 # needs those cores fetched -- deps-base alone leaves fusesoc unable to find
@@ -227,7 +249,7 @@ sv-tb-smoke: ## run the SV benches in the axi-smoke set
 axi-addr-map-check: ## check AXI fabric address windows for overlap
 	@$(PY) bin/check_axi_addr_map.py
 
-axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench sv-tb-smoke mem-bw-bench debug-sim cva6-reset-sim ## run AXI fabric regressions and supported-core SW sims
+axi-smoke: axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench sv-tb-smoke mem-bw-bench debug-sim cva6-reset-sim core-reset-sim ## run AXI fabric regressions and supported-core SW sims
 	@for core in $(AXI_SMOKE_CORES); do \
 		echo "AXI smoke: sim-run-sw CORE=$$core"; \
 		$(MAKE) sim-run-sw CORE="$$core" SW_APP=hello_world SIM_TIMEOUT_CYCLES="$(SIM_TIMEOUT_CYCLES)" || exit 1; \
@@ -306,4 +328,4 @@ smoke: deps-base ## run FuseSoC cocotb+Verilator smoke target
 		fusesoc --cores-root . run --clean --target smoke --tool verilator $(SIM_TRACE_FUSESOC_FLAGS) $(SIM_ASSERT_FUSESOC_FLAGS) corejack:corejack:platform $(SIM_MAKE_OPTIONS) "$${extra_args[@]}" && \
 	$(call sim_check_results,$$results)
 
-.PHONY: sim-run-sw debug-sim cva6-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke sim-sweep sim-sweep-core smoke
+.PHONY: sim-run-sw debug-sim cva6-reset-sim core-reset-sim axi-adapter-sim uart-loader-sim plic-sim mem-ss-bench mem-bw-bench sv-tb sv-tb-smoke axi-addr-map-check axi-smoke sim-sweep sim-sweep-core smoke
