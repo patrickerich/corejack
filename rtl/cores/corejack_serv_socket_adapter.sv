@@ -87,12 +87,17 @@ module corejack_serv_socket_adapter #(
   end
 `endif
 
-  assign instr_req_o  = ibus_cyc && !ibus_outstanding_q;
+  // SERV resets synchronously, so o_dbus_cyc stays high for a cycle after
+  // rst_ni asserts, while the outstanding flags clear at once. A core-only
+  // reset leaves the bus side running, which would accept the access in flight
+  // a second time. rst_ni is used as data here to withhold both requests; SERV
+  // does the same itself, but only for o_ibus_cyc.
+  assign instr_req_o  = rst_ni && ibus_cyc && !ibus_outstanding_q;
   assign instr_addr_o = ibus_addr;
   assign ibus_ack     = instr_rvalid_i && ibus_cyc;
   assign ibus_rdata   = instr_rdata_i;
 
-  assign data_req_o   = dbus_cyc && !dbus_outstanding_q;
+  assign data_req_o   = rst_ni && dbus_cyc && !dbus_outstanding_q;
   assign data_we_o    = dbus_we;
   assign data_be_o    = dbus_sel;
   assign data_addr_o  = dbus_addr;

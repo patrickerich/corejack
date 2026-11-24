@@ -52,10 +52,14 @@ module corejack_picorv32_socket_adapter #(
   assign mem_is_instr = mem_valid && mem_instr && !mem_is_write;
   assign mem_is_data  = mem_valid && (!mem_instr || mem_is_write);
 
-  assign instr_req_o  = mem_is_instr && !outstanding_q;
+  // PicoRV32 resets synchronously, so mem_valid stays high for a cycle after
+  // rst_ni asserts, while outstanding_q clears at once. A core-only reset
+  // leaves the bus side running, which would accept the access in flight a
+  // second time. rst_ni is used as data here to withhold both requests.
+  assign instr_req_o  = rst_ni && mem_is_instr && !outstanding_q;
   assign instr_addr_o = mem_addr;
 
-  assign data_req_o   = mem_is_data && !outstanding_q;
+  assign data_req_o   = rst_ni && mem_is_data && !outstanding_q;
   assign data_we_o    = mem_is_write;
   assign data_be_o    = mem_wstrb;
   assign data_addr_o  = mem_addr;

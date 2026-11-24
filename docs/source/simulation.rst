@@ -118,6 +118,11 @@ Simulation Targets
      - ``soc_dut`` / ``test_cva6_reset_isolation``
      - no
      - :doc:`riscv_dbg_integration`
+   * - ``make core-reset-sim``
+     - SERV and PicoRV32 repeat no bus access across an ``ndmreset``
+     - ``soc_dut`` / ``test_core_reset``
+     - no
+     - :doc:`riscv_dbg_integration`
    * - ``make axi-smoke``
      - aggregate gate: address-map check, every focused sim above, then ``hello_world`` on each supported core
      - (composite)
@@ -130,8 +135,8 @@ Simulation Targets
      - :doc:`fpga_sw_flow`
 
 ``make axi-smoke`` runs ``axi-addr-map-check``, ``axi-adapter-sim``,
-``uart-loader-sim``, ``plic-sim``, ``mem-ss-bench``, ``sv-tb-smoke``, ``mem-bw-bench``, ``debug-sim`` and
-``cva6-reset-sim``, then ``sim-run-sw`` for each core in ``AXI_SMOKE_CORES`` (default
+``uart-loader-sim``, ``plic-sim``, ``mem-ss-bench``, ``sv-tb-smoke``, ``mem-bw-bench``, ``debug-sim``,
+``cva6-reset-sim`` and ``core-reset-sim``, then ``sim-run-sw`` for each core in ``AXI_SMOKE_CORES`` (default
 ``ibex cv32e40p cv32e40s cv32e40x cva6 serv picorv32 cvw``). Unsupported cores are intentionally excluded;
 see :doc:`support_matrix`.
 
@@ -177,7 +182,7 @@ What a full ``axi-smoke`` actually costs
 The unit of cost is the **simulation**, not the test. Each simulation builds its
 own Verilator model; a model is never shared between simulations, because each
 one differs in either its toplevel, its cocotb module, or its compile-time core
-select (``-DCOREJACK_CORE_*``). A full run is 18 simulations, so 18 Verilator
+select (``-DCOREJACK_CORE_*``). A full run is 20 simulations, so 20 Verilator
 builds:
 
 .. list-table::
@@ -223,12 +228,16 @@ builds:
      - ``test_cva6_reset_isolation``
      - CVA6
      - 1
+   * - ``core-reset-sim``, 2x
+     - ``test_core_reset``
+     - SERV, then PicoRV32
+     - 1 each
    * - core sweep, 8x
      - ``test_soc_sw`` (``hello_world``)
      - one per ``AXI_SMOKE_CORES`` entry
      - 1 each
 
-That is **18 simulations and 36 cocotb tests**; the three ``sv-tb`` runs report
+That is **20 simulations and 38 cocotb tests**; the three ``sv-tb`` runs report
 PASS or FAIL themselves. The counts differ because a testbench
 file holds one or more ``@cocotb.test()`` functions and they all share the one
 model that simulation built - ``test_axi_adapters.py`` alone contributes 17. Tests

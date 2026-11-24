@@ -1,11 +1,11 @@
 name: regression
 
-# The full `make axi-smoke` gate, split across machines. Locally it is 18
-# simulations run back to back -- about 25 minutes on four cores. Here the ten
+# The full `make axi-smoke` gate, split across machines. Locally it is 20
+# simulations run back to back -- about 25 minutes on four cores. Here the twelve
 # focused simulations take one runner and the eight-core sweep takes one runner
 # each, so wall time is the slowest job rather than the sum. See
-# docs/source/simulation.rst for what each simulation covers and why 18
-# simulations produce 36 cocotb tests.
+# docs/source/simulation.rst for what each simulation covers and why 20
+# simulations produce 38 cocotb tests.
 #
 # `smoke.yml` stays the fast gate on every PR (about a minute). This is the
 # heavier one, and runs only on PRs that touch the RTL, testbenches, software,
@@ -52,7 +52,7 @@ jobs:
           echo "cores=$(printf '%s' "$list" | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
           echo "matrix: $list"
 
-  # The ten focused simulations plus the address-map check: everything
+  # The twelve focused simulations plus the address-map check: everything
   # `make axi-smoke` runs before its per-core sweep.
   focused:
     # Pinned for setup-verilator; see smoke.yml.
@@ -124,7 +124,8 @@ jobs:
           touch .tools/FUSESOC_IGNORE
           source ./sourceme.sh
           make axi-addr-map-check axi-adapter-sim uart-loader-sim plic-sim \
-               mem-ss-bench sv-tb-smoke mem-bw-bench debug-sim cva6-reset-sim
+               mem-ss-bench sv-tb-smoke mem-bw-bench debug-sim cva6-reset-sim \
+               core-reset-sim
 
   # `hello_world` on each core in AXI_SMOKE_CORES, one runner apiece.
   cores:
