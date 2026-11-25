@@ -286,10 +286,12 @@ The cocotb tests and testbench-only SystemVerilog live under ``tb/``:
    ``soc_mem_ss``. They report PASS or FAIL themselves and exit nonzero on failure.
 -  **cocotb tests:** ``test_smoke.py``, ``test_soc_sw.py``,
    ``test_debug_integration.py``, ``test_axi_adapters.py``,
-   ``test_uart_sram_loader.py``, ``test_plic.py``, ``test_mem_ss_bench.py``, and
-   ``test_cva6_reset_isolation.py``.
+   ``test_uart_sram_loader.py``, ``test_plic.py``, ``test_mem_ss_bench.py``,
+   ``test_cva6_reset_isolation.py``, and ``test_core_reset.py``.
 -  **TB-only monitors:** ``sim_ctrl_monitor.sv``, ``axi_sim_ctrl_monitor.sv``, and
    ``uart_apb_tx_monitor.sv``.
+-  **TB-only checker:** ``obi_protocol_checker.sv``, instantiated in ``soc_dut.sv``
+   on the core's instruction and data buses; see :doc:`axi4_fabric`.
 
 The toplevel and cocotb module for each target are wired in ``corejack.core``; the
 ``sv-tb`` target selects its toplevel with a FuseSoC flag named after the bench. See

@@ -196,6 +196,15 @@ The RV32 cores never own a fabric transaction. Their OBI buffers and
 finish the AXI side themselves; the buffers' core-facing ``s_rready_i`` is tied
 high, so responses always retire whether or not the core is alive to take them.
 
+This relies on the core reset lasting longer than any response takes. The
+responses carry no tag, so one that arrived after the reset released would
+answer the first request of the restarted core. Nothing in the hardware
+enforces the margin: ``rstgen`` adds four cycles to the reset, an ``ndmreset``
+from a debugger spans a JTAG round trip of far more cycles than a response
+takes, and the UART loader holds the reset for a whole download. In simulation
+``tb/obi_protocol_checker.sv`` checks the assumption: it fails if an access is
+still outstanding on either core bus when the core reset releases.
+
 The core's side of that boundary has one rule of its own: a core in reset
 presents no request. The cores that reset asynchronously drop their requests as
 the reset asserts. SERV and PicoRV32 reset synchronously and hold a request
@@ -203,7 +212,8 @@ until the next clock edge, while their socket adapters' record of the access in
 flight clears with the reset. Those two adapters therefore withhold both
 requests while ``core_rst_ni`` is low; otherwise the bus side would accept the
 access in flight a second time. ``make core-reset-sim`` checks this on both
-cores.
+cores, and the same checker fails any simulation in which a core in reset has
+a request accepted.
 
 **CVA6 is different: it is the AXI initiator itself**, so a core-only reset
 lands in the middle of the AXI link. Two rules of the AXI specification (AMBA
