@@ -83,7 +83,6 @@ filesets:
       - rtl/mem/soc_mem_port.sv
       - rtl/mem/soc_mem_ss.sv
       - rtl/bus/soc_obi_to_axi.sv
-      - rtl/bus/soc_axi_protocol_checker.sv
       - rtl/bus/soc_axi_reset_bridge.sv
       - rtl/bus/soc_axi_to_apb.sv
       - rtl/bus/soc_axi_to_dm.sv
@@ -117,6 +116,7 @@ filesets:
       - tb/sim_ctrl_monitor.sv
       - tb/axi_sim_ctrl_monitor.sv
       - tb/obi_protocol_checker.sv
+      - tb/soc_axi_protocol_checker.sv
       - tb/soc_dut.sv
     file_type: systemVerilogSource
 
@@ -142,6 +142,7 @@ filesets:
 
   tb_axi_adapter_sv:
     files:
+      - tb/soc_axi_protocol_checker.sv
       - tb/axi_adapter_dut.sv
     file_type: systemVerilogSource
 
@@ -203,8 +204,8 @@ filesets:
       - rtl/mem/soc_mem_bank.sv
       - rtl/mem/soc_mem_port.sv
       - rtl/mem/soc_mem_ss.sv
-      - rtl/bus/soc_axi_protocol_checker.sv
       - rtl/bus/soc_axi_to_mem.sv
+      - tb/soc_axi_protocol_checker.sv
       - tb/tb_mem_ss.sv
       - tb/tb_axi_to_mem.sv
     file_type: systemVerilogSource

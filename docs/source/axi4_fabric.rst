@@ -168,10 +168,13 @@ Simulation preload files use one 64-bit word per line.
 Protocol Checks
 ---------------
 
-Simulation builds instantiate ``soc_axi_protocol_checker`` on the core-side AXI
-ports and the target-side AXI ports. (There is no longer a single central
+The software testbench ``tb/soc_dut.sv`` instantiates
+``tb/soc_axi_protocol_checker.sv`` on the core-side AXI ports and the
+target-side AXI ports of the crossbar. (There is no longer a single central
 fabric port to check: the crossbar decodes per initiator and arbitrates per
 target, so the per-initiator and per-target checkers cover the fabric ends.)
+Further instances watch the legs that bypass the crossbar: the iDMA's memory
+leg and, on CVA6, the RAM leg and the fabric side of ``soc_axi_reset_bridge``.
 The checker guards the subset used by this platform:
 
 -  payload stability while ``valid`` is asserted and ``ready`` is low
@@ -184,10 +187,8 @@ transactions, and the crossbar buys concurrency and multiple-outstanding rather
 than bursts. The assertions are the guard that will flag the first burst-capable
 initiator added later.
 
-The software testbench ``tb/soc_dut.sv`` adds two checks that live outside
-``soc_top``. One more ``soc_axi_protocol_checker`` watches the iDMA's memory
-leg, which bypasses the crossbar. ``tb/obi_protocol_checker.sv`` watches the
-RV32 core's instruction and data buses, where the core adapter meets the OBI
+The same testbench instantiates ``tb/obi_protocol_checker.sv`` on the RV32
+core's instruction and data buses, where the core adapter meets the OBI
 buffers:
 
 -  a request that is not granted stays up with a stable address, write enable,
@@ -197,6 +198,9 @@ buffers:
 -  no access is outstanding when the core reset releases
 
 The two rules about the core reset are explained in :doc:`riscv_dbg_integration`.
+
+Both checkers are testbench code under ``tb/``. ``soc_top`` instantiates
+neither, so a new testbench around ``soc_top`` has to instantiate them itself.
 
 Current Scope
 -------------

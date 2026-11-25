@@ -41,8 +41,9 @@ lint_off -rule PINCONNECTEMPTY
 lint_off -rule DECLFILENAME
 
 // soc_top: one top serves every core, so each core leaves some paths idle.
-// The RV32 OBI paths are idle under CVA6, and CVA6's AXI path and its two
-// memory ports (5, 6) are idle under the RV32 cores.
+// The RV32 OBI paths and the crossbar's second initiator port are idle under
+// CVA6, and CVA6's AXI path and its two memory ports (5, 6) are idle under the
+// RV32 cores.
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'core_instr_*"
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'core_data_*"
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'instr_gnt'*"
@@ -53,6 +54,7 @@ lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'data_rdata'*"
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'data_err'*"
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'instr_axi_req'*"
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'data_axi_req'*"
+lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'core_axi_rsp'*"
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'cva6_axi_*"
 lint_off -rule UNUSEDSIGNAL -file "*/rtl/top/soc_top.sv" -match "*'mem_init_*"
 // The APB smoke port is only partly read once EnablePlatform = 1.
