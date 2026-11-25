@@ -290,8 +290,10 @@ The cocotb tests and testbench-only SystemVerilog live under ``tb/``:
    ``test_cva6_reset_isolation.py``, and ``test_core_reset.py``.
 -  **TB-only monitors:** ``sim_ctrl_monitor.sv``, ``axi_sim_ctrl_monitor.sv``, and
    ``uart_apb_tx_monitor.sv``.
--  **TB-only checker:** ``obi_protocol_checker.sv``, instantiated in ``soc_dut.sv``
-   on the core's instruction and data buses; see :doc:`axi4_fabric`.
+-  **TB-only checkers:** ``obi_protocol_checker.sv``, instantiated in ``soc_dut.sv``
+   on the core's instruction and data buses, and ``soc_axi_protocol_checker.sv``,
+   instantiated in ``soc_dut.sv``, ``axi_adapter_dut.sv`` and ``tb_axi_to_mem.sv``
+   on their AXI ports; see :doc:`axi4_fabric`.
 
 The toplevel and cocotb module for each target are wired in ``corejack.core``; the
 ``sv-tb`` target selects its toplevel with a FuseSoC flag named after the bench. See

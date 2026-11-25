@@ -300,38 +300,6 @@ module soc_top #(
     logic [1:0]    clint_ipi;
     logic          clint_rtc_q;
 
-`ifndef SYNTHESIS
-    for (genvar i = 0; i < CoreAxiPorts; i++) begin : gen_core_axi_checkers
-      soc_axi_protocol_checker i_axi_checker (
-        .clk_i,
-        .rst_ni,
-        .req_i (core_axi_req[i]),
-        .rsp_i (core_axi_rsp[i])
-      );
-    end
-
-    // No single shared fabric stream exists anymore: `axi_xbar` decodes per
-    // initiator and arbitrates per target, so the per-target checkers (typed to
-    // the wider master-side AXI) cover the fabric outputs.
-    for (genvar i = 0; i < FabricAxiPorts; i++) begin : gen_target_axi_checkers
-      soc_axi_protocol_checker #(
-        .req_t         (soc_axi_mst_req_t),
-        .rsp_t         (soc_axi_mst_resp_t),
-        .axi_aw_chan_t (soc_axi_mst_aw_chan_t),
-        .axi_w_chan_t  (soc_axi_mst_w_chan_t),
-        .axi_ar_chan_t (soc_axi_mst_ar_chan_t),
-        .axi_b_chan_t  (soc_axi_mst_b_chan_t),
-        .axi_r_chan_t  (soc_axi_mst_r_chan_t)
-      ) i_axi_checker (
-        .clk_i,
-        .rst_ni,
-        .req_i (target_axi_req[i]),
-        .rsp_i (target_axi_rsp[i])
-      );
-    end
-
-`endif
-
     // RAM geometry validation. These are generate-scope elaboration tasks, not
     // an `initial` block under `ifndef SYNTHESIS`: a bad geometry silently
     // advertises a RamSize larger than the memory actually instantiated
@@ -455,18 +423,6 @@ module soc_top #(
         .mst_req_o (cva6_bridge_req),
         .mst_rsp_i (cva6_bridge_rsp)
       );
-
-`ifndef SYNTHESIS
-      // The bridge's fabric side must obey the handshake rule through every
-      // core reset; the core side may not (the core legally drops its valids
-      // in reset), so it is not checked on rst_ni.
-      soc_axi_protocol_checker i_cva6_bridge_axi_checker (
-        .clk_i,
-        .rst_ni,
-        .req_i (cva6_bridge_req),
-        .rsp_i (cva6_bridge_rsp)
-      );
-`endif
 
       axi_isolate #(
         // CVA6's outstanding capacity is bounded well below this by
@@ -624,16 +580,6 @@ module soc_top #(
         .mem_wr_rready_o (mem_axi_rready[6]),
         .mem_wr_err_i    (mem_init_err[6])
       );
-
-`ifndef SYNTHESIS
-      // The per-initiator xbar checkers do not see the RAM leg; guard it too.
-      soc_axi_protocol_checker i_cva6_ram_axi_checker (
-        .clk_i,
-        .rst_ni,
-        .req_i (cva6_route_req[1]),
-        .rsp_i (cva6_route_rsp[1])
-      );
-`endif
 
       assign core_instr_req    = 1'b0;
       assign core_instr_addr   = '0;

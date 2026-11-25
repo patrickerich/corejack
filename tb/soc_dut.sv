@@ -178,7 +178,7 @@ module soc_dut;
   assign sim_status_code  = axi_sim_status_valid ? axi_sim_status_code : obi_sim_status_code;
 
   // Checkers on the core's two buses, where the core adapter meets the OBI
-  // buffers. The buses idle on the CVA6 path, whose AXI link soc_top checks.
+  // buffers. The buses idle on the CVA6 path, whose AXI link is checked below.
   logic core_instr_inject;
   logic core_data_inject;
 
@@ -222,8 +222,68 @@ module soc_dut;
     .inject_i(core_data_inject)
   );
 
-  // The iDMA's memory leg bypasses the crossbar, so the AXI checkers inside
-  // soc_top do not see it.
+  // AXI checkers on every crossbar port. The crossbar decodes per initiator and
+  // arbitrates per target, so no single stream carries all traffic: each
+  // initiator port and each target port has its own checker, and the target
+  // ports use the wider master-side AXI types.
+  localparam int unsigned CoreAxiPorts   = AxiNumInitiators;
+  // Copy of soc_top's FabricAxiPorts; the check below fails if the two differ.
+  localparam int unsigned FabricAxiPorts = 6;
+
+  initial begin
+    assert (i_soc_top.gen_platform.CoreAxiPorts == CoreAxiPorts)
+      else $fatal(1, "soc_dut: CoreAxiPorts does not match soc_top");
+    assert (i_soc_top.gen_platform.FabricAxiPorts == FabricAxiPorts)
+      else $fatal(1, "soc_dut: FabricAxiPorts does not match soc_top");
+  end
+
+  for (genvar i = 0; i < CoreAxiPorts; i++) begin : gen_core_axi_checkers
+    soc_axi_protocol_checker i_axi_checker (
+      .clk_i(clk_i),
+      .rst_ni(rst_ni),
+      .req_i(i_soc_top.gen_platform.core_axi_req[i]),
+      .rsp_i(i_soc_top.gen_platform.core_axi_rsp[i])
+    );
+  end
+
+  for (genvar i = 0; i < FabricAxiPorts; i++) begin : gen_target_axi_checkers
+    soc_axi_protocol_checker #(
+      .req_t(soc_axi_mst_req_t),
+      .rsp_t(soc_axi_mst_resp_t),
+      .axi_aw_chan_t(soc_axi_mst_aw_chan_t),
+      .axi_w_chan_t(soc_axi_mst_w_chan_t),
+      .axi_ar_chan_t(soc_axi_mst_ar_chan_t),
+      .axi_b_chan_t(soc_axi_mst_b_chan_t),
+      .axi_r_chan_t(soc_axi_mst_r_chan_t)
+    ) i_axi_checker (
+      .clk_i(clk_i),
+      .rst_ni(rst_ni),
+      .req_i(i_soc_top.gen_platform.target_axi_req[i]),
+      .rsp_i(i_soc_top.gen_platform.target_axi_rsp[i])
+    );
+  end
+
+`ifdef COREJACK_CORE_CVA6
+  // The fabric side of soc_axi_reset_bridge must obey the handshake rule
+  // through every core reset; the core side may not (the core legally drops
+  // its valids in reset), so it is not checked on rst_ni.
+  soc_axi_protocol_checker i_cva6_bridge_axi_checker (
+    .clk_i(clk_i),
+    .rst_ni(rst_ni),
+    .req_i(i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_req),
+    .rsp_i(i_soc_top.gen_platform.gen_cva6_core_path.cva6_bridge_rsp)
+  );
+
+  // CVA6's RAM leg bypasses the crossbar, so the checkers above do not see it.
+  soc_axi_protocol_checker i_cva6_ram_axi_checker (
+    .clk_i(clk_i),
+    .rst_ni(rst_ni),
+    .req_i(i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_req[1]),
+    .rsp_i(i_soc_top.gen_platform.gen_cva6_core_path.cva6_route_rsp[1])
+  );
+`endif
+
+  // The iDMA's memory leg bypasses the crossbar as well.
   soc_axi_protocol_checker i_dma_mem_axi_checker (
     .clk_i(clk_i),
     .rst_ni(rst_ni),

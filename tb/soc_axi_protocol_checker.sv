@@ -23,7 +23,6 @@ module soc_axi_protocol_checker #(
   input  req_t req_i,
   input  rsp_t rsp_i
 );
-`ifndef SYNTHESIS
   axi_aw_chan_t aw_hold_q;
   axi_w_chan_t  w_hold_q;
   axi_ar_chan_t ar_hold_q;
@@ -102,5 +101,4 @@ module soc_axi_protocol_checker #(
       end
     end
   end
-`endif
 endmodule

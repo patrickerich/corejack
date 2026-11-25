@@ -24,7 +24,7 @@ RTL
    (e.g. the ``cvw_*`` copies that avoid module-name collisions).
 -  ``rtl/bus/`` - fabric building blocks (``soc_obi_to_axi``, ``soc_axi_to_mem``,
    ``soc_axi_to_apb``, ``soc_axi_to_dm``, ``soc_axi_to_reg``,
-   ``soc_axi_reset_bridge``, ``soc_axi_protocol_checker``). The system
+   ``soc_axi_reset_bridge``). The system
    crossbar itself is the PULP ``axi_xbar`` from the Bender-managed ``axi`` dependency; see
    :doc:`axi4_fabric`.
 -  ``rtl/mem/`` - banked, interleaved SRAM subsystem (``soc_mem_ss``) built from
@@ -98,8 +98,9 @@ Testbenches And Software
 -  ``tb/`` - cocotb harnesses and TB-only monitors: ``soc_dut.sv``,
    ``smoke_dut.sv``, ``axi_adapter_dut.sv``, ``uart_sram_loader_dut.sv``,
    ``plic_dut.sv``, ``mem_ss_bench_dut.sv``, ``uart_apb_tx_monitor.sv``,
-   ``sim_ctrl_monitor.sv``, ``axi_sim_ctrl_monitor.sv``, the bus checker
-   ``obi_protocol_checker.sv``, the self-checking
+   ``sim_ctrl_monitor.sv``, ``axi_sim_ctrl_monitor.sv``, the bus checkers
+   ``obi_protocol_checker.sv`` and ``soc_axi_protocol_checker.sv``, the
+   self-checking
    SystemVerilog benches ``tb_mem_ss.sv`` and ``tb_axi_to_mem.sv``
    (``make sv-tb``), plus the cocotb tests
    ``test_soc_sw.py``, ``test_smoke.py``, ``test_axi_adapters.py``,
