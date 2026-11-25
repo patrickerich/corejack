@@ -177,6 +177,60 @@ module soc_dut;
   assign sim_status_pass  = axi_sim_status_valid ? axi_sim_status_pass : obi_sim_status_pass;
   assign sim_status_code  = axi_sim_status_valid ? axi_sim_status_code : obi_sim_status_code;
 
+  // Checkers on the core's two buses, where the core adapter meets the OBI
+  // buffers. The buses idle on the CVA6 path, whose AXI link soc_top checks.
+  logic core_instr_inject;
+  logic core_data_inject;
+
+`ifdef DEBUG_TEST_HOOKS
+  // dbg_force_core_req forces requests in below the OBI buffers, and their
+  // responses return to the core through the buffers.
+  assign core_instr_inject = dbg_force_core_req && i_soc_top.gen_platform.instr_req &&
+                             i_soc_top.gen_platform.instr_gnt;
+  assign core_data_inject  = dbg_force_core_req && i_soc_top.gen_platform.data_req &&
+                             i_soc_top.gen_platform.data_gnt;
+`else
+  assign core_instr_inject = 1'b0;
+  assign core_data_inject  = 1'b0;
+`endif
+
+  obi_protocol_checker i_core_instr_checker (
+    .clk_i(clk_i),
+    .rst_ni(rst_ni),
+    .core_rst_ni(i_soc_top.gen_platform.core_rst_ni),
+    .req_i(i_soc_top.gen_platform.core_instr_req),
+    .gnt_i(i_soc_top.gen_platform.core_instr_gnt),
+    .we_i(1'b0),
+    .addr_i(i_soc_top.gen_platform.core_instr_addr),
+    .wdata_i('0),
+    .be_i('1),
+    .rvalid_i(i_soc_top.gen_platform.core_instr_rvalid),
+    .inject_i(core_instr_inject)
+  );
+
+  obi_protocol_checker i_core_data_checker (
+    .clk_i(clk_i),
+    .rst_ni(rst_ni),
+    .core_rst_ni(i_soc_top.gen_platform.core_rst_ni),
+    .req_i(i_soc_top.gen_platform.core_data_req),
+    .gnt_i(i_soc_top.gen_platform.core_data_gnt),
+    .we_i(i_soc_top.gen_platform.core_data_we),
+    .addr_i(i_soc_top.gen_platform.core_data_addr),
+    .wdata_i(i_soc_top.gen_platform.core_data_wdata),
+    .be_i(i_soc_top.gen_platform.core_data_be),
+    .rvalid_i(i_soc_top.gen_platform.core_data_rvalid),
+    .inject_i(core_data_inject)
+  );
+
+  // The iDMA's memory leg bypasses the crossbar, so the AXI checkers inside
+  // soc_top do not see it.
+  soc_axi_protocol_checker i_dma_mem_axi_checker (
+    .clk_i(clk_i),
+    .rst_ni(rst_ni),
+    .req_i(i_soc_top.gen_platform.i_dma_socket.mem_req),
+    .rsp_i(i_soc_top.gen_platform.i_dma_socket.mem_rsp)
+  );
+
 `ifdef DEBUG_TEST_HOOKS
   always_comb begin
     if (dbg_force_core_req) begin

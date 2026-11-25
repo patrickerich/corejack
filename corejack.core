@@ -116,6 +116,7 @@ filesets:
       - tb/uart_apb_tx_monitor.sv
       - tb/sim_ctrl_monitor.sv
       - tb/axi_sim_ctrl_monitor.sv
+      - tb/obi_protocol_checker.sv
       - tb/soc_dut.sv
     file_type: systemVerilogSource
 

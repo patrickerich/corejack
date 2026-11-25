@@ -184,6 +184,20 @@ transactions, and the crossbar buys concurrency and multiple-outstanding rather
 than bursts. The assertions are the guard that will flag the first burst-capable
 initiator added later.
 
+The software testbench ``tb/soc_dut.sv`` adds two checks that live outside
+``soc_top``. One more ``soc_axi_protocol_checker`` watches the iDMA's memory
+leg, which bypasses the crossbar. ``tb/obi_protocol_checker.sv`` watches the
+RV32 core's instruction and data buses, where the core adapter meets the OBI
+buffers:
+
+-  a request that is not granted stays up with a stable address, write enable,
+   byte enables and write data
+-  nothing is accepted from a core that is in reset
+-  a response only arrives while an access is outstanding
+-  no access is outstanding when the core reset releases
+
+The two rules about the core reset are explained in :doc:`riscv_dbg_integration`.
+
 Current Scope
 -------------
 
